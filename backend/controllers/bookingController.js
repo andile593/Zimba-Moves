@@ -1,0 +1,179 @@
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+const notifications = require('../services/notificationService');
+
+// Create a booking (CUSTOMER only)
+exports.createBooking = async (req, res) => {
+  try {
+    if (req.user.role !== 'CUSTOMER') {
+      return res.status(403).json({ error: 'Only customers can create bookings' });
+    }
+
+    const {
+      providerId,
+      vehicleId,
+      pickup,
+      dropoff,
+      moveType,
+      dateTime,
+      helpersRequired,
+      helpersProvidedBy, 
+      pricing
+    } = req.body;
+
+    const booking = await prisma.booking.create({
+      data: {
+        customerId: req.user.userId,
+        providerId,
+        vehicleId,
+        pickup,
+        dropoff,
+        moveType,
+        dateTime: new Date(dateTime),
+        helpersRequired,
+        helpersProvidedBy, // ADD THIS
+        pricing
+      }
+    });
+
+    const customer = await prisma.user.findUnique({ where: { id: req.user.userId } });
+    const provider = await prisma.provider.findUnique({
+      where: { id: booking.providerId },
+      include: { user: true }
+    });
+
+    notifications.notifyBookingCreated({ booking, customer, provider });
+
+    res.status(201).json(booking);
+  } catch (err) {
+    res.status(400).json({ error: 'Failed to create booking', details: err.message });
+  }
+};
+
+// Get all bookings (ADMIN → all, PROVIDER → own only)
+exports.getBookings = async (req, res) => {
+  try {
+    let bookings;
+
+    if (req.user.role === 'ADMIN') {
+      // Admin sees all bookings
+      bookings = await prisma.booking.findMany({
+        include: { 
+          customer: true, 
+          provider: { include: { user: true } }, 
+          vehicle: true 
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    } else if (req.user.role === 'PROVIDER') {
+      // Provider sees their bookings
+      const provider = await prisma.provider.findUnique({
+        where: { userId: req.user.userId }
+      });
+      
+      if (!provider) {
+        return res.status(404).json({ error: 'Provider profile not found' });
+      }
+
+      bookings = await prisma.booking.findMany({
+        where: { providerId: provider.id },
+        include: { 
+          customer: true, 
+          vehicle: true 
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    } else if (req.user.role === 'CUSTOMER') {
+      // Customer sees their own bookings
+      bookings = await prisma.booking.findMany({
+        where: { customerId: req.user.userId },
+        include: { 
+          provider: { 
+            include: { user: true } 
+          }, 
+          vehicle: true 
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    } else {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    res.json(bookings);
+  } catch (err) {
+    console.error('Error fetching bookings:', err);
+    res.status(500).json({ error: 'Failed to fetch bookings', details: err.message });
+  }
+};
+
+// Get booking by ID (CUSTOMER → own, PROVIDER → own, ADMIN → any)
+exports.getBookingById = async (req, res) => {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      include: { 
+        customer: true, 
+        provider: { include: { user: true } }, 
+        vehicle: true 
+      }
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    // Check authorization
+    if (req.user.role === 'CUSTOMER' && booking.customerId !== req.user.userId) {
+      return res.status(403).json({ error: 'Forbidden: not your booking' });
+    }
+    
+    if (req.user.role === 'PROVIDER') {
+      const provider = await prisma.provider.findUnique({
+        where: { userId: req.user.userId }
+      });
+      
+      if (!provider || booking.providerId !== provider.id) {
+        return res.status(403).json({ error: 'Forbidden: not your booking' });
+      }
+    }
+
+    res.json(booking);
+  } catch (err) {
+    console.error('Error fetching booking:', err);
+    res.status(500).json({ error: 'Failed to fetch booking', details: err.message });
+  }
+};
+// Update booking (CUSTOMER → only their own, ADMIN → any)
+exports.updateBooking = async (req, res) => {
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    if (req.user.role === 'CUSTOMER' && booking.customerId !== req.user.userId) {
+      return res.status(403).json({ error: 'Forbidden: not your booking' });
+    }
+
+    const updatedBooking = await prisma.booking.update({
+      where: { id: req.params.id },
+      data: req.body
+    });
+
+    res.json(updatedBooking);
+  } catch (err) {
+    res.status(400).json({ error: 'Failed to update booking', details: err.message });
+  }
+};
+
+// Delete booking (ADMIN only)
+exports.deleteBooking = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only admins can delete bookings' });
+    }
+
+    await prisma.booking.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Booking deleted successfully' });
+  } catch (err) {
+    res.status(400).json({ error: 'Failed to delete booking', details: err.message });
+  }
+};

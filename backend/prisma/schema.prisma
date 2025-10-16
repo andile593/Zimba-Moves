@@ -1,0 +1,310 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String     @id @default(uuid())
+  role      Role
+  email     String     @unique
+  phone     String     @unique
+  password  String
+  firstName String
+  lastName  String
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  Provider   Provider?
+  Bookings   Booking[]
+  Complaints Complaint[]
+  Quote      Quote[]
+}
+
+model Provider {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  earnings       Float    @default(0)
+  includeHelpers Boolean  @default(false)
+  
+  latitude       Float?   
+  longitude      Float?   
+  address        String?  
+  city           String?  
+  region         String?  
+  country        String?  @default("South Africa")
+  postalCode     String?  
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  vehicles Vehicle[]
+  bookings Booking[]
+  Quote    Quote[]
+  Payment  Payment[]
+  File     File[]
+}
+
+model Vehicle {
+  id         String      @id @default(uuid())
+  providerId String
+  type       VehicleType
+  capacity   Float
+  weight     Float
+  plate      String      @unique
+  baseRate   Float
+  perKmRate  Float       @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  provider Provider  @relation(fields: [providerId], references: [id])
+  bookings Booking[]
+  Quote    Quote[]
+  files     File[]
+}
+
+model Booking {
+  id                String        @id @default(uuid())
+  customerId        String
+  providerId        String
+  vehicleId         String
+  pickup            String
+  dropoff           String
+  moveType          MoveType
+  dateTime          DateTime
+  helpersRequired   Int           @default(0)
+  helpersProvidedBy HelpersSource @default(PROVIDER)
+  status            BookingStatus @default(PENDING)
+  pricing           Json
+  paymentStatus     PaymentStatus @default(PENDING)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  customer   User        @relation(fields: [customerId], references: [id])
+  provider   Provider    @relation(fields: [providerId], references: [id])
+  vehicle    Vehicle     @relation(fields: [vehicleId], references: [id])
+  complaints Complaint[]
+  Payment    Payment?
+
+  @@index([customerId])
+  @@index([providerId])
+  @@index([vehicleId])
+  @@index([dateTime])
+  @@index([status])
+}
+
+model Complaint {
+  id          String          @id @default(uuid())
+  customerId  String
+  bookingId   String
+  plateNumber String
+  issueTarget IssueTarget
+  description String
+  status      ComplaintStatus @default(OPEN)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  customer User    @relation(fields: [customerId], references: [id])
+  booking  Booking @relation(fields: [bookingId], references: [id])
+  File     File[]
+}
+
+model Quote {
+  id              String   @id @default(uuid())
+  customerId      String
+  providerId      String
+  vehicleId       String
+  pickup          String
+  dropoff         String
+  moveType        String
+  helpersRequired Int      @default(0)
+  instantEstimate Float
+  status          String   @default("DRAFT")
+  dateTime        DateTime
+  distance        Float?   // in kilometers
+  duration        Int?     // in minutes
+  distanceText    String?  // formatted text like "15.3 km"
+  durationText    String?  // formatted text like "23 mins"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  customer User    @relation(fields: [customerId], references: [id])
+  provider Provider @relation(fields: [providerId], references: [id])
+  vehicle  Vehicle  @relation(fields: [vehicleId], references: [id])
+  
+  @@map("quotes")
+}
+
+model Payment {
+  id              String         @id @default(uuid())
+  bookingId       String         @unique
+  amount          Float
+  status          PaymentStatus  @default(PENDING)
+  providerId      String?
+  gatewayReference String?       // Paystack transaction ref
+  refundReference  String?       // Paystack refund ref
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+  provider   Provider? @relation(fields: [providerId], references: [id])
+  events     PaymentEvent[]
+  refunds    Refund[]
+  @@index([status])
+  @@index([gatewayReference])
+}
+
+model PaymentEvent {
+  id         String   @id @default(uuid())
+  paymentId  String
+  type       String
+  gateway    String
+  gatewayRef String? 
+  payload    Json
+  createdAt  DateTime @default(now())
+
+  payment    Payment  @relation(fields: [paymentId], references: [id])
+
+  @@unique([gateway, gatewayRef])
+}
+
+
+
+
+model Refund {
+  id          String   @id @default(uuid())
+  paymentId   String
+  amount      Float
+  gateway     String
+  gatewayRef  String?
+  status      RefundStatus @default(PENDING)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+}
+
+model WebhookLog {
+  id         String   @id @default(uuid())
+  gateway    String
+  payload    Json
+  headers    Json
+  receivedAt DateTime @default(now())
+}
+
+model File {
+  id        String       @id @default(uuid())
+  url       String // local path or cloud URL
+  type      FileType
+  category  FileCategory
+  status    FileStatus   @default(PENDING)
+  createdAt DateTime     @default(now())
+
+  complaintId String?
+  complaint   Complaint? @relation(fields: [complaintId], references: [id])
+
+  providerId String?
+  provider   Provider? @relation(fields: [providerId], references: [id])
+  
+  vehicle    Vehicle? @relation(fields: [vehicleId], references: [id])
+  vehicleId  String? 
+}
+
+enum FileType {
+  IMAGE
+  DOCUMENT
+}
+
+enum FileCategory {
+  LICENSE
+  INSURANCE
+  BRANDING
+  EVIDENCE
+  PROFILE_PIC
+  OTHER
+}
+
+enum FileStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Role {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum VehicleType {
+  SMALL_VAN
+  MEDIUM_TRUCK
+  LARGE_TRUCK
+  OTHER
+}
+
+enum MoveType {
+  APARTMENT
+  OFFICE
+  SINGLE_ITEM
+  OTHER
+}
+
+enum HelpersSource {
+  PROVIDER
+  CUSTOMER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum RefundStatus {
+  PENDING
+  INITIATED
+  COMPLETED
+  FAILED
+}
+
+enum ComplaintStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum IssueTarget {
+  PROVIDER
+  HELPER
+  OTHER
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}

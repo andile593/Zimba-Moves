@@ -1,0 +1,94 @@
+import { Routes, Route, Navigate } from "react-router-dom";
+import ProtectedRoute from "../components/ProtectedRoute";
+import MainLayout from "../components/layouts/MainLayout";
+
+import Login from "../pages/Auth/Login";
+import Signup from "../pages/Auth/Signup";
+import Home from "../pages/Home";
+import Contact from "../pages/Contact/Contact";
+import QuoteRequest from "../pages/QuoteRequest";
+import Checkout from "../pages/Checkout";
+import PaymentStatusPage from "../pages/PaymentStatus";
+import BookingHistory from "../pages/Bookings";
+import BookingDetail from "../pages/Bookings/BookingDetail";
+import ComplaintForm from "../pages/Complaint";
+import ProviderPage from "../pages/Provider/ProviderPage";
+import ProviderBookings from "../pages/Provider/Bookings";
+import Vehicles from "../pages/Provider/Vehicles";
+import Earnings from "../pages/Provider/Earnings";
+import CreateProviderProfile from "../pages/Provider/CreateProviderProfile";
+import AdminDashboard from "../pages/Admin/Dashboard";
+import AdminUsers from "../pages/Admin/Users";
+import AdminProviders from "../pages/Admin/Providers";
+import AdminBookings from "../pages/Admin/Bookings";
+import AdminPayments from "../pages/Admin/Payments";
+import AdminComplaints from "../pages/Admin/Complaints";
+import UnauthorizedPage from "../pages/UnauthorizedPage";
+import SearchResults from "../pages/Search/SearchResults";
+import ProviderDetail from "../pages/ProviderDetail/index";
+import ProviderProfile from "../pages/Provider/ProviderProfile";
+import AdminAnalytics from "../pages/Admin/Analytics";
+import About from "../pages/About/index";
+import AuthCallback from "../pages/Auth/AuthCallBack";
+
+export default function AppRoutes() {
+  return (
+    <Routes>
+      {/* All routes wrapped in MainLayout */}
+      <Route element={<MainLayout />}>
+        {/* Public routes */}
+        <Route path="/" element={<Home />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/search" element={<SearchResults />} />
+        <Route path="/provider/:id" element={<ProviderDetail />} />
+        <Route path="/complaint" element={<ComplaintForm />} />
+
+        {/* Protected routes that require authentication */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/quote-request" element={<QuoteRequest />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/payment-status" element={<PaymentStatusPage />} />
+        </Route>
+
+        {/* Customer Protected Routes */}
+        <Route element={<ProtectedRoute allowedRoles={["CUSTOMER"]} />}>
+          <Route path="/bookings" element={<BookingHistory />} />
+          <Route path="/bookings/:id" element={<BookingDetail />} />
+          <Route path="/complaint" element={<ComplaintForm />} />
+        </Route>
+
+        {/* Provider Profile  */}
+        <Route element={<ProtectedRoute allowedRoles={["PROVIDER"]} />}>
+          <Route path="/providers/create" element={<CreateProviderProfile />} />
+        </Route>
+
+        {/* Provider Routes - Access handled inside ProviderPage component */}
+        <Route path="/provider" element={<ProviderPage />}>
+          <Route path="bookings" element={<ProviderBookings />} />
+          <Route path="vehicles" element={<Vehicles />} />
+          <Route path="earnings" element={<Earnings />} />
+          <Route path="profile" element={<ProviderProfile />} />
+        </Route>
+
+        {/* Admin Protected Routes */}
+        <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/providers" element={<AdminProviders />} />
+          <Route path="/admin/bookings" element={<AdminBookings />} />
+          <Route path="/admin/payments" element={<AdminPayments />} />
+          <Route path="/admin/complaints" element={<AdminComplaints />} />
+          <Route path="/admin/analytics" element={<AdminAnalytics />} />
+        </Route>
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate replace to="/" />} />
+      </Route>
+    </Routes>
+  );
+}

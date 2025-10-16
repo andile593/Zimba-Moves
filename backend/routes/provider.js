@@ -1,0 +1,44 @@
+// backend/routes/provider.js - UPDATED VERSION
+const express = require('express');
+const router = express.Router();
+const providerController = require('../controllers/providerController');
+const { authenticate, authorize } = require('../middleware/auth');
+const { providerSchema, vehicleSchema } = require('../validators/schema');
+const validate = require('../middleware/validate');
+const upload = require('../middleware/upload');
+
+
+router.get('/', providerController.getProviders); 
+router.get('/:id', providerController.getProviderById);
+router.get('/search/location', providerController.searchProvidersByLocation);
+router.get('/me/profile', authenticate, authorize('PROVIDER'), providerController.getMyProvider);
+router.post('/', authenticate, authorize('PROVIDER'), validate(providerSchema), providerController.createProvider);
+router.put('/:id', authenticate, authorize('PROVIDER', 'ADMIN'), providerController.updateProvider);
+router.delete('/:id', authenticate, authorize('ADMIN'), providerController.deleteProvider);
+
+// Vehicle routes
+router.post('/:id/vehicles', authenticate, authorize('PROVIDER'), validate(vehicleSchema), providerController.addVehicle);
+router.get('/:id/vehicles', authenticate, authorize('PROVIDER', 'ADMIN'), providerController.getVehiclesByProvider);
+
+// File upload routes
+router.post(
+  '/:id/files',
+  authenticate,
+  authorize('PROVIDER', 'ADMIN'),
+  upload.single('file'),
+  providerController.uploadProviderFile
+);
+router.get(
+  '/:id/files',
+  authenticate,
+  authorize('PROVIDER', 'ADMIN'),
+  providerController.getProviderFiles
+);
+router.delete(
+  '/:id/files/:fileId',
+  authenticate,
+  authorize('PROVIDER', 'ADMIN'),
+  providerController.deleteProviderFile
+);
+
+module.exports = router;
