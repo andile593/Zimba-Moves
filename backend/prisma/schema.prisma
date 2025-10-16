@@ -27,11 +27,13 @@ model User {
 }
 
 model Provider {
-  id             String   @id @default(uuid())
-  userId         String   @unique
-  earnings       Float    @default(0)
-  includeHelpers Boolean  @default(false)
+  id             String          @id @default(uuid())
+  userId         String          @unique
+  status         ProviderStatus  @default(PENDING)
+  earnings       Float           @default(0)
+  includeHelpers Boolean         @default(false)
   
+  // Location fields
   latitude       Float?   
   longitude      Float?   
   address        String?  
@@ -39,6 +41,27 @@ model Provider {
   region         String?  
   country        String?  @default("South Africa")
   postalCode     String?  
+  
+  // Application fields
+  idNumber       String?
+  businessName   String?
+  businessType   String?  // e.g., "SOLE_PROPRIETOR", "COMPANY"
+  taxNumber      String?
+  bankName       String?
+  accountNumber  String?
+  accountHolder  String?
+  
+  // Inspection request
+  inspectionRequested Boolean @default(false)
+  inspectionAddress   String?
+  inspectionDate      DateTime?
+  inspectionNotes     String?
+  
+  // Admin review
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  rejectionReason String?
+  adminNotes     String?
   
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -216,6 +239,13 @@ model File {
   vehicleId  String? 
 }
 
+enum ProviderStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
 enum FileType {
   IMAGE
   DOCUMENT
@@ -227,6 +257,10 @@ enum FileCategory {
   BRANDING
   EVIDENCE
   PROFILE_PIC
+  ID_DOCUMENT
+  PROOF_OF_ADDRESS
+  VEHICLE_REGISTRATION
+  VEHICLE_LICENSE_DISK
   OTHER
 }
 

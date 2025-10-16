@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const fs = require('fs').promises;
 const path = require('path');
+const emailService = require('../services/emailService');
 
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -15,6 +16,304 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
+
+// Create provider with application
+exports.createProviderApplication = async (req, res) => {
+  try {
+    if (req.user.role !== 'PROVIDER') {
+      return res.status(403).json({ error: 'Only users with PROVIDER role can apply' });
+    }
+
+    const {
+      // Personal info
+      idNumber,
+      
+      // Business info
+      businessName,
+      businessType,
+      taxNumber,
+      
+      // Banking info
+      bankName,
+      accountNumber,
+      accountHolder,
+      
+      // Location info
+      address,
+      city,
+      region,
+      country,
+      postalCode,
+      latitude,
+      longitude,
+      
+      // Inspection request
+      inspectionRequested,
+      inspectionAddress,
+      inspectionNotes,
+      
+      // Service info
+      includeHelpers
+    } = req.body;
+
+    // Check for existing application
+    const existing = await prisma.provider.findUnique({
+      where: { userId: req.user.userId }
+    });
+    
+    if (existing) {
+      return res.status(400).json({ 
+        error: 'Application already exists',
+        status: existing.status 
+      });
+    }
+
+    // Create provider application
+    const provider = await prisma.provider.create({
+      data: {
+        userId: req.user.userId,
+        status: 'PENDING',
+        
+        // Personal
+        idNumber,
+        
+        // Business
+        businessName,
+        businessType,
+        taxNumber,
+        
+        // Banking
+        bankName,
+        accountNumber,
+        accountHolder,
+        
+        // Location
+        address,
+        city,
+        region,
+        country: country || 'South Africa',
+        postalCode,
+        latitude: latitude ? parseFloat(latitude) : null,
+        longitude: longitude ? parseFloat(longitude) : null,
+        
+        // Inspection
+        inspectionRequested: inspectionRequested === true || inspectionRequested === 'true',
+        inspectionAddress,
+        inspectionNotes,
+        
+        // Service
+        includeHelpers: includeHelpers === true || includeHelpers === 'true'
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true
+          }
+        }
+      }
+    });
+
+    // Send confirmation email
+    await emailService.sendApplicationSubmitted(provider);
+
+    res.status(201).json({
+      message: 'Application submitted successfully',
+      provider
+    });
+  } catch (err) {
+    console.error('Error creating provider application:', err);
+    res.status(400).json({
+      error: 'Failed to submit application',
+      details: err.message
+    });
+  }
+};
+
+// Admin: Review application
+exports.reviewApplication = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only admins can review applications' });
+    }
+
+    const { status, rejectionReason, adminNotes } = req.body;
+    const providerId = req.params.id;
+
+    if (!['APPROVED', 'REJECTED'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const provider = await prisma.provider.update({
+      where: { id: providerId },
+      data: {
+        status,
+        rejectionReason: status === 'REJECTED' ? rejectionReason : null,
+        adminNotes,
+        reviewedBy: req.user.userId,
+        reviewedAt: new Date()
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // Send email notification
+    if (status === 'APPROVED') {
+      await emailService.sendApplicationApproved(provider);
+    } else {
+      await emailService.sendApplicationRejected(provider);
+    }
+
+    res.json({
+      message: `Application ${status.toLowerCase()}`,
+      provider
+    });
+  } catch (err) {
+    console.error('Error reviewing application:', err);
+    res.status(400).json({
+      error: 'Failed to review application',
+      details: err.message
+    });
+  }
+};
+
+// Admin: Schedule inspection
+exports.scheduleInspection = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only admins can schedule inspections' });
+    }
+
+    const { inspectionDate, inspectionAddress, inspectionNotes } = req.body;
+    const providerId = req.params.id;
+
+    const provider = await prisma.provider.update({
+      where: { id: providerId },
+      data: {
+        inspectionDate: new Date(inspectionDate),
+        inspectionAddress,
+        inspectionNotes
+      },
+      include: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // Send email notification
+    await emailService.sendInspectionScheduled(provider, inspectionDate);
+
+    res.json({
+      message: 'Inspection scheduled',
+      provider
+    });
+  } catch (err) {
+    res.status(400).json({
+      error: 'Failed to schedule inspection',
+      details: err.message
+    });
+  }
+};
+
+// Admin: Request additional documents
+exports.requestDocuments = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only admins can request documents' });
+    }
+
+    const { missingDocuments } = req.body;
+    const providerId = req.params.id;
+
+    const provider = await prisma.provider.findUnique({
+      where: { id: providerId },
+      include: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    if (!provider) {
+      return res.status(404).json({ error: 'Provider not found' });
+    }
+
+    // Send email notification
+    await emailService.sendDocumentsRequired(provider, missingDocuments);
+
+    res.json({
+      message: 'Document request sent',
+      provider
+    });
+  } catch (err) {
+    res.status(400).json({
+      error: 'Failed to request documents',
+      details: err.message
+    });
+  }
+};
+
+// Get all pending applications (Admin)
+exports.getPendingApplications = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Only admins can view applications' });
+    }
+
+    const applications = await prisma.provider.findMany({
+      where: { status: 'PENDING' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true
+          }
+        },
+        File: {
+          select: {
+            id: true,
+            category: true,
+            status: true,
+            createdAt: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json(applications);
+  } catch (err) {
+    res.status(500).json({
+      error: 'Failed to fetch applications',
+      details: err.message
+    });
+  }
+};
+
+
 
 exports.getProviders = async (req, res) => {
   try {
