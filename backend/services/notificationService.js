@@ -1,5 +1,4 @@
 const nodemailer = require('nodemailer');
-const twilio = require('twilio');
 
 // Email transport
 const transporter = nodemailer.createTransport({
@@ -12,8 +11,6 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Twilio client
-const smsClient = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
 
 async function sendEmail({ to, subject, html }) {
   try {
@@ -28,20 +25,6 @@ async function sendEmail({ to, subject, html }) {
     console.error(`Email failed to ${to}`, err.message);
   }
 }
-
-async function sendSMS({ to, body }) {
-  try {
-    await smsClient.messages.create({
-      body,
-      from: process.env.TWILIO_PHONE,
-      to
-    });
-    console.log(`📲 SMS sent to ${to}`);
-  } catch (err) {
-    console.error(`SMS failed to ${to}`, err.message);
-  }
-}
-
 /**
  * Domain-specific notifications
  */
@@ -53,14 +36,12 @@ async function notifyBookingCreated({ booking, customer, provider }) {
     Pickup: ${booking.pickup}, Dropoff: ${booking.dropoff}.
   `;
   await sendEmail({ to: customer.email, subject: 'Booking Confirmation', html: msg });
-  await sendSMS({ to: customer.phone, body: msg });
 
   const providerMsg = `
     Hi ${provider.company || provider.user.firstName}, new booking assigned.
     Pickup: ${booking.pickup}, Dropoff: ${booking.dropoff}.
   `;
   await sendEmail({ to: provider.user.email, subject: 'New Booking Assigned', html: providerMsg });
-  await sendSMS({ to: provider.user.phone, body: providerMsg });
 }
 
 // Payment success
@@ -70,7 +51,6 @@ async function notifyPaymentSuccess({ payment, booking, customer }) {
     Booking ID: ${booking.id}.
   `;
   await sendEmail({ to: customer.email, subject: 'Payment Successful', html: msg });
-  await sendSMS({ to: customer.phone, body: msg });
 }
 
 // Refund processed
@@ -80,7 +60,6 @@ async function notifyRefund({ refund, customer }) {
     Reference: ${refund.gatewayRef}.
   `;
   await sendEmail({ to: customer.email, subject: 'Refund Update', html: msg });
-  await sendSMS({ to: customer.phone, body: msg });
 }
 
 async function notifyRefundFinalized({ refund, payment, customer }) {
@@ -101,7 +80,6 @@ async function notifyRefundFinalized({ refund, payment, customer }) {
   }
 
   await sendEmail({ to: customer.email, subject, html: msg });
-  await sendSMS({ to: customer.phone, body: msg });
 }
 
 // Complaint opened
@@ -111,12 +89,10 @@ async function notifyComplaintOpened({ complaint, customer }) {
     Issue: ${complaint.description}.
   `;
   await sendEmail({ to: customer.email, subject: 'Complaint Received', html: msg });
-  await sendSMS({ to: customer.phone, body: msg });
 }
 
 module.exports = {
   sendEmail,
-  sendSMS,
   notifyBookingCreated,
   notifyPaymentSuccess,
   notifyRefund,

@@ -36,6 +36,8 @@ export default function AdminApplications() {
     }
   });
 
+  console.log("applications:", applications)
+
   const reviewMutation = useMutation({
     mutationFn: async ({ id, data }: any) => {
       return api.post(`/admin/providers/${id}/review`, data);
