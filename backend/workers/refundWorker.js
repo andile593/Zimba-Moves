@@ -2,7 +2,6 @@ const { Worker } = require('bullmq');
 const axios = require('axios');
 const prisma = require('../prisma');
 const notifications = require('../services/notificationService');
-const connection = { connection: { url: process.env.REDIS_URL } };
 
 const refundWorker = new Worker(
     'refunds',
@@ -62,7 +61,6 @@ const refundWorker = new Worker(
 
         return { refundStatus: mappedStatus };
     },
-    connection
 );
 
 refundWorker.on('completed', job => {

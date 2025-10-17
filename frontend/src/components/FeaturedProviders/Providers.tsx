@@ -13,7 +13,6 @@ import {
 import { getProviders } from "../../services/providerApi";
 import type { Provider as ProviderType } from "../../types/provider";
 
-// Extend the Provider type to include distance (can be number or null)
 interface ProviderWithDistance extends ProviderType {
   distance?: number | null;
 }
@@ -41,31 +40,42 @@ export default function FeaturedProviders() {
 
           try {
             const response = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.lat}&lon=${location.lng}`
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.lat}&lon=${location.lng}`,
+              {
+                headers: {
+                  'User-Agent': 'MoverApp/1.0'
+                }
+              }
             );
-            const data = await response.json();
-            location.city =
-              data.address?.city || data.address?.town || data.address?.suburb;
-            location.region = data.address?.state || data.address?.province;
+
+            if (response.ok) {
+              const data = await response.json();
+              location.city =
+                data.address?.city || data.address?.town || data.address?.suburb;
+              location.region = data.address?.state || data.address?.province;
+            }
           } catch (err) {
-            console.log("Could not get city name");
+            console.log("Could not get city name:", err);
           }
 
           setUserLocation(location);
           setPermissionDenied(false);
+          console.log("Location set:", location);
         },
         (error) => {
-          console.error("Location error:", error);
+          console.error("Location error:", error.code, error.message);
           if (error.code === 1) {
             setPermissionDenied(true);
           }
         },
         {
-          enableHighAccuracy: true,
-          timeout: 10000,
+          enableHighAccuracy: false,
+          timeout: 15000,
           maximumAge: 300000,
         }
       );
+    } else {
+      console.log("Geolocation not supported");
     }
   }, []);
 
@@ -73,6 +83,7 @@ export default function FeaturedProviders() {
     queryKey: ["featuredProviders"],
     queryFn: async () => {
       const res = await getProviders();
+      console.log("Fetched providers:", res.data?.length || 0);
       return res.data || [];
     },
     staleTime: 5 * 60 * 1000,
@@ -90,41 +101,69 @@ export default function FeaturedProviders() {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
   const featuredProviders: ProviderWithDistance[] = (() => {
-    if (!userLocation || !allProviders.length) {
+    if (!allProviders.length) {
+      return [];
+    }
+
+    // If no location yet, show random providers
+    if (!userLocation) {
       return [...allProviders].sort(() => Math.random() - 0.5).slice(0, 6);
     }
 
-    const providersWithDistance = allProviders
-      .filter((provider) => provider.latitude && provider.longitude)
-      .map((provider): ProviderWithDistance => {
-        const distance = calculateDistance(
-          userLocation.lat,
-          userLocation.lng,
-          provider.latitude!,
-          provider.longitude!
-        );
+    // Filter providers that have coordinates
+    const providersWithCoords = allProviders.filter(
+      (provider) => provider.latitude && provider.longitude
+    );
 
-        return {
-          ...provider,
-          distance,
-        };
-      });
+    console.log(`Providers with coordinates: ${providersWithCoords.length} out of ${allProviders.length}`);
 
-    return providersWithDistance
+    // If no providers have coordinates, show random ones
+    if (providersWithCoords.length === 0) {
+      console.log("No providers have coordinates, showing random providers");
+      return [...allProviders].sort(() => Math.random() - 0.5).slice(0, 6);
+    }
+
+    // Calculate distances
+    const providersWithDistance = providersWithCoords.map((provider): ProviderWithDistance => {
+      const distance = calculateDistance(
+        userLocation.lat,
+        userLocation.lng,
+        provider.latitude!,
+        provider.longitude!
+      );
+
+      return {
+        ...provider,
+        distance,
+      };
+    });
+
+    // Try to get providers within 30km
+    const nearbyProviders = providersWithDistance
       .filter((p) => p.distance !== undefined && p.distance !== null && p.distance <= 30)
+      .sort((a, b) => (a.distance || 0) - (b.distance || 0))
+      .slice(0, 6);
+
+    if (nearbyProviders.length > 0) {
+      console.log(`Found ${nearbyProviders.length} providers within 30km`);
+      return nearbyProviders;
+    }
+
+    // Fallback: show closest 6 providers regardless of distance
+    console.log("No providers within 30km, showing closest providers");
+    return providersWithDistance
       .sort((a, b) => (a.distance || 0) - (b.distance || 0))
       .slice(0, 6);
   })();
 
- 
   const getVehicleImageUrl = (imagePath: string | undefined) => {
     if (!imagePath) return null;
 
@@ -135,19 +174,8 @@ export default function FeaturedProviders() {
     }
 
     const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-    
-    // URL encode the path to handle spaces and special characters
     const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
-    const fullUrl = `${baseUrl}/uploads/${encodedPath}`;
-
-    console.log('Image path processing:', {
-      original: imagePath,
-      cleaned: cleanPath,
-      encoded: encodedPath,
-      final: fullUrl
-    });
-
-    return fullUrl;
+    return `${baseUrl}/uploads/${encodedPath}`;
   };
 
   if (isLoading) {
@@ -162,7 +190,8 @@ export default function FeaturedProviders() {
     );
   }
 
-  if (!featuredProviders.length) {
+  // Only hide if we have NO providers from API at all
+  if (!allProviders.length) {
     return null;
   }
 
@@ -173,9 +202,7 @@ export default function FeaturedProviders() {
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
               {userLocation && !permissionDenied
-                ? `Top Movers ${
-                    userLocation.city ? `in ${userLocation.city}` : "Near You"
-                  }`
+                ? `Top Movers ${userLocation.city ? `in ${userLocation.city}` : "Near You"}`
                 : "Featured Movers"}
             </h2>
             <div className="flex items-center gap-2 text-gray-600">
@@ -184,8 +211,8 @@ export default function FeaturedProviders() {
                 {userLocation && !permissionDenied
                   ? `Showing providers within 30km of your location`
                   : permissionDenied
-                  ? "Enable location for personalized results"
-                  : "Popular providers in your area"}
+                    ? "Enable location for personalized results"
+                    : "Popular providers in your area"}
               </span>
             </div>
           </div>
@@ -231,117 +258,129 @@ export default function FeaturedProviders() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {featuredProviders.map((provider) => {
-            const vehicleImage = provider.vehicles?.[0]?.files?.[0]?.url;
-            const imageUrl = getVehicleImageUrl(vehicleImage);
-
-
-            return (
-              <div
-                key={provider.id}
-                className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer overflow-hidden group"
-                onClick={() => navigate(`/provider/${provider.id}`)}
+          {featuredProviders.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                No providers found nearby
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Try expanding your search radius or check back later
+              </p>
+              <button
+                onClick={() => navigate("/search")}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition"
               >
-                <div className="h-40 bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center relative overflow-hidden">
-                  {imageUrl ? (
-                    <img
-                      src={imageUrl}
-                      alt={`${provider.user?.firstName || "Provider"}'s Vehicle`}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        console.error('Image load error for:', imageUrl);
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                  ) : null}
+                View All Providers
+              </button>
+            </div>
+          ) : (
+            featuredProviders.map((provider) => {
+              const vehicleImage = provider.vehicles?.[0]?.files?.[0]?.url;
+              const imageUrl = getVehicleImageUrl(vehicleImage);
 
-                  {!imageUrl && (
-                    <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-lg group-hover:scale-110 transition-transform">
-                      <Truck className="w-8 h-8" />
-                    </div>
-                  )}
+              return (
+                <div
+                  key={provider.id}
+                  className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer overflow-hidden group"
+                  onClick={() => navigate(`/provider/${provider.id}`)}
+                >
+                  <div className="h-40 bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center relative overflow-hidden">
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt={`${provider.user?.firstName || "Provider"}'s Vehicle`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : null}
 
-                  {provider.vehicles && provider.vehicles.length > 0 && (
-                    <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-medium text-gray-700 shadow flex items-center gap-1">
-                      <Truck className="w-3 h-3" />
-                      {provider.vehicles.length}
-                    </div>
-                  )}
+                    {!imageUrl && (
+                      <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-lg group-hover:scale-110 transition-transform">
+                        <Truck className="w-8 h-8" />
+                      </div>
+                    )}
 
-                  {userLocation && provider.distance && (
-                    <div className="absolute top-3 left-3 bg-green-600 text-white rounded-full px-3 py-1 text-xs font-medium shadow">
-                      {provider.distance.toFixed(1)}km away
-                    </div>
-                  )}
-                </div>
+                    {provider.vehicles && provider.vehicles.length > 0 && (
+                      <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-medium text-gray-700 shadow flex items-center gap-1">
+                        <Truck className="w-3 h-3" />
+                        {provider.vehicles.length}
+                      </div>
+                    )}
 
-                <div className="p-4">
-                  <h3 className="font-bold text-gray-800 mb-2 group-hover:text-green-600 transition truncate">
-                    {`${provider.user?.firstName || ""} ${
-                      provider.user?.lastName || ""
-                    }`.trim() || "Provider"}
-                  </h3>
+                    {userLocation && provider.distance && (
+                      <div className="absolute top-3 left-3 bg-green-600 text-white rounded-full px-3 py-1 text-xs font-medium shadow">
+                        {provider.distance.toFixed(1)}km away
+                      </div>
+                    )}
+                  </div>
 
-                  {provider.user && (
-                    <div className="mb-3 pb-3 border-b border-gray-100">
-                      {provider.user.phone && (
-                        <div className="flex items-center gap-2 mb-1">
-                          <Phone className="w-3.5 h-3.5 text-gray-400" />
-                          <span className="text-xs text-gray-600">
-                            {provider.user.phone}
-                          </span>
-                        </div>
-                      )}
-                      {provider.user.email && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-3.5 h-3.5 text-gray-400" />
-                          <span className="text-xs text-gray-600 truncate">
-                            {provider.user.email}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div className="p-4">
+                    <h3 className="font-bold text-gray-800 mb-2 group-hover:text-green-600 transition truncate">
+                      {`${provider.user?.firstName || ""} ${provider.user?.lastName || ""}`.trim() || "Provider"}
+                    </h3>
 
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[40px]">
-                    Reliable and professional moving services
-                  </p>
+                    {provider.user && (
+                      <div className="mb-3 pb-3 border-b border-gray-100">
+                        {provider.user.phone && (
+                          <div className="flex items-center gap-2 mb-1">
+                            <Phone className="w-3.5 h-3.5 text-gray-400" />
+                            <span className="text-xs text-gray-600">
+                              {provider.user.phone}
+                            </span>
+                          </div>
+                        )}
+                        {provider.user.email && (
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-3.5 h-3.5 text-gray-400" />
+                            <span className="text-xs text-gray-600 truncate">
+                              {provider.user.email}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-                  <div className="flex items-center gap-3 mb-4 pb-4 border-b">
-                    <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm font-semibold text-gray-800">
-                        {(Math.random() * 2 + 3).toFixed(1)}
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[40px]">
+                      Reliable and professional moving services
+                    </p>
+
+                    <div className="flex items-center gap-3 mb-4 pb-4 border-b">
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        <span className="text-sm font-semibold text-gray-800">
+                          {(Math.random() * 2 + 3).toFixed(1)}
+                        </span>
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        ({Math.floor(Math.random() * 50) + 10} reviews)
                       </span>
                     </div>
-                    <span className="text-xs text-gray-500">
-                      ({Math.floor(Math.random() * 50) + 10} reviews)
-                    </span>
-                  </div>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-gray-500">Starting from</p>
-                      <p className="text-lg font-bold text-green-700">
-                        R
-                        {provider.vehicles?.[0]?.baseRate ||
-                          Math.floor(Math.random() * 300) + 200}
-                      </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500">Starting from</p>
+                        <p className="text-lg font-bold text-green-700">
+                          R{provider.vehicles?.[0]?.baseRate || Math.floor(Math.random() * 300) + 200}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/quote-request?providerId=${provider.id}`);
+                        }}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                      >
+                        Get Quote
+                      </button>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/quote-request?providerId=${provider.id}`);
-                      }}
-                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-                    >
-                      Get Quote
-                    </button>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
 
         <div className="sm:hidden mt-6">

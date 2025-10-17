@@ -27,17 +27,17 @@ exports.createProviderApplication = async (req, res) => {
     const {
       // Personal info
       idNumber,
-      
+
       // Business info
       businessName,
       businessType,
       taxNumber,
-      
+
       // Banking info
       bankName,
       accountNumber,
       accountHolder,
-      
+
       // Location info
       address,
       city,
@@ -46,12 +46,12 @@ exports.createProviderApplication = async (req, res) => {
       postalCode,
       latitude,
       longitude,
-      
+
       // Inspection request
       inspectionRequested,
       inspectionAddress,
       inspectionNotes,
-      
+
       // Service info
       includeHelpers
     } = req.body;
@@ -60,11 +60,11 @@ exports.createProviderApplication = async (req, res) => {
     const existing = await prisma.provider.findUnique({
       where: { userId: req.user.userId }
     });
-    
+
     if (existing) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Application already exists',
-        status: existing.status 
+        status: existing.status
       });
     }
 
@@ -73,20 +73,20 @@ exports.createProviderApplication = async (req, res) => {
       data: {
         userId: req.user.userId,
         status: 'PENDING',
-        
+
         // Personal
         idNumber,
-        
+
         // Business
         businessName,
         businessType,
         taxNumber,
-        
+
         // Banking
         bankName,
         accountNumber,
         accountHolder,
-        
+
         // Location
         address,
         city,
@@ -95,12 +95,12 @@ exports.createProviderApplication = async (req, res) => {
         postalCode,
         latitude: latitude ? parseFloat(latitude) : null,
         longitude: longitude ? parseFloat(longitude) : null,
-        
+
         // Inspection
         inspectionRequested: inspectionRequested === true || inspectionRequested === 'true',
         inspectionAddress,
         inspectionNotes,
-        
+
         // Service
         includeHelpers: includeHelpers === true || includeHelpers === 'true'
       },
@@ -292,14 +292,10 @@ exports.getPendingApplications = async (req, res) => {
             phone: true
           }
         },
-        File: {
-          select: {
-            id: true,
-            category: true,
-            status: true,
-            createdAt: true
-          }
+        files: {
+          select: { id: true, category: true, status: true, createdAt: true }
         }
+
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -319,7 +315,7 @@ exports.getProviders = async (req, res) => {
   try {
     const { userId, lat, lng, radius = 30 } = req.query;
     const where = userId ? { userId } : {};
-    
+
     const providers = await prisma.provider.findMany({
       where,
       include: {
@@ -341,7 +337,7 @@ exports.getProviders = async (req, res) => {
       }
     });
 
-     providers.forEach(p => {
+    providers.forEach(p => {
       p.vehicles?.forEach(v => {
         v.files?.forEach(f => {
           console.log('📸 Image path in DB:', f.url);
@@ -484,7 +480,7 @@ exports.getMyProvider = async (req, res) => {
           select: { id: true, firstName: true, lastName: true, email: true, phone: true }
         },
         vehicles: {
-          
+
         },
         File: true
       }
@@ -724,7 +720,7 @@ exports.getVehiclesByProvider = async (req, res) => {
       include: {
         files: {
           where: {
-            category: 'BRANDING' 
+            category: 'BRANDING'
           },
           orderBy: {
             createdAt: 'desc'
@@ -779,14 +775,14 @@ exports.uploadProviderFile = async (req, res) => {
       const vehicle = await prisma.vehicle.findUnique({
         where: { id: vehicleId }
       });
-      
+
       if (!vehicle || vehicle.providerId !== providerId) {
         await fs.unlink(req.file.path);
         return res.status(400).json({ error: 'Invalid vehicle ID' });
       }
     }
 
-    
+
     const fileType = req.file.mimetype.startsWith('image/') ? 'IMAGE' : 'DOCUMENT';
 
     // Save file metadata in DB
@@ -796,7 +792,7 @@ exports.uploadProviderFile = async (req, res) => {
         type: fileType,
         category: category,
         providerId: providerId,
-        vehicleId: vehicleId, 
+        vehicleId: vehicleId,
         status: 'PENDING'
       }
     });

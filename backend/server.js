@@ -12,8 +12,6 @@ const { authenticate } = require("./middleware/auth");
 
 const app = express();
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 app.use(
   cors({
     origin: "*",
@@ -56,23 +54,22 @@ app.use(
   })
 );
 
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 // Initialize Passport
 app.use(passport.initialize());    require('node:crypto').randomBytes(32).toString('hex')
 app.use(passport.session());
 
-// Serve uploaded files statically
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 
 // Public routes
 app.use("/", require("./routes/auth"));
 app.use("/", require("./routes/pages"));
 
-// Provider routes - mix of public and protected
+// Provider routes
 app.use("/providers", require("./routes/provider"));
 
-// Quote routes - distance calculation is public, rest are protected
-const quoteRoutes = require("./routes/quote");
-app.use("/quotes", quoteRoutes);
+app.use("/quotes",require("./routes/quote"));
 
 // Protected routes
 app.use("/bookings", authenticate, require("./routes/booking"));

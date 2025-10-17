@@ -36,7 +36,14 @@ export default function AdminApplications() {
     }
   });
 
-  console.log("applications:", applications)
+
+
+  const mappedArray = applications.map((application: any) => {
+    return application
+  });
+
+  console.log(mappedArray);
+
 
   const reviewMutation = useMutation({
     mutationFn: async ({ id, data }: any) => {
@@ -73,7 +80,7 @@ export default function AdminApplications() {
 
   const submitReview = () => {
     if (!selectedApp) return;
-    
+
     if (reviewData.status === "REJECTED" && !reviewData.rejectionReason) {
       toast.error("Please provide a rejection reason");
       return;
@@ -321,17 +328,14 @@ export default function AdminApplications() {
                       onChange={(e) => setReviewData({ ...reviewData, status: e.target.value })}
                       className="sr-only"
                     />
-                    <div className={`border-2 rounded-xl p-4 text-center transition ${
-                      reviewData.status === "APPROVED"
+                    <div className={`border-2 rounded-xl p-4 text-center transition ${reviewData.status === "APPROVED"
                         ? "border-green-600 bg-green-50"
                         : "border-gray-200 hover:border-green-300"
-                    }`}>
-                      <CheckCircle className={`w-8 h-8 mx-auto mb-2 ${
-                        reviewData.status === "APPROVED" ? "text-green-600" : "text-gray-400"
-                      }`} />
-                      <p className={`font-semibold ${
-                        reviewData.status === "APPROVED" ? "text-green-800" : "text-gray-600"
                       }`}>
+                      <CheckCircle className={`w-8 h-8 mx-auto mb-2 ${reviewData.status === "APPROVED" ? "text-green-600" : "text-gray-400"
+                        }`} />
+                      <p className={`font-semibold ${reviewData.status === "APPROVED" ? "text-green-800" : "text-gray-600"
+                        }`}>
                         Approve
                       </p>
                     </div>
@@ -346,17 +350,14 @@ export default function AdminApplications() {
                       onChange={(e) => setReviewData({ ...reviewData, status: e.target.value })}
                       className="sr-only"
                     />
-                    <div className={`border-2 rounded-xl p-4 text-center transition ${
-                      reviewData.status === "REJECTED"
+                    <div className={`border-2 rounded-xl p-4 text-center transition ${reviewData.status === "REJECTED"
                         ? "border-red-600 bg-red-50"
                         : "border-gray-200 hover:border-red-300"
-                    }`}>
-                      <XCircle className={`w-8 h-8 mx-auto mb-2 ${
-                        reviewData.status === "REJECTED" ? "text-red-600" : "text-gray-400"
-                      }`} />
-                      <p className={`font-semibold ${
-                        reviewData.status === "REJECTED" ? "text-red-800" : "text-gray-600"
                       }`}>
+                      <XCircle className={`w-8 h-8 mx-auto mb-2 ${reviewData.status === "REJECTED" ? "text-red-600" : "text-gray-400"
+                        }`} />
+                      <p className={`font-semibold ${reviewData.status === "REJECTED" ? "text-red-800" : "text-gray-600"
+                        }`}>
                         Reject
                       </p>
                     </div>
@@ -414,11 +415,10 @@ export default function AdminApplications() {
                 <button
                   onClick={submitReview}
                   disabled={reviewMutation.isPending}
-                  className={`flex-1 px-6 py-3 text-white rounded-xl font-semibold transition shadow-lg disabled:opacity-50 ${
-                    reviewData.status === "APPROVED"
+                  className={`flex-1 px-6 py-3 text-white rounded-xl font-semibold transition shadow-lg disabled:opacity-50 ${reviewData.status === "APPROVED"
                       ? "bg-green-600 hover:bg-green-700"
                       : "bg-red-600 hover:bg-red-700"
-                  }`}
+                    }`}
                 >
                   {reviewMutation.isPending ? (
                     <span className="flex items-center justify-center gap-2">
