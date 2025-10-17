@@ -22,6 +22,16 @@ export type QuoteStatus = "DRAFT" | "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED"
 
 export type FileType = "IMAGE" | "DOCUMENT";
 
-export type FileCategory = "LICENSE" | "INSURANCE" | "BRANDING" | "EVIDENCE" | "PROFILE_PIC" | "OTHER";
+export type FileCategory =
+    | "LICENSE"
+    | "INSURANCE"
+    | "BRANDING"
+    | "EVIDENCE"
+    | "PROFILE_PIC"
+    | "ID_DOCUMENT"
+    | "PROOF_OF_ADDRESS"
+    | "VEHICLE_REGISTRATION"
+    | "VEHICLE_LICENSE_DISK"
+    | "OTHER";
 
 export type FileStatus = "PENDING" | "APPROVED" | "REJECTED";

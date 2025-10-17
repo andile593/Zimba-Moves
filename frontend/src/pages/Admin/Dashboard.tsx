@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Users, Truck, Package, CreditCard, AlertCircle, BarChart3, LogOut, Menu, X } from "lucide-react";
+import { Users, Truck, Package, CreditCard, AlertCircle, BarChart3, LogOut, Menu, X, FileText } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -30,15 +30,16 @@ export default function AdminDashboard() {
     },
   });
 
-  const menuItems = [
+ const menuItems = [
     { path: "users", label: "Users", icon: Users },
     { path: "providers", label: "Providers", icon: Truck },
+    { path: "applications", label: "Applications", icon: FileText, badge: "New" },
     { path: "bookings", label: "Bookings", icon: Package },
     { path: "payments", label: "Payments", icon: CreditCard },
     { path: "complaints", label: "Complaints", icon: AlertCircle },
     { path: "analytics", label: "Analytics", icon: BarChart3 },
   ];
-
+  
   const handleLogout = () => {
     logout();
     navigate("/");

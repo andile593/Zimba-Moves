@@ -1,4 +1,3 @@
-// backend/routes/provider.js - UPDATED VERSION
 const express = require('express');
 const router = express.Router();
 const providerController = require('../controllers/providerController');
@@ -7,12 +6,21 @@ const { providerSchema, vehicleSchema } = require('../validators/schema');
 const validate = require('../middleware/validate');
 const upload = require('../middleware/upload');
 
-
+// Public routes
 router.get('/', providerController.getProviders); 
-router.get('/:id', providerController.getProviderById);
 router.get('/search/location', providerController.searchProvidersByLocation);
+router.get('/:id', providerController.getProviderById);
+
+// Provider routes - require authentication
 router.get('/me/profile', authenticate, authorize('PROVIDER'), providerController.getMyProvider);
+
+// Application routes
+router.post('/application', authenticate, authorize('PROVIDER'), providerController.createProviderApplication);
+
+// Regular provider creation (deprecated - use /application instead)
 router.post('/', authenticate, authorize('PROVIDER'), validate(providerSchema), providerController.createProvider);
+
+// Provider update/delete
 router.put('/:id', authenticate, authorize('PROVIDER', 'ADMIN'), providerController.updateProvider);
 router.delete('/:id', authenticate, authorize('ADMIN'), providerController.deleteProvider);
 

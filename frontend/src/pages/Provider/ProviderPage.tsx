@@ -17,10 +17,10 @@ export default function ProviderPage() {
     queryKey: ["providerProfile", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      
+
       try {
         // Use the dedicated endpoint for current user's profile
-        const res = await api.get('/providers/me/profile');
+        const res = await api.get("/providers/me/profile");
         return res.data || null;
       } catch (err: any) {
         // If 404, user doesn't have a profile yet
@@ -46,7 +46,8 @@ export default function ProviderPage() {
   }, [user, authLoading]);
 
   // Show loading only on initial load
-  const isInitialLoading = authLoading || (profileLoading && providerProfile === undefined);
+  const isInitialLoading =
+    authLoading || (profileLoading && providerProfile === undefined);
 
   if (isInitialLoading) {
     return (
@@ -96,7 +97,8 @@ export default function ProviderPage() {
             Access Denied
           </h2>
           <p className="text-gray-600 mb-6">
-            Only users with a Provider role can access this page. Your current role is: <strong>{user.role}</strong>
+            Only users with a Provider role can access this page. Your current
+            role is: <strong>{user.role}</strong>
           </p>
           <button
             onClick={() => navigate("/")}
@@ -109,11 +111,11 @@ export default function ProviderPage() {
     );
   }
 
-  // User is provider but no profile exists
   if (!providerProfile) {
-    return <CreateProviderProfile />;
+    navigate("/provider/apply");
+    return null;
   }
 
   // User has provider profile - show dashboard
-  return <ProviderDashboard provider={providerProfile} />
+  return <ProviderDashboard provider={providerProfile} />;
 }

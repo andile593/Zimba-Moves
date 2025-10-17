@@ -16,20 +16,21 @@ import ProviderPage from "../pages/Provider/ProviderPage";
 import ProviderBookings from "../pages/Provider/Bookings";
 import Vehicles from "../pages/Provider/Vehicles";
 import Earnings from "../pages/Provider/Earnings";
-import CreateProviderProfile from "../pages/Provider/CreateProviderProfile";
+import ProviderApplicationForm from "../components/ProviderProfileForm/ProviderProfileForm";
 import AdminDashboard from "../pages/Admin/Dashboard";
 import AdminUsers from "../pages/Admin/Users";
 import AdminProviders from "../pages/Admin/Providers";
 import AdminBookings from "../pages/Admin/Bookings";
 import AdminPayments from "../pages/Admin/Payments";
 import AdminComplaints from "../pages/Admin/Complaints";
+import AdminApplications from "../pages/Admin/Applications";
 import UnauthorizedPage from "../pages/UnauthorizedPage";
 import SearchResults from "../pages/Search/SearchResults";
 import ProviderDetail from "../pages/ProviderDetail/index";
 import ProviderProfile from "../pages/Provider/ProviderProfile";
 import AdminAnalytics from "../pages/Admin/Analytics";
 import About from "../pages/About/index";
-import AuthCallback from "../pages/Auth/AuthCallBack";
+import AuthCallback from "../pages/Auth/AuthCallback";
 
 export default function AppRoutes() {
   return (
@@ -62,9 +63,9 @@ export default function AppRoutes() {
           <Route path="/complaint" element={<ComplaintForm />} />
         </Route>
 
-        {/* Provider Profile  */}
+        {/* Provider Application Route */}
         <Route element={<ProtectedRoute allowedRoles={["PROVIDER"]} />}>
-          <Route path="/providers/create" element={<CreateProviderProfile />} />
+          <Route path="/provider/apply" element={<ProviderApplicationForm />} />
         </Route>
 
         {/* Provider Routes - Access handled inside ProviderPage component */}
@@ -84,6 +85,7 @@ export default function AppRoutes() {
           <Route path="/admin/payments" element={<AdminPayments />} />
           <Route path="/admin/complaints" element={<AdminComplaints />} />
           <Route path="/admin/analytics" element={<AdminAnalytics />} />
+          <Route path="/admin/applications" element={<AdminApplications />} />
         </Route>
 
         {/* Fallback */}
