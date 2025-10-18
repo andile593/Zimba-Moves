@@ -85,7 +85,7 @@ export default function Navbar() {
       if (!hasRole) return false;
     }
     
-    // If link requires approved provider status
+    // FIXED: Check provider status correctly
     if (link.requiresApprovedProvider && userRole === "PROVIDER") {
       // Only show if provider is approved
       return providerStatus === "APPROVED";

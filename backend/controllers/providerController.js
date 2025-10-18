@@ -655,7 +655,8 @@ exports.getVehiclesByProvider = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch vehicles', details: err.message });
   }
 };
-// Upload provider file (license, insurance, branding)
+
+// Upload provider file (license, insurance, branding, KYC documents)
 exports.uploadProviderFile = async (req, res) => {
   try {
     const providerId = req.params.id;
@@ -677,9 +678,19 @@ exports.uploadProviderFile = async (req, res) => {
       return res.status(403).json({ error: 'Forbidden: You can only upload files to your own profile' });
     }
 
-    // Validate category
+    // Validate category - UPDATED to include KYC document types
     const category = req.body.category?.toUpperCase() || 'OTHER';
-    const validCategories = ['LICENSE', 'INSURANCE', 'BRANDING', 'PROFILE_PIC', 'OTHER'];
+    const validCategories = [
+      'LICENSE', 
+      'INSURANCE', 
+      'BRANDING', 
+      'PROFILE_PIC',
+      'ID_DOCUMENT',           // Added
+      'PROOF_OF_ADDRESS',      // Added
+      'VEHICLE_REGISTRATION',  // Added
+      'VEHICLE_LICENSE_DISK',  // Added
+      'OTHER'
+    ];
 
     if (!validCategories.includes(category)) {
       await fs.unlink(req.file.path);
@@ -703,7 +714,6 @@ exports.uploadProviderFile = async (req, res) => {
         return res.status(400).json({ error: 'Invalid vehicle ID' });
       }
     }
-
 
     const fileType = req.file.mimetype.startsWith('image/') ? 'IMAGE' : 'DOCUMENT';
 
@@ -739,6 +749,7 @@ exports.uploadProviderFile = async (req, res) => {
         console.error('Failed to delete file after error:', unlinkErr);
       }
     }
+    console.error('Upload error:', err);
     res.status(400).json({ error: 'Failed to upload file', details: err.message });
   }
 };

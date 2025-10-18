@@ -12,6 +12,8 @@ export interface User {
   lastName: string;
   phone: string;
   status: string;
+  providerStatus?: string | null;  // Added
+  providerId?: string | null;      // Added
 }
 
 export interface SignupData {
@@ -58,9 +60,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
     
+    console.log('AuthProvider initializing...', { hasToken: !!token, hasSavedUser: !!savedUser });
+    
     if (token && savedUser) {
       try {
         const userData = JSON.parse(savedUser);
+        console.log('User data loaded:', userData);
         setUser(userData);
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       } catch (err) {
@@ -68,6 +73,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
+    } else {
+      console.log('No token or user found in localStorage');
     }
     setLoading(false);
   }, []);
@@ -75,6 +82,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (email: string, password: string) => {
     const res = await api.post('/login', { email, password });
     const { token, user: userData } = res.data;
+    
+    console.log('Login successful:', userData);
     
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
@@ -87,6 +96,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const res = await api.post('/signup', data);
     const { token, user: userData } = res.data;
     
+    console.log('Signup successful:', userData);
+    
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -94,6 +105,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
+    console.log('Logging out...');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     delete api.defaults.headers.common['Authorization'];
@@ -104,7 +116,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refreshUser = async () => {
     try {
+      console.log('Refreshing user data...');
       const res = await api.get('/me');
+      console.log('User refreshed:', res.data);
       setUser(res.data);
       localStorage.setItem('user', JSON.stringify(res.data));
     } catch (err) {
