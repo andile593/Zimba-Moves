@@ -4,7 +4,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { FcGoogle } from "react-icons/fc";
 
 export default function Login() {
-  const { login, loginWithGoogle, user } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -32,9 +32,9 @@ export default function Login() {
         if (from) {
           navigate(from, { replace: true });
         } else if (userData.role === "PROVIDER") {
-          navigate("/provider/dashboard", { replace: true });
+          navigate("/provider", { replace: true });
         } else if (userData.role === "ADMIN") {
-          navigate("/admin/dashboard", { replace: true });
+          navigate("/admin", { replace: true });
         } else {
           navigate("/", { replace: true });
         }

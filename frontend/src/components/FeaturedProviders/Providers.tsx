@@ -173,7 +173,7 @@ export default function FeaturedProviders() {
       cleanPath = cleanPath.substring('uploads/'.length);
     }
 
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://lwwx2f-4000.csb.app';
     const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
     return `${baseUrl}/uploads/${encodedPath}`;
   };

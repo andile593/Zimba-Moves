@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const passport = require('../config/passport');
 const jwt = require('jsonwebtoken');
-const { userSignupSchema, userLoginSchema } = require('../validators/schema');
+const { userSignupSchema, userLoginSchema, providerSignupSchema } = require('../validators/schema');
 const authController = require('../controllers/userController');
 const validate = require('../middleware/validate');
 const { authenticate } = require('../middleware/auth');
 
 router.post('/signup', validate(userSignupSchema), authController.createUser);
+router.post('/signup/provider', validate(providerSignupSchema), authController.createProvider)
 router.post('/login', validate(userLoginSchema), authController.login);
 
 router.get(

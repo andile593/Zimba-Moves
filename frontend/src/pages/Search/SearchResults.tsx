@@ -108,7 +108,7 @@ export default function SearchResults() {
       cleanPath = cleanPath.substring('uploads/'.length);
     }
 
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://lwwx2f-4000.csb.app';
     
     // URL encode the path to handle spaces and special characters
     const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');

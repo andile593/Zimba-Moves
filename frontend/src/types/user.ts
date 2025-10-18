@@ -3,17 +3,16 @@ import type { Booking } from "./booking";
 import type { Complaint } from "./complaint";
 import type { Quote } from "./quote";
 import type { File } from "./file";
-import type { Role, UserStatus } from "./enums";
 
 export interface User {
-  id?: string;
-  role: Role;
+  id: string;
+  role: string;
   email: string;
   phone: string;
   password?: string;
   firstName: string;
   lastName: string;
-  status?: UserStatus;
+  status: string;
   createdAt?: string;
   updatedAt?: string;
   Provider?: Provider;
@@ -24,10 +23,31 @@ export interface User {
 }
 
 export type CreateUserInput = {
-  role: Role;
+  role: string;
   email: string;
   phone: string;
   password: string;
   firstName: string;
   lastName: string;
 };
+
+export interface SignupData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  password: string;
+  role: string;
+  providerData?: {
+    businessName: string;
+    businessType: string;
+    idNumber: string;
+    taxNumber?: string;
+    address: string;
+    city: string;
+    region?: string;
+    postalCode?: string;
+    country?: string;
+    includeHelpers?: boolean;
+  };
+}

@@ -41,11 +41,10 @@ model Provider {
   country        String?  @default("South Africa")
   postalCode     String?  
   
-  // Application fields
+  // Personal Application fields (simplified)
   idNumber       String?
-  businessName   String?
-  businessType   String?  // e.g., "SOLE_PROPRIETOR", "COMPANY"
-  taxNumber      String?
+  
+  // Banking info (for individual)
   bankName       String?
   accountNumber  String?
   accountHolder  String?
@@ -251,13 +250,12 @@ enum FileType {
 }
 
 enum FileCategory {
-  LICENSE
-  INSURANCE
-  BRANDING
-  EVIDENCE
-  PROFILE_PIC
-  ID_DOCUMENT
-  PROOF_OF_ADDRESS
+  INSURANCE          
+  BRANDING          
+  EVIDENCE          
+  PROFILE_PIC     
+  ID_DOCUMENT      
+  PROOF_OF_ADDRESS  
   VEHICLE_REGISTRATION
   VEHICLE_LICENSE_DISK
   OTHER

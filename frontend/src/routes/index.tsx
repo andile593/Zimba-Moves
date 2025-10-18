@@ -17,6 +17,7 @@ import ProviderBookings from "../pages/Provider/Bookings";
 import Vehicles from "../pages/Provider/Vehicles";
 import Earnings from "../pages/Provider/Earnings";
 import ProviderApplicationForm from "../components/ProviderProfileForm/ProviderProfileForm";
+import PendingApproval from "../pages/Provider/PendingApproval";
 import AdminDashboard from "../pages/Admin/Dashboard";
 import AdminUsers from "../pages/Admin/Users";
 import AdminProviders from "../pages/Admin/Providers";
@@ -35,7 +36,6 @@ import AuthCallback from "../pages/Auth/AuthCallback";
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* All routes wrapped in MainLayout */}
       <Route element={<MainLayout />}>
         {/* Public routes */}
         <Route path="/" element={<Home />} />
@@ -60,15 +60,15 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoute allowedRoles={["CUSTOMER"]} />}>
           <Route path="/bookings" element={<BookingHistory />} />
           <Route path="/bookings/:id" element={<BookingDetail />} />
-          <Route path="/complaint" element={<ComplaintForm />} />
         </Route>
 
         {/* Provider Application Route */}
         <Route element={<ProtectedRoute allowedRoles={["PROVIDER"]} />}>
           <Route path="/provider/apply" element={<ProviderApplicationForm />} />
+          <Route path="/provider/pending" element={<PendingApproval />} />
         </Route>
 
-        {/* Provider Routes - Access handled inside ProviderPage component */}
+        {/* Provider Routes */}
         <Route path="/provider" element={<ProviderPage />}>
           <Route path="bookings" element={<ProviderBookings />} />
           <Route path="vehicles" element={<Vehicles />} />
@@ -88,7 +88,6 @@ export default function AppRoutes() {
           <Route path="/admin/applications" element={<AdminApplications />} />
         </Route>
 
-        {/* Fallback */}
         <Route path="*" element={<Navigate replace to="/" />} />
       </Route>
     </Routes>

@@ -22,9 +22,9 @@ router.post('/refunds/:bookingId', adminController.triggerRefund);
 router.put('/files/:id/review', adminController.reviewFile);
 
 // Provider Application Management
-router.get('/applications/pending', providerController.getPendingApplications);
-router.post('/providers/:id/review', providerController.reviewApplication);
-router.post('/providers/:id/inspection', providerController.scheduleInspection);
-router.post('/providers/:id/request-documents', providerController.requestDocuments);
+router.get('/applications/pending', authenticate, authorize('ADMIN'), providerController.getPendingApplications);
+router.post('/providers/:id/review', authenticate, authorize('ADMIN'), providerController.reviewApplication);
+router.post('/providers/:id/inspection', authenticate, authorize('ADMIN'), providerController.scheduleInspection);
+router.post('/providers/:id/documents', authenticate, authorize('ADMIN'), providerController.requestDocuments);
 
 module.exports = router;
