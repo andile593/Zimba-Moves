@@ -1,31 +1,40 @@
-import { useContext } from "react";
 import { Navigate } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 
 interface ProtectedProviderRouteProps {
   children: React.ReactNode;
 }
 
 export default function ProtectedProviderRoute({ children }: ProtectedProviderRouteProps) {
-  const auth = useContext(AuthContext);
-  
-  // If not authenticated, redirect to login
-  if (!auth?.user) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen text-gray-600">
+        <span className="animate-pulse text-lg">Verifying provider access...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    console.warn("ProtectedProviderRoute: No user found, redirecting to login.");
     return <Navigate to="/login" replace />;
   }
-  
-  // If not a provider, redirect to home
-  if (auth.user.role !== "PROVIDER") {
+
+  const normalizedRole = user.role?.toUpperCase?.();
+  const normalizedStatus = user.status?.toUpperCase?.();
+
+  // 🧱 Step 4: Role check
+  if (normalizedRole !== "PROVIDER") {
+    console.warn("ProtectedProviderRoute: Non-provider attempted access:", user.role);
     return <Navigate to="/" replace />;
   }
-  
-  // If provider status is PENDING, redirect to pending page
-  if (auth.user.status === "PENDING") {
+
+  if (normalizedStatus === "PENDING") {
     return <Navigate to="/provider/pending" replace />;
   }
-  
-  // If provider status is REJECTED, show rejection message
-  if (auth.user.status === "REJECTED") {
+
+  if (normalizedStatus === "REJECTED") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center">
@@ -46,21 +55,19 @@ export default function ProtectedProviderRoute({ children }: ProtectedProviderRo
               </svg>
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
-            Application Rejected
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Application Rejected</h2>
           <p className="text-gray-600 mb-6">
             Unfortunately, your provider application was not approved. Please contact support for more information.
           </p>
           <div className="space-y-3">
             <button
-              onClick={() => window.location.href = "/contact"}
+              onClick={() => (window.location.href = "/contact")}
               className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
             >
               Contact Support
             </button>
             <button
-              onClick={() => window.location.href = "/"}
+              onClick={() => (window.location.href = "/")}
               className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
             >
               Return to Home
@@ -70,9 +77,8 @@ export default function ProtectedProviderRoute({ children }: ProtectedProviderRo
       </div>
     );
   }
-  
-  // If no provider status or not approved, show access denied
-  if (!auth.user.status || auth.user.status !== "APPROVED") {
+
+  if (!normalizedStatus || normalizedStatus !== "APPROVED") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center">
@@ -93,14 +99,12 @@ export default function ProtectedProviderRoute({ children }: ProtectedProviderRo
               </svg>
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
-            Access Restricted
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Restricted</h2>
           <p className="text-gray-600 mb-6">
             You need to be an approved provider to access this area.
           </p>
           <button
-            onClick={() => window.location.href = "/provider/apply"}
+            onClick={() => (window.location.href = "/provider/apply")}
             className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
           >
             Apply to Become a Provider
@@ -109,7 +113,5 @@ export default function ProtectedProviderRoute({ children }: ProtectedProviderRo
       </div>
     );
   }
-  
-  // Provider is approved, render the protected content
   return <>{children}</>;
 }

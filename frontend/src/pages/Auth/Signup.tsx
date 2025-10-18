@@ -516,14 +516,13 @@ export default function Signup() {
                   disabled={loading}
                   className="w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Continue to Business Details
+                  Continue to Demographic Details
                   <ArrowRight className="w-5 h-5" />
                 </button>
               )}
             </div>
           )}
 
-          {/* Step 2: Provider Business Details */}
           {activeTab === "PROVIDER" && currentStep === 2 && (
             <div className="space-y-4">
               <div>

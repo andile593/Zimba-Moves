@@ -30,10 +30,16 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter for validation
+// File filter for validation - Enhanced with logging
 const fileFilter = (req, file, cb) => {
+  console.log('📁 File upload attempt:', {
+    originalname: file.originalname,
+    mimetype: file.mimetype,
+    size: file.size
+  });
+
   // Allowed file types
-  const allowedImageTypes = /jpeg|jpg|png|gif|webp/;
+  const allowedImageTypes = /jpeg|jpg|jfif|png|gif|webp/;
   const allowedDocTypes = /pdf|doc|docx/;
   
   const extname = path.extname(file.originalname).toLowerCase().slice(1);
@@ -48,13 +54,15 @@ const fileFilter = (req, file, cb) => {
   );
 
   if (isImage || isDoc) {
+    console.log('File accepted:', file.originalname);
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only images (JPEG, PNG, GIF, WEBP) and documents (PDF, DOC, DOCX) are allowed.'));
+    console.log(' File rejected:', file.originalname, '- Extension:', extname, '- MIME:', mimetype);
+    cb(new Error('Invalid file type. Only images (JPEG, PNG, GIF, WEBP, Jfif) and documents (PDF, DOC, DOCX) are allowed.'));
   }
 };
 
-// Configure multer
+// Configure multer with error handling
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
@@ -62,5 +70,30 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024 // 5MB limit
   }
 });
+
+// Error handling wrapper
+upload.handleError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ 
+        error: 'File too large', 
+        details: 'File size must be less than 5MB' 
+      });
+    }
+    return res.status(400).json({ 
+      error: 'Upload error', 
+      details: err.message 
+    });
+  }
+  
+  if (err) {
+    return res.status(400).json({ 
+      error: 'Invalid file', 
+      details: err.message 
+    });
+  }
+  
+  next();
+};
 
 module.exports = upload;
