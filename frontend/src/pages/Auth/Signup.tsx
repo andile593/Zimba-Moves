@@ -4,8 +4,21 @@ import { useAuth } from "../../hooks/useAuth";
 import { FcGoogle } from "react-icons/fc";
 import { Truck, User, ArrowRight, ArrowLeft, CheckCircle } from "lucide-react";
 
+interface SignupUser {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+  role: "CUSTOMER";
+  id: string;
+  status: string;
+}
+
+
 export default function Signup() {
-  const { signup, signupWithGoogle } = useAuth();
+  const { providerSignup, signup, signupWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -24,12 +37,8 @@ export default function Signup() {
     confirmPassword: "",
   });
 
-  // Step 2: Provider business info (only for PROVIDER role)
   const [providerForm, setProviderForm] = useState({
-    businessName: "",
-    businessType: "SOLE_PROPRIETOR",
     idNumber: "",
-    taxNumber: "",
     address: "",
     city: "",
     region: "",
@@ -75,9 +84,9 @@ export default function Signup() {
   };
 
   const validateStep2 = () => {
-    const { businessName, idNumber, address, city } = providerForm;
+    const { idNumber, address, city } = providerForm;
     
-    if (!businessName || !idNumber || !address || !city) {
+    if ( !idNumber || !address || !city) {
       setError("Please fill in all required business fields");
       return false;
     }
@@ -101,44 +110,53 @@ export default function Signup() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
+  
     try {
-      // If CUSTOMER, submit directly
       if (activeTab === "CUSTOMER") {
         if (!validateStep1()) {
           setLoading(false);
           return;
         }
-        await signup({ ...form, role: activeTab });
+  
+        // Declare userData as SignupUser type
+        const userData: SignupUser = {
+          id: "",  // Assuming you'll generate or leave empty for now
+          status: "pending",  // Default status for a new user
+          ...form,
+          role: activeTab,
+          password: form.password,  // Ensure password and confirmPassword are handled
+          confirmPassword: form.confirmPassword,
+        };
+  
+        await signup(userData); // Call signup with the correct SignupUser type
       } else {
-        // If PROVIDER, validate both steps
+        // PROVIDER signup logic
         if (currentStep === 1) {
           handleNext();
           setLoading(false);
           return;
         }
-        
+  
         if (!validateStep2()) {
           setLoading(false);
           return;
         }
-
-        // Submit with provider data
-        await signup({ 
-          ...form, 
+  
+        // Call providerSignup for PROVIDER case
+        await providerSignup({
+          ...form,
           role: activeTab,
-          providerData: providerForm 
+          providerData: providerForm,
         });
       }
-      
+  
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         const userData = JSON.parse(storedUser);
-        
+  
         if (from) {
           navigate(from, { replace: true });
         } else if (userData.role === "PROVIDER") {
-          // Redirect to pending page for providers
           navigate("/provider/pending", { replace: true });
         } else {
           navigate("/", { replace: true });
@@ -150,6 +168,8 @@ export default function Signup() {
       setLoading(false);
     }
   };
+  
+  
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 py-8">
@@ -345,39 +365,6 @@ export default function Signup() {
           {/* Step 2: Provider Business Details (only for PROVIDER) */}
           {activeTab === "PROVIDER" && currentStep === 2 && (
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Business Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  name="businessName"
-                  placeholder="ABC Movers"
-                  className="w-full p-3 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
-                  onChange={handleProviderChange}
-                  value={providerForm.businessName}
-                  disabled={loading}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Business Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="businessType"
-                  className="w-full p-3 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
-                  onChange={handleProviderChange}
-                  value={providerForm.businessType}
-                  disabled={loading}
-                >
-                  <option value="SOLE_PROPRIETOR">Sole Proprietor</option>
-                  <option value="COMPANY">Company (Pty Ltd)</option>
-                  <option value="PARTNERSHIP">Partnership</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   ID Number <span className="text-red-500">*</span>

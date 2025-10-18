@@ -22,10 +22,7 @@ export interface SignupData {
   password: string;
   role: string;
   providerData?: {
-    businessName: string;
-    businessType: string;
     idNumber: string;
-    taxNumber?: string;
     address: string;
     city: string;
     region?: string;
@@ -39,7 +36,8 @@ export interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (data: SignupData) => Promise<void>;
+  signup: (data: User) => Promise<void>;  
+  providerSignup: (data: SignupData) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   loginWithGoogle: () => void;
@@ -87,8 +85,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(userData);
   };
 
-  const signup = async (data: SignupData) => {
+  const signup = async (data: User) => {
     const res = await api.post('/signup', data);
+    const { token, user: userData } = res.data;
+    
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    setUser(userData);
+  };
+
+  const providerSignup = async (data: SignupData) => {
+    const res = await api.post('/signup/provider', data);
     const { token, user: userData } = res.data;
     
     localStorage.setItem('token', token);
@@ -129,7 +137,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       user, 
       loading, 
       login, 
-      signup, 
+      signup,
+      providerSignup, 
       logout, 
       refreshUser,
       loginWithGoogle,

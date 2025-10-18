@@ -36,9 +36,6 @@ exports.createProviderApplication = async (req, res) => {
       postalCode,
       latitude,
       longitude,
-      inspectionRequested,
-      inspectionAddress,
-      inspectionNotes,
       includeHelpers
     } = req.body;
 
@@ -70,9 +67,6 @@ exports.createProviderApplication = async (req, res) => {
         postalCode,
         latitude: latitude ? parseFloat(latitude) : null,
         longitude: longitude ? parseFloat(longitude) : null,
-        inspectionRequested: inspectionRequested === true || inspectionRequested === 'true',
-        inspectionAddress,
-        inspectionNotes,
         includeHelpers: includeHelpers === true || includeHelpers === 'true'
       },
       include: {
