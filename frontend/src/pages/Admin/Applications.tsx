@@ -354,7 +354,7 @@ export default function AdminApplications() {
                                 <p className="text-sm font-bold text-slate-900">{doc.label}</p>
                                 {url && (
                                   <a
-                                    href={`${import.meta.env.VITE_API_URL || 'https://lwwx2f-4000.csb.app'}/${url.replace(/\\/g, '/')}`}
+                                    href={`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${url.replace(/\\/g, '/')}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition"

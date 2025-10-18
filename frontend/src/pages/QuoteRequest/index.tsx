@@ -4,7 +4,7 @@ import { MapPin, Truck, Users, Calculator, ArrowRight, Info, Phone, Mail, Clock,
 import toast from "react-hot-toast";
 import { useProvider } from "../../hooks/useProvider";
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://lwwx2f-4000.csb.app';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 type MoveType = "APARTMENT" | "OFFICE" | "SINGLE_ITEM" | "OTHER";
 

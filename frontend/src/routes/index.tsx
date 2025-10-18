@@ -13,6 +13,7 @@ import BookingHistory from "../pages/Bookings";
 import BookingDetail from "../pages/Bookings/BookingDetail";
 import ComplaintForm from "../pages/Complaint";
 import ProviderPage from "../pages/Provider/ProviderPage";
+import ProtectedProviderRoute from "../components/ProtectedProviderRoute";
 import ProviderBookings from "../pages/Provider/Bookings";
 import Vehicles from "../pages/Provider/Vehicles";
 import Earnings from "../pages/Provider/Earnings";
@@ -62,14 +63,22 @@ export default function AppRoutes() {
           <Route path="/bookings/:id" element={<BookingDetail />} />
         </Route>
 
-        {/* Provider Application Route */}
+        {/* Provider Application Routes - For PENDING providers */}
         <Route element={<ProtectedRoute allowedRoles={["PROVIDER"]} />}>
           <Route path="/provider/apply" element={<ProviderApplicationForm />} />
           <Route path="/provider/pending" element={<PendingApproval />} />
         </Route>
 
-        {/* Provider Routes */}
-        <Route path="/provider" element={<ProviderPage />}>
+        {/* Provider Routes - Only for APPROVED providers */}
+        <Route
+          path="/provider"
+          element={
+            <ProtectedProviderRoute>
+              <ProviderPage />
+            </ProtectedProviderRoute>
+          }
+        >
+          <Route index element={<Navigate to="bookings" replace />} />
           <Route path="bookings" element={<ProviderBookings />} />
           <Route path="vehicles" element={<Vehicles />} />
           <Route path="earnings" element={<Earnings />} />

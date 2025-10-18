@@ -36,18 +36,15 @@ export interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (data: User) => Promise<void>;  
-  providerSignup: (data: SignupData) => Promise<void>;
+  signup: (data: SignupData) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   loginWithGoogle: () => void;
   signupWithGoogle: () => void;
 }
 
-// Export the context itself
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Define props interface
 interface AuthProviderProps {
   children: ReactNode;
 }
@@ -85,18 +82,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(userData);
   };
 
-  const signup = async (data: User) => {
+  const signup = async (data: SignupData) => {
+    console.log('Signup data being sent:', data);
     const res = await api.post('/signup', data);
-    const { token, user: userData } = res.data;
-    
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    setUser(userData);
-  };
-
-  const providerSignup = async (data: SignupData) => {
-    const res = await api.post('/signup/provider', data);
     const { token, user: userData } = res.data;
     
     localStorage.setItem('token', token);
@@ -125,11 +113,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const loginWithGoogle = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL || 'https://lwwx2f-4000.csb.app'}/google`;
+    window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/google`;
   };
 
   const signupWithGoogle = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL || 'https://lwwx2f-4000.csb.app'}/google`;
+    window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/google`;
   };
 
   return (
@@ -138,7 +126,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       loading, 
       login, 
       signup,
-      providerSignup, 
       logout, 
       refreshUser,
       loginWithGoogle,
@@ -149,7 +136,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 }
 
-// Export the hook directly from this file
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (!context) {

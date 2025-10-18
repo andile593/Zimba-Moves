@@ -32,7 +32,6 @@ model Provider {
   earnings       Float           @default(0)
   includeHelpers Boolean         @default(false)
   
-  // Location fields
   latitude       Float?   
   longitude      Float?   
   address        String?  
@@ -41,21 +40,12 @@ model Provider {
   country        String?  @default("South Africa")
   postalCode     String?  
   
-  // Personal Application fields (simplified)
   idNumber       String?
   
-  // Banking info (for individual)
   bankName       String?
   accountNumber  String?
   accountHolder  String?
-  
-  // Inspection request
-  inspectionRequested Boolean @default(false)
-  inspectionAddress   String?
-  inspectionDate      DateTime?
-  inspectionNotes     String?
-  
-  // Admin review
+    
   reviewedBy     String?
   reviewedAt     DateTime?
   rejectionReason String?

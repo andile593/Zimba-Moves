@@ -1,28 +1,24 @@
 const Joi = require('joi');
 
-// User signup
 exports.userSignupSchema = Joi.object({
   firstName: Joi.string().min(2).max(50).required(),
   lastName: Joi.string().min(2).max(50).required(),
   email: Joi.string().email().required(),
   phone: Joi.string().pattern(/^[0-9]{7,15}$/).required(),
   password: Joi.string().min(6).required(),
+  confirmPassword: Joi.string().valid(Joi.ref('password')).optional().messages({
+    'any.only': 'Passwords must match'
+  }),
   role: Joi.string().valid('CUSTOMER', 'PROVIDER', 'ADMIN').required(),
-});
-
-exports.providerSignupSchema = Joi.object({
-  idNumber: Joi.string().min(5).max(20).required(),
-  bankName: Joi.string().required(),
-  accountNumber: Joi.string().required(),
-  accountHolder: Joi.string().min(2).max(100).required(),
-  address: Joi.string().min(5).max(200).required(),
-  city: Joi.string().min(2).max(100).required(),
-  region: Joi.string().max(100).optional().allow('', null),
-  postalCode: Joi.string().max(20).optional().allow('', null),
-  country: Joi.string().max(100).optional().default('South Africa'),
-  latitude: Joi.number().min(-90).max(90).optional().allow(null),
-  longitude: Joi.number().min(-180).max(180).optional().allow(null),
-  includeHelpers: Joi.boolean().optional().default(false)
+  providerData: Joi.object({
+    idNumber: Joi.string().min(5).max(20).required(),
+    address: Joi.string().min(5).max(200).required(),
+    city: Joi.string().min(2).max(100).required(),
+    region: Joi.string().max(100).optional().allow('', null),
+    postalCode: Joi.string().max(20).optional().allow('', null),
+    country: Joi.string().max(100).optional().default('South Africa'),
+    includeHelpers: Joi.boolean().optional().default(false)
+  }).optional()
 });
 
 //login

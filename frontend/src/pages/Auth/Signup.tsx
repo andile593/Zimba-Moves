@@ -1,24 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
+import type { SignupData } from "../../context/AuthContext";
 import { FcGoogle } from "react-icons/fc";
-import { Truck, User, ArrowRight, ArrowLeft, CheckCircle } from "lucide-react";
-
-interface SignupUser {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  password: string;
-  confirmPassword: string;
-  role: "CUSTOMER";
-  id: string;
-  status: string;
-}
-
+import { Truck, User, ArrowRight, ArrowLeft, CheckCircle, Upload, X, FileText } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function Signup() {
-  const { providerSignup, signup, signupWithGoogle } = useAuth();
+  const { signup, signupWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -26,8 +15,7 @@ export default function Signup() {
 
   const [activeTab, setActiveTab] = useState<"CUSTOMER" | "PROVIDER">("CUSTOMER");
   const [currentStep, setCurrentStep] = useState(1);
-  
-  // Step 1: Basic account info
+
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -47,8 +35,17 @@ export default function Signup() {
     includeHelpers: false
   });
 
+  // Document files state
+  const [documents, setDocuments] = useState({
+    ID_DOCUMENT: null as File | null,
+    PROOF_OF_ADDRESS: null as File | null,
+    VEHICLE_REGISTRATION: null as File | null,
+    VEHICLE_LICENSE_DISK: null as File | null,
+  });
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploadingDocs, setUploadingDocs] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -62,114 +59,271 @@ export default function Signup() {
     });
   };
 
+  const handleFileSelect = (category: keyof typeof documents, file: File) => {
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size must be less than 5MB");
+      return;
+    }
+
+    // Validate file type
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Only JPG, PNG, WEBP, and PDF files are allowed");
+      return;
+    }
+
+    setDocuments(prev => ({ ...prev, [category]: file }));
+    toast.success(`${file.name} selected`);
+  };
+
+  const handleFileRemove = (category: keyof typeof documents) => {
+    setDocuments(prev => ({ ...prev, [category]: null }));
+  };
+
   const validateStep1 = () => {
     const { firstName, lastName, email, phone, password, confirmPassword } = form;
-    
+
     if (!firstName || !lastName || !email || !phone || !password) {
       setError("Please fill in all required fields");
       return false;
     }
-    
+
     if (password.length < 6) {
       setError("Password must be at least 6 characters");
       return false;
     }
-    
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return false;
     }
-    
+
     return true;
   };
 
   const validateStep2 = () => {
     const { idNumber, address, city } = providerForm;
-    
-    if ( !idNumber || !address || !city) {
-      setError("Please fill in all required business fields");
+
+    if (!idNumber || !address || !city) {
+      setError("Please fill in all required demographic fields");
       return false;
     }
+
+    return true;
+  };
+
+  const validateStep3 = () => {
+    const requiredDocs = ['ID_DOCUMENT', 'PROOF_OF_ADDRESS', 'VEHICLE_REGISTRATION', 'VEHICLE_LICENSE_DISK'] as const;
+    const missingDocs = requiredDocs.filter(doc => !documents[doc]);
     
+    if (missingDocs.length > 0) {
+      setError("Please upload all required documents");
+      return false;
+    }
+
     return true;
   };
 
   const handleNext = () => {
-    if (validateStep1()) {
+    if (currentStep === 1 && validateStep1()) {
       setError("");
       setCurrentStep(2);
+    } else if (currentStep === 2 && validateStep2()) {
+      setError("");
+      setCurrentStep(3);
     }
   };
 
   const handleBack = () => {
     setError("");
-    setCurrentStep(1);
+    setCurrentStep(prev => prev - 1);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-  
+
     try {
       if (activeTab === "CUSTOMER") {
         if (!validateStep1()) {
           setLoading(false);
           return;
         }
-  
-        // Declare userData as SignupUser type
-        const userData: SignupUser = {
-          id: "",  // Assuming you'll generate or leave empty for now
-          status: "pending",  // Default status for a new user
-          ...form,
+
+        const { confirmPassword, ...formWithoutConfirm } = form;
+
+        const signupData: SignupData = {
+          ...formWithoutConfirm,
           role: activeTab,
-          password: form.password,  // Ensure password and confirmPassword are handled
-          confirmPassword: form.confirmPassword,
         };
-  
-        await signup(userData); // Call signup with the correct SignupUser type
+
+        await signup(signupData);
+        
+        if (from) {
+          navigate(from, { replace: true });
+        } else {
+          navigate("/", { replace: true });
+        }
       } else {
-        // PROVIDER signup logic
+        // PROVIDER
         if (currentStep === 1) {
           handleNext();
           setLoading(false);
           return;
         }
-  
-        if (!validateStep2()) {
+
+        if (currentStep === 2) {
+          handleNext();
           setLoading(false);
           return;
         }
-  
-        // Call providerSignup for PROVIDER case
-        await providerSignup({
-          ...form,
+
+        if (!validateStep3()) {
+          setLoading(false);
+          return;
+        }
+
+        // Remove confirmPassword before sending
+        const { confirmPassword, ...formWithoutConfirm } = form;
+
+        const signupData: SignupData = {
+          ...formWithoutConfirm,
           role: activeTab,
           providerData: providerForm,
-        });
-      }
-  
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-  
-        if (from) {
-          navigate(from, { replace: true });
-        } else if (userData.role === "PROVIDER") {
+        };
+
+        console.log('Provider signup data:', signupData);
+        
+        // Sign up the user first
+        const response = await signup(signupData);
+        
+        // Get the provider ID from the response
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          
+          // Upload documents if we have a provider ID
+          if (userData.providerId) {
+            setUploadingDocs(true);
+            await uploadDocuments(userData.providerId);
+            setUploadingDocs(false);
+            
+            toast.success("Account created and documents uploaded successfully!");
+          } else {
+            toast.success("Account created! Please upload documents from your dashboard.");
+          }
+
           navigate("/provider/pending", { replace: true });
-        } else {
-          navigate("/", { replace: true });
         }
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || "Signup failed. Please try again.");
-    } finally {
+      console.error('Signup error:', err);
+      setError(err.response?.data?.error || err.response?.data?.details || "Signup failed. Please try again.");
       setLoading(false);
+      setUploadingDocs(false);
     }
   };
-  
-  
+
+  const uploadDocuments = async (providerId: string) => {
+    const filesToUpload = Object.entries(documents).filter(([_, file]) => file !== null);
+    
+    if (filesToUpload.length === 0) return;
+
+    const uploadPromises = filesToUpload.map(async ([category, file]) => {
+      const formData = new FormData();
+      formData.append('file', file!);
+      formData.append('category', category);
+
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/providers/${providerId}/files`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to upload ${category}`);
+        }
+
+        console.log(`✓ Uploaded ${category}`);
+        return response;
+      } catch (error) {
+        console.error(`✗ Failed to upload ${category}:`, error);
+        throw error;
+      }
+    });
+
+    try {
+      await Promise.all(uploadPromises);
+    } catch (error) {
+      toast.error("Some documents failed to upload. Please upload them from your dashboard.");
+    }
+  };
+
+  const DocumentUpload = ({ 
+    category, 
+    label 
+  }: { 
+    category: keyof typeof documents; 
+    label: string; 
+  }) => {
+    const file = documents[category];
+    
+    return (
+      <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-green-400 transition">
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="font-semibold text-gray-800 text-sm">
+            {label}
+            <span className="text-red-500 ml-1">*</span>
+          </h3>
+          {file && (
+            <button
+              type="button"
+              onClick={() => handleFileRemove(category)}
+              className="p-1 hover:bg-red-100 rounded-lg transition"
+            >
+              <X className="w-4 h-4 text-red-600" />
+            </button>
+          )}
+        </div>
+
+        {file ? (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-3">
+            <FileText className="w-5 h-5 text-green-600 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-green-800 truncate">
+                {file.name}
+              </p>
+              <p className="text-xs text-green-600">
+                {(file.size / 1024).toFixed(1)} KB
+              </p>
+            </div>
+            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+          </div>
+        ) : (
+          <label className="cursor-pointer flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition border border-gray-200">
+            <Upload className="w-5 h-5 text-gray-600" />
+            <span className="text-sm font-medium text-gray-700">Choose File</span>
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              onChange={(e) => {
+                const selectedFile = e.target.files?.[0];
+                if (selectedFile) handleFileSelect(category, selectedFile);
+              }}
+              className="hidden"
+            />
+          </label>
+        )}
+      </div>
+    );
+  };
+
+  const totalSteps = activeTab === "PROVIDER" ? 3 : 1;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 py-8">
@@ -183,11 +337,10 @@ export default function Signup() {
               setCurrentStep(1);
               setError("");
             }}
-            className={`flex-1 py-4 px-6 text-center font-semibold transition-all ${
-              activeTab === "CUSTOMER"
+            className={`flex-1 py-4 px-6 text-center font-semibold transition-all ${activeTab === "CUSTOMER"
                 ? "bg-green-600 text-white"
                 : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-            }`}
+              }`}
           >
             <User className="inline-block w-5 h-5 mr-2 mb-1" />
             Customer
@@ -199,11 +352,10 @@ export default function Signup() {
               setCurrentStep(1);
               setError("");
             }}
-            className={`flex-1 py-4 px-6 text-center font-semibold transition-all ${
-              activeTab === "PROVIDER"
+            className={`flex-1 py-4 px-6 text-center font-semibold transition-all ${activeTab === "PROVIDER"
                 ? "bg-green-600 text-white"
                 : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-            }`}
+              }`}
           >
             <Truck className="inline-block w-5 h-5 mr-2 mb-1" />
             Provider
@@ -214,31 +366,30 @@ export default function Signup() {
         {activeTab === "PROVIDER" && (
           <div className="bg-gray-50 px-6 py-4 border-b">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                  currentStep >= 1 ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'
-                }`}>
-                  {currentStep > 1 ? <CheckCircle className="w-5 h-5" /> : '1'}
+              {[
+                { num: 1, label: "Account" },
+                { num: 2, label: "Demographic" },
+                { num: 3, label: "Documents" }
+              ].map((step, idx) => (
+                <div key={step.num} className="flex items-center flex-1">
+                  <div className="flex items-center gap-2 flex-1">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${currentStep >= step.num ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'
+                      }`}>
+                      {currentStep > step.num ? <CheckCircle className="w-5 h-5" /> : step.num}
+                    </div>
+                    <span className="text-sm font-medium text-gray-700 hidden sm:inline">{step.label}</span>
+                  </div>
+                  {idx < 2 && (
+                    <div className={`h-1 flex-1 mx-2 ${currentStep > step.num ? 'bg-green-600' : 'bg-gray-300'}`} />
+                  )}
                 </div>
-                <span className="text-sm font-medium text-gray-700">Account</span>
-              </div>
-              
-              <div className={`flex-1 h-1 mx-3 ${currentStep >= 2 ? 'bg-green-600' : 'bg-gray-300'}`} />
-              
-              <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                  currentStep >= 2 ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'
-                }`}>
-                  2
-                </div>
-                <span className="text-sm font-medium text-gray-700">Business</span>
-              </div>
+              ))}
             </div>
           </div>
         )}
 
         {/* Form Content */}
-        <div className="p-6">
+        <form onSubmit={handleSubmit} className="p-6">
           {/* Tab-specific messaging */}
           <div className="mb-6 text-center">
             {activeTab === "CUSTOMER" ? (
@@ -259,13 +410,22 @@ export default function Signup() {
                   Step 1: Basic account information
                 </p>
               </>
+            ) : currentStep === 2 ? (
+              <>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                  Demographic Information
+                </h1>
+                <p className="text-sm text-gray-600">
+                  Step 2: Tell us about your moving service
+                </p>
+              </>
             ) : (
               <>
                 <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                  Business Information
+                  Upload Documents
                 </h1>
                 <p className="text-sm text-gray-600">
-                  Step 2: Tell us about your moving business
+                  Step 3: Required documents for verification
                 </p>
               </>
             )}
@@ -277,7 +437,7 @@ export default function Signup() {
             </div>
           )}
 
-          {/* Step 1: Account Details (for both CUSTOMER and PROVIDER) */}
+          {/* Step 1: Account Details */}
           {(activeTab === "CUSTOMER" || (activeTab === "PROVIDER" && currentStep === 1)) && (
             <div className="space-y-4">
               <div className="flex gap-3">
@@ -343,7 +503,7 @@ export default function Signup() {
 
               {activeTab === "CUSTOMER" ? (
                 <button
-                  onClick={handleSubmit}
+                  type="submit"
                   disabled={loading}
                   className="w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -351,6 +511,7 @@ export default function Signup() {
                 </button>
               ) : (
                 <button
+                  type="button"
                   onClick={handleNext}
                   disabled={loading}
                   className="w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
@@ -362,7 +523,7 @@ export default function Signup() {
             </div>
           )}
 
-          {/* Step 2: Provider Business Details (only for PROVIDER) */}
+          {/* Step 2: Provider Business Details */}
           {activeTab === "PROVIDER" && currentStep === 2 && (
             <div className="space-y-4">
               <div>
@@ -443,15 +604,9 @@ export default function Signup() {
                 </label>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs text-blue-800">
-                  <strong>Note:</strong> Your application will be reviewed by our admin team within 2-3 business days. 
-                  You'll receive an email notification once approved.
-                </p>
-              </div>
-
-              <div className="flex gap-3">
+              <div className="flex gap-3 pt-4">
                 <button
+                  type="button"
                   onClick={handleBack}
                   className="flex-1 border-2 border-gray-300 text-gray-700 font-semibold py-3 rounded-lg hover:bg-gray-50 transition flex items-center justify-center gap-2"
                 >
@@ -459,11 +614,73 @@ export default function Signup() {
                   Back
                 </button>
                 <button
-                  onClick={handleSubmit}
+                  type="button"
+                  onClick={handleNext}
                   disabled={loading}
                   className="flex-1 bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {loading ? "Submitting..." : (
+                  Continue to Documents
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Documents Upload */}
+          {activeTab === "PROVIDER" && currentStep === 3 && (
+            <div className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                <p className="text-xs text-yellow-800">
+                  <strong>Note:</strong> All documents must be clear and valid. Accepted formats: JPG, PNG, WEBP, PDF (max 5MB each)
+                </p>
+              </div>
+
+              <DocumentUpload
+                category="ID_DOCUMENT"
+                label="ID Document"
+              />
+
+              <DocumentUpload
+                category="PROOF_OF_ADDRESS"
+                label="Proof of Address"
+              />
+
+              <DocumentUpload
+                category="VEHICLE_REGISTRATION"
+                label="Vehicle Registration"
+              />
+
+              <DocumentUpload
+                category="VEHICLE_LICENSE_DISK"
+                label="Valid License Disk"
+              />
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-800">
+                  <strong>Reminder:</strong> Your application will be reviewed within 2-3 business days.
+                  You'll receive an email notification once approved.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="flex-1 border-2 border-gray-300 text-gray-700 font-semibold py-3 rounded-lg hover:bg-gray-50 transition flex items-center justify-center gap-2"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || uploadingDocs}
+                  className="flex-1 bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {loading || uploadingDocs ? (
+                    <>
+                      {uploadingDocs ? "Uploading Documents..." : "Submitting..."}
+                    </>
+                  ) : (
                     <>
                       <CheckCircle className="w-5 h-5" />
                       Submit Application
@@ -494,15 +711,15 @@ export default function Signup() {
 
           <p className="text-center text-gray-600 text-sm mt-4">
             Already have an account?{" "}
-            <Link 
-              to="/login" 
-              state={{ from: location.state?.from }} 
+            <Link
+              to="/login"
+              state={{ from: location.state?.from }}
               className="text-green-600 font-semibold hover:underline"
             >
               Login
             </Link>
           </p>
-        </div>
+        </form>
       </div>
     </div>
   );

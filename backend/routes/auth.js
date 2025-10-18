@@ -2,13 +2,12 @@ const express = require('express');
 const router = express.Router();
 const passport = require('../config/passport');
 const jwt = require('jsonwebtoken');
-const { userSignupSchema, userLoginSchema, providerSignupSchema } = require('../validators/schema');
+const { userSignupSchema, userLoginSchema } = require('../validators/schema');
 const authController = require('../controllers/userController');
 const validate = require('../middleware/validate');
 const { authenticate } = require('../middleware/auth');
 
 router.post('/signup', validate(userSignupSchema), authController.createUser);
-router.post('/signup/provider', validate(providerSignupSchema), authController.createProvider)
 router.post('/login', validate(userLoginSchema), authController.login);
 
 router.get(
@@ -28,7 +27,6 @@ router.get(
   }),
   (req, res) => {
     try {
-      // Generate JWT token
       const token = jwt.sign(
         { 
           userId: req.user.id, 
@@ -38,7 +36,6 @@ router.get(
         { expiresIn: '24h' }
       );
 
-      // Redirect to frontend with token
       res.redirect(
         `${process.env.FRONTEND_URL}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify({
           id: req.user.id,
@@ -54,7 +51,6 @@ router.get(
     }
   }
 );
-
 
 router.get('/me', authenticate, (req, res) => {
   if (!req.user) return res.status(401).json({ message: "Unauthorized" });

@@ -18,6 +18,7 @@ type NavLink = {
   anchor?: string;
   requiresAuth?: boolean;
   allowedRoles?: string[];
+  requiresApprovedProvider?: boolean;
 };
 
 export default function Navbar() {
@@ -25,6 +26,7 @@ export default function Navbar() {
   const auth = useContext(AuthContext);
   const isAuthenticated = !!auth?.user;
   const userRole = auth?.user?.role;
+  const providerStatus = auth?.user?.status; 
   const logout = auth?.logout;
   const navigate = useNavigate();
 
@@ -52,7 +54,13 @@ export default function Navbar() {
   const navLinks: NavLink[] = [
     { label: "Home", to: "/" },
     { label: "How it works", to: "/", anchor: "how-it-works" },
-    { label: "For providers", to: "/provider" },
+    { 
+      label: "For providers", 
+      to: "/provider",
+      requiresAuth: true,
+      allowedRoles: ["PROVIDER"],
+      requiresApprovedProvider: true
+    },
     { 
       label: "My Bookings", 
       to: "/bookings", 
@@ -63,7 +71,7 @@ export default function Navbar() {
     { label: "Contact", to: "/contact" },
   ];
 
-  // Filter nav links based on auth and role
+  // Filter nav links based on auth, role, and provider status
   const filteredNavLinks = navLinks.filter(link => {
     // If link doesn't require auth, show it
     if (!link.requiresAuth) return true;
@@ -73,7 +81,14 @@ export default function Navbar() {
     
     // If link has role restrictions, check user role
     if (link.allowedRoles && link.allowedRoles.length > 0) {
-      return link.allowedRoles.includes(userRole || "");
+      const hasRole = link.allowedRoles.includes(userRole || "");
+      if (!hasRole) return false;
+    }
+    
+    // If link requires approved provider status
+    if (link.requiresApprovedProvider && userRole === "PROVIDER") {
+      // Only show if provider is approved
+      return providerStatus === "APPROVED";
     }
     
     return true;
