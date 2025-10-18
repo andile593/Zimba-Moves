@@ -1,6 +1,6 @@
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const { PrismaClient } = require('@prisma/client');
+const passport = require("passport");
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
+const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 passport.serializeUser((user, done) => {
@@ -21,13 +21,15 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:4000/auth/google/callback',
+      callbackURL:
+        process.env.GOOGLE_CALLBACK_URL ||
+        "https://lwwx2f-4000.csb.app/auth/google/callback",
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
         // Check if user exists
         let user = await prisma.user.findUnique({
-          where: { email: profile.emails[0].value }
+          where: { email: profile.emails[0].value },
         });
 
         if (!user) {
@@ -35,13 +37,19 @@ passport.use(
           user = await prisma.user.create({
             data: {
               email: profile.emails[0].value,
-              firstName: profile.name.givenName || profile.displayName.split(' ')[0] || 'User',
-              lastName: profile.name.familyName || profile.displayName.split(' ')[1] || '',
+              firstName:
+                profile.name.givenName ||
+                profile.displayName.split(" ")[0] ||
+                "User",
+              lastName:
+                profile.name.familyName ||
+                profile.displayName.split(" ")[1] ||
+                "",
               phone: `GOOGLE_${profile.id}`, // Temporary phone, user should update later
               password: `GOOGLE_AUTH_${Date.now()}`, // Dummy password for Google users
-              role: 'CUSTOMER', // Default role
-              status: 'ACTIVE'
-            }
+              role: "CUSTOMER", // Default role
+              status: "ACTIVE",
+            },
           });
         }
 

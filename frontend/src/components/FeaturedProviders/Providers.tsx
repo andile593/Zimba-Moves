@@ -43,15 +43,17 @@ export default function FeaturedProviders() {
               `https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.lat}&lon=${location.lng}`,
               {
                 headers: {
-                  'User-Agent': 'MoverApp/1.0'
-                }
+                  "User-Agent": "MoverApp/1.0",
+                },
               }
             );
 
             if (response.ok) {
               const data = await response.json();
               location.city =
-                data.address?.city || data.address?.town || data.address?.suburb;
+                data.address?.city ||
+                data.address?.town ||
+                data.address?.suburb;
               location.region = data.address?.state || data.address?.province;
             }
           } catch (err) {
@@ -101,9 +103,9 @@ export default function FeaturedProviders() {
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
@@ -123,7 +125,9 @@ export default function FeaturedProviders() {
       (provider) => provider.latitude && provider.longitude
     );
 
-    console.log(`Providers with coordinates: ${providersWithCoords.length} out of ${allProviders.length}`);
+    console.log(
+      `Providers with coordinates: ${providersWithCoords.length} out of ${allProviders.length}`
+    );
 
     // If no providers have coordinates, show random ones
     if (providersWithCoords.length === 0) {
@@ -132,23 +136,28 @@ export default function FeaturedProviders() {
     }
 
     // Calculate distances
-    const providersWithDistance = providersWithCoords.map((provider): ProviderWithDistance => {
-      const distance = calculateDistance(
-        userLocation.lat,
-        userLocation.lng,
-        provider.latitude!,
-        provider.longitude!
-      );
+    const providersWithDistance = providersWithCoords.map(
+      (provider): ProviderWithDistance => {
+        const distance = calculateDistance(
+          userLocation.lat,
+          userLocation.lng,
+          provider.latitude!,
+          provider.longitude!
+        );
 
-      return {
-        ...provider,
-        distance,
-      };
-    });
+        return {
+          ...provider,
+          distance,
+        };
+      }
+    );
 
     // Try to get providers within 30km
     const nearbyProviders = providersWithDistance
-      .filter((p) => p.distance !== undefined && p.distance !== null && p.distance <= 30)
+      .filter(
+        (p) =>
+          p.distance !== undefined && p.distance !== null && p.distance <= 30
+      )
       .sort((a, b) => (a.distance || 0) - (b.distance || 0))
       .slice(0, 6);
 
@@ -167,14 +176,18 @@ export default function FeaturedProviders() {
   const getVehicleImageUrl = (imagePath: string | undefined) => {
     if (!imagePath) return null;
 
-    let cleanPath = imagePath.replace(/\\/g, '/');
+    let cleanPath = imagePath.replace(/\\/g, "/");
 
-    if (cleanPath.startsWith('uploads/')) {
-      cleanPath = cleanPath.substring('uploads/'.length);
+    if (cleanPath.startsWith("uploads/")) {
+      cleanPath = cleanPath.substring("uploads/".length);
     }
 
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-    const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+    const baseUrl =
+      import.meta.env.VITE_API_URL || "https://9lwj8t-5173.csb.app";
+    const encodedPath = cleanPath
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
     return `${baseUrl}/uploads/${encodedPath}`;
   };
 
@@ -202,7 +215,9 @@ export default function FeaturedProviders() {
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
               {userLocation && !permissionDenied
-                ? `Top Movers ${userLocation.city ? `in ${userLocation.city}` : "Near You"}`
+                ? `Top Movers ${
+                    userLocation.city ? `in ${userLocation.city}` : "Near You"
+                  }`
                 : "Featured Movers"}
             </h2>
             <div className="flex items-center gap-2 text-gray-600">
@@ -211,8 +226,8 @@ export default function FeaturedProviders() {
                 {userLocation && !permissionDenied
                   ? `Showing providers within 30km of your location`
                   : permissionDenied
-                    ? "Enable location for personalized results"
-                    : "Popular providers in your area"}
+                  ? "Enable location for personalized results"
+                  : "Popular providers in your area"}
               </span>
             </div>
           </div>
@@ -289,7 +304,9 @@ export default function FeaturedProviders() {
                     {imageUrl ? (
                       <img
                         src={imageUrl}
-                        alt={`${provider.user?.firstName || "Provider"}'s Vehicle`}
+                        alt={`${
+                          provider.user?.firstName || "Provider"
+                        }'s Vehicle`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = "none";
@@ -319,7 +336,9 @@ export default function FeaturedProviders() {
 
                   <div className="p-4">
                     <h3 className="font-bold text-gray-800 mb-2 group-hover:text-green-600 transition truncate">
-                      {`${provider.user?.firstName || ""} ${provider.user?.lastName || ""}`.trim() || "Provider"}
+                      {`${provider.user?.firstName || ""} ${
+                        provider.user?.lastName || ""
+                      }`.trim() || "Provider"}
                     </h3>
 
                     {provider.user && (
@@ -363,7 +382,9 @@ export default function FeaturedProviders() {
                       <div>
                         <p className="text-xs text-gray-500">Starting from</p>
                         <p className="text-lg font-bold text-green-700">
-                          R{provider.vehicles?.[0]?.baseRate || Math.floor(Math.random() * 300) + 200}
+                          R
+                          {provider.vehicles?.[0]?.baseRate ||
+                            Math.floor(Math.random() * 300) + 200}
                         </p>
                       </div>
                       <button

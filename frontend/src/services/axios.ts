@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:4000",
+  baseURL: import.meta.env.VITE_API_URL || "https://9lwj8t-4000.csb.app",
   withCredentials: false,
 });
 
@@ -20,11 +20,12 @@ api.interceptors.response.use(
   (error) => {
     // Only redirect to login for protected routes, not for public endpoints
     if (error.response?.status === 401) {
-      const isPublicEndpoint = 
+      const isPublicEndpoint =
         error.config?.url?.includes("/login") ||
         error.config?.url?.includes("/signup") ||
-        error.config?.url?.includes("/providers") && error.config?.method === "get";
-      
+        (error.config?.url?.includes("/providers") &&
+          error.config?.method === "get");
+
       // Only clear token and redirect if it's not a public endpoint
       if (!isPublicEndpoint && !window.location.pathname.includes("/login")) {
         localStorage.removeItem("token");
@@ -38,4 +39,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-

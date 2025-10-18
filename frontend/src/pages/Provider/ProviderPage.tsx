@@ -1,40 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
-import api from "../../services/axios";
 import { Loader2, AlertCircle } from "lucide-react";
 import ProviderDashboard from "./Dashboard";
-import PendingApproval from "./PendingApproval";
 
 export default function ProviderPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [showUnauthorized, setShowUnauthorized] = useState(false);
-
-  // Check if user has provider profile
-  const { data: providerProfile, isLoading: profileLoading } = useQuery({
-    queryKey: ["providerProfile", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-
-      try {
-        const res = await api.get("/providers/me/profile");
-        return res.data || null;
-      } catch (err: any) {
-        if (err.response?.status === 404) {
-          return null;
-        }
-        throw err;
-      }
-    },
-    enabled: !!user?.id && user?.role === "PROVIDER",
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  });
 
   useEffect(() => {
     if (!authLoading && user && user.role !== "PROVIDER") {
@@ -42,10 +15,7 @@ export default function ProviderPage() {
     }
   }, [user, authLoading]);
 
-  const isInitialLoading =
-    authLoading || (profileLoading && providerProfile === undefined);
-
-  if (isInitialLoading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -105,19 +75,33 @@ export default function ProviderPage() {
     );
   }
 
-  // No provider profile found - redirect to application
-  if (!providerProfile) {
-    navigate("/provider/apply");
-    return null;
+  // Check provider status from user object
+  if (user.providerStatus === "PENDING") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+            <AlertCircle className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            Application Pending
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Your provider application is currently under review. We'll notify
+            you once it's approved.
+          </p>
+          <button
+            onClick={() => navigate("/")}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
   }
 
-  // Provider profile exists but not approved yet
-  if (providerProfile.status === "PENDING") {
-    return <PendingApproval />;
-  }
-
-  // Provider profile rejected
-  if (providerProfile.status === "REJECTED") {
+  if (user.providerStatus === "REJECTED") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
@@ -130,14 +114,8 @@ export default function ProviderPage() {
           <p className="text-gray-600 mb-4">
             Unfortunately, your provider application was not approved.
           </p>
-          {providerProfile.rejectionReason && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-left">
-              <p className="text-sm font-semibold text-red-800 mb-1">Reason:</p>
-              <p className="text-sm text-red-700">{providerProfile.rejectionReason}</p>
-            </div>
-          )}
           <p className="text-sm text-gray-600 mb-6">
-            You can contact our support team for more information or reapply with updated information.
+            You can contact our support team for more information.
           </p>
           <div className="flex gap-3">
             <button
@@ -158,8 +136,7 @@ export default function ProviderPage() {
     );
   }
 
-  // Provider profile suspended
-  if (providerProfile.status === "SUSPENDED") {
+  if (user.providerStatus === "SUSPENDED") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
@@ -170,7 +147,8 @@ export default function ProviderPage() {
             Account Suspended
           </h2>
           <p className="text-gray-600 mb-6">
-            Your provider account has been temporarily suspended. Please contact support for more information.
+            Your provider account has been temporarily suspended. Please contact
+            support for more information.
           </p>
           <button
             onClick={() => navigate("/contact")}
@@ -184,5 +162,6 @@ export default function ProviderPage() {
   }
 
   // Provider approved - show dashboard
-  return <ProviderDashboard provider={providerProfile} />;
+  // Pass user object with providerId to dashboard
+  return <ProviderDashboard provider={{ id: user.providerId, ...user }} />;
 }

@@ -1,0 +1,17 @@
+{
+    "firstName": "David",
+    "lastName": "Ndlovu",
+    "email": "davidndlovu@gmail.com",
+    "phone": "0810938713",
+    "password": "testing_1",
+    "role": "PROVIDER",
+    "providerData": {
+        "idNumber": "8012015117087",
+        "address": "593 Sobende Street, Duduza ",
+        "city": "Johannesburg",
+        "region": "Gauteng",
+        "postalCode": "",
+        "country": "South Africa",
+        "includeHelpers": true
+    }
+}

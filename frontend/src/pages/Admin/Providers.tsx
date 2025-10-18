@@ -6,7 +6,11 @@ import api from "../../services/axios";
 export default function AdminProviders() {
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: providers = [], isLoading } = useQuery({
+  const {
+    data: providers = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["adminProviders"],
     queryFn: async () => {
       const res = await api.get("/providers");
@@ -14,9 +18,18 @@ export default function AdminProviders() {
     },
   });
 
-  const filteredProviders = providers.filter((p: any) =>
-    p.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.city?.toLowerCase().includes(searchTerm.toLowerCase())
+  if (error) {
+    return (
+      <div className="p-6 bg-red-100 text-red-700 rounded">
+        Failed to load providers: {error.message || "Server error"}
+      </div>
+    );
+  }
+
+  const filteredProviders = providers.filter(
+    (p: any) =>
+      p.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.city?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (isLoading) {
@@ -28,35 +41,42 @@ export default function AdminProviders() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">All Providers</h1>
-        <div className="relative">
+    <div className="max-w-3xl mx-auto p-4 sm:p-6">
+      {/* Header + Search */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+          Providers
+        </h1>
+        <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search providers..."
+            placeholder="Search by name or city..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
           />
         </div>
       </div>
 
+      {/* Providers Grid */}
       <div className="grid gap-4">
         {filteredProviders.map((p: any) => (
           <div
             key={p.id}
-            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-green-500 transition"
+            className="bg-white rounded-2xl shadow-md p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center border border-gray-200 hover:shadow-lg transition"
           >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+            {/* Left Section */}
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
                 <Truck className="w-6 h-6 text-green-600" />
               </div>
-              <div>
-                <h2 className="font-semibold text-gray-900">{p.company || "Unnamed Provider"}</h2>
-                <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                  <span>{p.user?.email}</span>
+              <div className="flex-1 min-w-0">
+                <h2 className="font-semibold text-gray-900 truncate">
+                  {p.company || "Unnamed Provider"}
+                </h2>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 mt-1">
+                  <span className="truncate">{p.user?.email}</span>
                   {p.city && (
                     <span className="flex items-center gap-1">
                       <MapPin className="w-4 h-4" />
@@ -66,18 +86,30 @@ export default function AdminProviders() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-600">Vehicles</p>
-                <p className="font-semibold text-gray-900">{p.vehicles?.length || 0}</p>
+
+            {/* Right Section */}
+            <div className="flex gap-4 mt-4 sm:mt-0 sm:flex-col sm:items-end w-full sm:w-auto">
+              <div className="flex justify-between sm:flex-col gap-2 sm:gap-1 w-full sm:w-auto">
+                <p className="text-xs text-gray-500 sm:text-sm">Vehicles</p>
+                <p className="font-semibold text-gray-900">
+                  {p.vehicles?.length || 0}
+                </p>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-600">Earnings</p>
-                <p className="font-semibold text-green-600">R{p.earnings?.toFixed(2) || "0.00"}</p>
+              <div className="flex justify-between sm:flex-col gap-2 sm:gap-1 w-full sm:w-auto">
+                <p className="text-xs text-gray-500 sm:text-sm">Earnings</p>
+                <p className="font-semibold text-green-600">
+                  R{p.earnings?.toFixed(2) || "0.00"}
+                </p>
               </div>
             </div>
           </div>
         ))}
+
+        {filteredProviders.length === 0 && (
+          <div className="text-center text-gray-500 p-6">
+            No providers match your search.
+          </div>
+        )}
       </div>
     </div>
   );

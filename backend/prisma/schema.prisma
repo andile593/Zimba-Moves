@@ -3,63 +3,56 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String     @id @default(uuid())
-  role      Role
-  email     String     @unique
-  phone     String     @unique
-  password  String
-  firstName String
-  lastName  String
-  status    UserStatus @default(ACTIVE)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-
-  Provider   Provider?
+  id         String      @id @default(uuid())
+  role       Role
+  email      String      @unique
+  phone      String      @unique
+  password   String
+  firstName  String
+  lastName   String
+  status     UserStatus  @default(ACTIVE)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
   Bookings   Booking[]
   Complaints Complaint[]
+  Provider   Provider?
   Quote      Quote[]
 }
 
 model Provider {
-  id             String          @id @default(uuid())
-  userId         String          @unique
-  status         ProviderStatus  @default(PENDING)
-  earnings       Float           @default(0)
-  includeHelpers Boolean         @default(false)
-  
-  latitude       Float?   
-  longitude      Float?   
-  address        String?  
-  city           String?  
-  region         String?  
-  country        String?  @default("South Africa")
-  postalCode     String?  
-  
-  idNumber       String?
-  
-  bankName       String?
-  accountNumber  String?
-  accountHolder  String?
-    
-  reviewedBy     String?
-  reviewedAt     DateTime?
+  id              String         @id @default(uuid())
+  userId          String         @unique
+  earnings        Float          @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  includeHelpers  Boolean        @default(false)
+  address         String?
+  city            String?
+  country         String?        @default("South Africa")
+  latitude        Float?
+  longitude       Float?
+  postalCode      String?
+  region          String?
+  accountHolder   String?
+  accountNumber   String?
+  adminNotes      String?
+  bankName        String?
+  idNumber        String?
   rejectionReason String?
-  adminNotes     String?
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  user     User      @relation(fields: [userId], references: [id])
-  vehicles Vehicle[]
-  bookings Booking[]
-  Quote    Quote[]
-  Payment  Payment[]
-  files     File[]
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  status          ProviderStatus @default(PENDING)
+  bookings        Booking[]
+  files           File[]
+  Payment         Payment[]
+  user            User           @relation(fields: [userId], references: [id])
+  vehicles        Vehicle[]
+  Quote           Quote[]
 }
 
 model Vehicle {
@@ -73,11 +66,10 @@ model Vehicle {
   perKmRate  Float       @default(0)
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
-
-  provider Provider  @relation(fields: [providerId], references: [id])
-  bookings Booking[]
-  Quote    Quote[]
-  files     File[]
+  bookings   Booking[]
+  files      File[]
+  provider   Provider    @relation(fields: [providerId], references: [id])
+  Quote      Quote[]
 }
 
 model Booking {
@@ -90,18 +82,17 @@ model Booking {
   moveType          MoveType
   dateTime          DateTime
   helpersRequired   Int           @default(0)
-  helpersProvidedBy HelpersSource @default(PROVIDER)
   status            BookingStatus @default(PENDING)
   pricing           Json
   paymentStatus     PaymentStatus @default(PENDING)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
-
-  customer   User        @relation(fields: [customerId], references: [id])
-  provider   Provider    @relation(fields: [providerId], references: [id])
-  vehicle    Vehicle     @relation(fields: [vehicleId], references: [id])
-  complaints Complaint[]
-  Payment    Payment?
+  helpersProvidedBy HelpersSource @default(PROVIDER)
+  customer          User          @relation(fields: [customerId], references: [id])
+  provider          Provider      @relation(fields: [providerId], references: [id])
+  vehicle           Vehicle       @relation(fields: [vehicleId], references: [id])
+  complaints        Complaint[]
+  Payment           Payment?
 
   @@index([customerId])
   @@index([providerId])
@@ -120,10 +111,9 @@ model Complaint {
   status      ComplaintStatus @default(OPEN)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
-
-  customer User    @relation(fields: [customerId], references: [id])
-  booking  Booking @relation(fields: [bookingId], references: [id])
-  File     File[]
+  booking     Booking         @relation(fields: [bookingId], references: [id])
+  customer    User            @relation(fields: [customerId], references: [id])
+  File        File[]
 }
 
 model Quote {
@@ -138,35 +128,34 @@ model Quote {
   instantEstimate Float
   status          String   @default("DRAFT")
   dateTime        DateTime
-  distance        Float?   // in kilometers
-  duration        Int?     // in minutes
-  distanceText    String?  // formatted text like "15.3 km"
-  durationText    String?  // formatted text like "23 mins"
+  distance        Float?
+  duration        Int?
+  distanceText    String?
+  durationText    String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  customer        User     @relation(fields: [customerId], references: [id])
+  provider        Provider @relation(fields: [providerId], references: [id])
+  vehicle         Vehicle  @relation(fields: [vehicleId], references: [id])
 
-  customer User    @relation(fields: [customerId], references: [id])
-  provider Provider @relation(fields: [providerId], references: [id])
-  vehicle  Vehicle  @relation(fields: [vehicleId], references: [id])
-  
   @@map("quotes")
 }
 
 model Payment {
-  id              String         @id @default(uuid())
-  bookingId       String         @unique
-  amount          Float
-  status          PaymentStatus  @default(PENDING)
-  providerId      String?
-  gatewayReference String?       // Paystack transaction ref
-  refundReference  String?       // Paystack refund ref
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id               String         @id @default(uuid())
+  bookingId        String         @unique
+  amount           Float
+  status           PaymentStatus  @default(PENDING)
+  providerId       String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  gatewayReference String?
+  refundReference  String?
+  booking          Booking        @relation(fields: [bookingId], references: [id])
+  provider         Provider?      @relation(fields: [providerId], references: [id])
+  events           PaymentEvent[]
+  refunds          Refund[]
 
-  booking    Booking  @relation(fields: [bookingId], references: [id])
-  provider   Provider? @relation(fields: [providerId], references: [id])
-  events     PaymentEvent[]
-  refunds    Refund[]
   @@index([status])
   @@index([gatewayReference])
 }
@@ -174,31 +163,26 @@ model Payment {
 model PaymentEvent {
   id         String   @id @default(uuid())
   paymentId  String
-  type       String
   gateway    String
-  gatewayRef String? 
+  gatewayRef String?
   payload    Json
   createdAt  DateTime @default(now())
-
+  type       String
   payment    Payment  @relation(fields: [paymentId], references: [id])
 
   @@unique([gateway, gatewayRef])
 }
 
-
-
-
 model Refund {
-  id          String   @id @default(uuid())
-  paymentId   String
-  amount      Float
-  gateway     String
-  gatewayRef  String?
-  status      RefundStatus @default(PENDING)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  payment Payment @relation(fields: [paymentId], references: [id])
+  id         String       @id @default(uuid())
+  paymentId  String
+  amount     Float
+  gateway    String
+  gatewayRef String?
+  status     RefundStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  payment    Payment      @relation(fields: [paymentId], references: [id])
 }
 
 model WebhookLog {
@@ -210,21 +194,18 @@ model WebhookLog {
 }
 
 model File {
-  id        String       @id @default(uuid())
-  url       String // local path or cloud URL
-  type      FileType
-  category  FileCategory
-  status    FileStatus   @default(PENDING)
-  createdAt DateTime     @default(now())
-
+  id          String       @id @default(uuid())
+  url         String
+  type        FileType
+  category    FileCategory
+  status      FileStatus   @default(PENDING)
+  createdAt   DateTime     @default(now())
   complaintId String?
-  complaint   Complaint? @relation(fields: [complaintId], references: [id])
-
-  providerId String?
-  provider   Provider? @relation(fields: [providerId], references: [id])
-  
-  vehicle    Vehicle? @relation(fields: [vehicleId], references: [id])
-  vehicleId  String? 
+  providerId  String?
+  vehicleId   String?
+  complaint   Complaint?   @relation(fields: [complaintId], references: [id])
+  provider    Provider?    @relation(fields: [providerId], references: [id])
+  vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id])
 }
 
 enum ProviderStatus {
@@ -240,12 +221,12 @@ enum FileType {
 }
 
 enum FileCategory {
-  INSURANCE          
-  BRANDING          
-  EVIDENCE          
-  PROFILE_PIC     
-  ID_DOCUMENT      
-  PROOF_OF_ADDRESS  
+  INSURANCE
+  BRANDING
+  EVIDENCE
+  PROFILE_PIC
+  ID_DOCUMENT
+  PROOF_OF_ADDRESS
   VEHICLE_REGISTRATION
   VEHICLE_LICENSE_DISK
   OTHER

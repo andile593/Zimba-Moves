@@ -21,7 +21,11 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
-  Sparkles
+  Sparkles,
+  Eye,
+  X,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import api from "../../services/axios";
 
@@ -29,11 +33,18 @@ export default function AdminApplications() {
   const queryClient = useQueryClient();
   const [selectedApp, setSelectedApp] = useState<any>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewFile, setPreviewFile] = useState<{
+    url: string;
+    type: string;
+    name: string;
+  } | null>(null);
   const [expandedApps, setExpandedApps] = useState<Set<string>>(new Set());
+  const [imageZoom, setImageZoom] = useState(100);
   const [reviewData, setReviewData] = useState({
     status: "APPROVED",
     rejectionReason: "",
-    adminNotes: ""
+    adminNotes: "",
   });
 
   const { data: applications = [], isLoading } = useQuery({
@@ -41,7 +52,7 @@ export default function AdminApplications() {
     queryFn: async () => {
       const res = await api.get("/admin/applications/pending");
       return res.data;
-    }
+    },
   });
 
   const reviewMutation = useMutation({
@@ -53,15 +64,19 @@ export default function AdminApplications() {
       queryClient.invalidateQueries({ queryKey: ["pendingApplications"] });
       setShowReviewModal(false);
       setSelectedApp(null);
-      setReviewData({ status: "APPROVED", rejectionReason: "", adminNotes: "" });
+      setReviewData({
+        status: "APPROVED",
+        rejectionReason: "",
+        adminNotes: "",
+      });
     },
     onError: (err: any) => {
       toast.error(err.response?.data?.error || "Failed to review application");
-    }
+    },
   });
 
   const toggleExpand = (appId: string) => {
-    setExpandedApps(prev => {
+    setExpandedApps((prev) => {
       const next = new Set(prev);
       if (next.has(appId)) {
         next.delete(appId);
@@ -75,6 +90,24 @@ export default function AdminApplications() {
   const handleReview = (app: any) => {
     setSelectedApp(app);
     setShowReviewModal(true);
+  };
+
+  const handlePreviewFile = (url: string, fileName: string) => {
+    const fileExtension = fileName.split(".").pop()?.toLowerCase();
+    const fileType = fileExtension === "pdf" ? "pdf" : "image";
+    const fullUrl = `${
+      import.meta.env.VITE_API_URL || "http://localhost:4000"
+    }/${url.replace(/\\/g, "/")}`;
+
+    setPreviewFile({ url: fullUrl, type: fileType, name: fileName });
+    setShowPreviewModal(true);
+    setImageZoom(100);
+  };
+
+  const closePreview = () => {
+    setShowPreviewModal(false);
+    setPreviewFile(null);
+    setImageZoom(100);
   };
 
   const submitReview = () => {
@@ -96,18 +129,29 @@ export default function AdminApplications() {
     return doc?.url || null;
   };
 
+  const getDocumentFileName = (app: any, category: string) => {
+    const doc = app.files?.find((f: any) => f.category === category);
+    return doc?.fileName || "";
+  };
+
   const getDocumentStatusBadge = (status: string) => {
     const config = {
       APPROVED: { bg: "bg-emerald-500", text: "text-white", icon: CheckCircle },
       PENDING: { bg: "bg-amber-500", text: "text-white", icon: Clock },
       REJECTED: { bg: "bg-rose-500", text: "text-white", icon: XCircle },
-      MISSING: { bg: "bg-slate-300", text: "text-slate-700", icon: AlertCircle }
+      MISSING: {
+        bg: "bg-slate-300",
+        text: "text-slate-700",
+        icon: AlertCircle,
+      },
     };
     const style = config[status as keyof typeof config];
     const Icon = style.icon;
-    
+
     return (
-      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${style.bg} ${style.text} shadow-sm`}>
+      <span
+        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${style.bg} ${style.text} shadow-sm`}
+      >
         <Icon className="w-3 h-3" />
         {status}
       </span>
@@ -115,8 +159,15 @@ export default function AdminApplications() {
   };
 
   const getCompletionPercentage = (app: any) => {
-    const requiredDocs = ["ID_DOCUMENT", "PROOF_OF_ADDRESS", "VEHICLE_REGISTRATION", "VEHICLE_LICENSE_DISK"];
-    const submitted = requiredDocs.filter(cat => getDocumentStatus(app, cat) !== "MISSING").length;
+    const requiredDocs = [
+      "ID_DOCUMENT",
+      "PROOF_OF_ADDRESS",
+      "VEHICLE_REGISTRATION",
+      "VEHICLE_LICENSE_DISK",
+    ];
+    const submitted = requiredDocs.filter(
+      (cat) => getDocumentStatus(app, cat) !== "MISSING"
+    ).length;
     return Math.round((submitted / requiredDocs.length) * 100);
   };
 
@@ -127,7 +178,9 @@ export default function AdminApplications() {
           <Loader2 className="w-16 h-16 animate-spin text-green-600" />
           <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-green-200 animate-pulse" />
         </div>
-        <p className="mt-4 text-slate-600 font-medium">Loading applications...</p>
+        <p className="mt-4 text-slate-600 font-medium">
+          Loading applications...
+        </p>
       </div>
     );
   }
@@ -173,26 +226,35 @@ export default function AdminApplications() {
             <div className="w-24 h-24 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
               <CheckCircle className="w-12 h-12 text-green-600" />
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3">All Caught Up! 🎉</h3>
+            <h3 className="text-2xl font-bold text-slate-900 mb-3">
+              All Caught Up! 🎉
+            </h3>
             <p className="text-slate-600 max-w-md mx-auto text-lg">
-              No pending applications at the moment. New submissions will appear here.
+              No pending applications at the moment. New submissions will appear
+              here.
             </p>
           </div>
         ) : (
           applications.map((app: any) => {
             const completion = getCompletionPercentage(app);
-            const allDocsApproved = app.files?.every((f: any) => f.status === "APPROVED");
+            const allDocsApproved = app.files?.every(
+              (f: any) => f.status === "APPROVED"
+            );
             const isExpanded = expandedApps.has(app.id);
-            
+
             return (
-              <div key={app.id} className="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-slate-200">
+              <div
+                key={app.id}
+                className="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-slate-200"
+              >
                 {/* Card Header - Always Visible */}
                 <div className="bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-4 sm:p-6">
                   <div className="flex items-start gap-4">
                     {/* Avatar */}
                     <div className="relative flex-shrink-0">
                       <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-green-600 to-emerald-600 rounded-2xl flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg">
-                        {app.user.firstName[0]}{app.user.lastName[0]}
+                        {app.user.firstName[0]}
+                        {app.user.lastName[0]}
                       </div>
                       {allDocsApproved && (
                         <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white shadow-md">
@@ -209,12 +271,12 @@ export default function AdminApplications() {
                       <p className="text-sm text-slate-600 font-medium mb-3">
                         Individual Provider
                       </p>
-                      
+
                       {/* Contact Pills */}
                       <div className="flex flex-wrap gap-2 mb-3">
                         <span className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full text-xs font-medium text-slate-700 shadow-sm">
                           <Mail className="w-3 h-3 text-green-600" />
-                          {app.user.email.split('@')[0]}@...
+                          {app.user.email.split("@")[0]}@...
                         </span>
                         <span className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full text-xs font-medium text-slate-700 shadow-sm">
                           <Phone className="w-3 h-3 text-green-600" />
@@ -222,18 +284,25 @@ export default function AdminApplications() {
                         </span>
                         <span className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full text-xs font-medium text-slate-700 shadow-sm">
                           <Calendar className="w-3 h-3 text-green-600" />
-                          {new Date(app.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          {new Date(app.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
                         </span>
                       </div>
 
                       {/* Progress Bar */}
                       <div className="mb-3">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold text-slate-700">Completion</span>
-                          <span className="text-xs font-bold text-green-700">{completion}%</span>
+                          <span className="text-xs font-semibold text-slate-700">
+                            Completion
+                          </span>
+                          <span className="text-xs font-bold text-green-700">
+                            {completion}%
+                          </span>
                         </div>
                         <div className="relative w-full h-3 bg-slate-200 rounded-full overflow-hidden shadow-inner">
-                          <div 
+                          <div
                             className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 rounded-full transition-all duration-700 ease-out shadow-sm"
                             style={{ width: `${completion}%` }}
                           />
@@ -246,7 +315,11 @@ export default function AdminApplications() {
                           onClick={() => toggleExpand(app.id)}
                           className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 border-2 border-slate-300 text-slate-700 rounded-xl font-semibold transition shadow-sm"
                         >
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          {isExpanded ? (
+                            <ChevronUp className="w-4 h-4" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4" />
+                          )}
                           {isExpanded ? "Less" : "Details"}
                         </button>
                         <button
@@ -281,11 +354,15 @@ export default function AdminApplications() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-600">ID Number</span>
-                            <span className="font-semibold text-slate-900">{app.idNumber || "N/A"}</span>
+                            <span className="font-semibold text-slate-900">
+                              {app.idNumber || "N/A"}
+                            </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-600">Phone</span>
-                            <span className="font-semibold text-slate-900">{app.user.phone}</span>
+                            <span className="font-semibold text-slate-900">
+                              {app.user.phone}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -297,11 +374,18 @@ export default function AdminApplications() {
                           Location
                         </h4>
                         <div className="space-y-1 text-sm">
-                          {app.address && <p className="font-semibold text-slate-900">{app.address}</p>}
+                          {app.address && (
+                            <p className="font-semibold text-slate-900">
+                              {app.address}
+                            </p>
+                          )}
                           <p className="font-medium text-slate-700">
-                            {app.city}{app.region && `, ${app.region}`}
+                            {app.city}
+                            {app.region && `, ${app.region}`}
                           </p>
-                          <p className="text-slate-600">{app.postalCode} {app.country}</p>
+                          <p className="text-slate-600">
+                            {app.postalCode} {app.country}
+                          </p>
                         </div>
                       </div>
 
@@ -313,17 +397,29 @@ export default function AdminApplications() {
                         </h4>
                         <div className="grid sm:grid-cols-3 gap-4 text-sm">
                           <div>
-                            <span className="text-slate-600 block mb-1">Bank</span>
-                            <span className="font-semibold text-slate-900">{app.bankName || "N/A"}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-600 block mb-1">Account Holder</span>
-                            <span className="font-semibold text-slate-900">{app.accountHolder || "N/A"}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-600 block mb-1">Account Number</span>
+                            <span className="text-slate-600 block mb-1">
+                              Bank
+                            </span>
                             <span className="font-semibold text-slate-900">
-                              {app.accountNumber ? `***${app.accountNumber.slice(-4)}` : "N/A"}
+                              {app.bankName || "N/A"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-600 block mb-1">
+                              Account Holder
+                            </span>
+                            <span className="font-semibold text-slate-900">
+                              {app.accountHolder || "N/A"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-600 block mb-1">
+                              Account Number
+                            </span>
+                            <span className="font-semibold text-slate-900">
+                              {app.accountNumber
+                                ? `***${app.accountNumber.slice(-4)}`
+                                : "N/A"}
                             </span>
                           </div>
                         </div>
@@ -339,28 +435,61 @@ export default function AdminApplications() {
                       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {[
                           { label: "ID Document", category: "ID_DOCUMENT" },
-                          { label: "Proof of Address", category: "PROOF_OF_ADDRESS" },
-                          { label: "Vehicle Reg", category: "VEHICLE_REGISTRATION" },
-                          { label: "License Disk", category: "VEHICLE_LICENSE_DISK" },
+                          {
+                            label: "Proof of Address",
+                            category: "PROOF_OF_ADDRESS",
+                          },
+                          {
+                            label: "Vehicle Reg",
+                            category: "VEHICLE_REGISTRATION",
+                          },
+                          {
+                            label: "License Disk",
+                            category: "VEHICLE_LICENSE_DISK",
+                          },
                           { label: "Business License", category: "LICENSE" },
-                          { label: "Insurance", category: "INSURANCE" }
+                          { label: "Insurance", category: "INSURANCE" },
                         ].map((doc) => {
                           const status = getDocumentStatus(app, doc.category);
                           const url = getDocumentUrl(app, doc.category);
-                          
+                          const fileName = getDocumentFileName(
+                            app,
+                            doc.category
+                          );
+
                           return (
-                            <div key={doc.category} className="bg-white rounded-xl p-3 border border-slate-200 hover:border-green-300 hover:shadow-md transition group">
+                            <div
+                              key={doc.category}
+                              className="bg-white rounded-xl p-3 border border-slate-200 hover:border-green-300 hover:shadow-md transition group"
+                            >
                               <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-bold text-slate-900">{doc.label}</p>
+                                <p className="text-sm font-bold text-slate-900">
+                                  {doc.label}
+                                </p>
                                 {url && (
-                                  <a
-                                    href={`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${url.replace(/\\/g, '/')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition"
-                                  >
-                                    <ExternalLink className="w-4 h-4" />
-                                  </a>
+                                  <div className="flex gap-1">
+                                    <button
+                                      onClick={() =>
+                                        handlePreviewFile(url, fileName)
+                                      }
+                                      className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                                      title="Preview"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </button>
+                                    <a
+                                      href={`${
+                                        import.meta.env.VITE_API_URL ||
+                                        "http://localhost:4000"
+                                      }/${url.replace(/\\/g, "/")}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                                      title="Open in new tab"
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                    </a>
+                                  </div>
                                 )}
                               </div>
                               {getDocumentStatusBadge(status)}
@@ -379,13 +508,21 @@ export default function AdminApplications() {
                         </h4>
                         <div className="grid sm:grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="text-blue-700 font-semibold">Address:</span>
-                            <p className="text-blue-900 font-bold mt-1">{app.inspectionAddress}</p>
+                            <span className="text-blue-700 font-semibold">
+                              Address:
+                            </span>
+                            <p className="text-blue-900 font-bold mt-1">
+                              {app.inspectionAddress}
+                            </p>
                           </div>
                           {app.inspectionNotes && (
                             <div>
-                              <span className="text-blue-700 font-semibold">Notes:</span>
-                              <p className="text-blue-900 mt-1">{app.inspectionNotes}</p>
+                              <span className="text-blue-700 font-semibold">
+                                Notes:
+                              </span>
+                              <p className="text-blue-900 mt-1">
+                                {app.inspectionNotes}
+                              </p>
                             </div>
                           )}
                         </div>
@@ -398,6 +535,86 @@ export default function AdminApplications() {
           })
         )}
       </div>
+
+      {/* File Preview Modal */}
+      {showPreviewModal && previewFile && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="relative w-full max-w-6xl max-h-[95vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FileText className="w-6 h-6" />
+                <div>
+                  <h3 className="font-bold text-lg">Document Preview</h3>
+                  <p className="text-sm text-slate-300 truncate max-w-md">
+                    {previewFile.name}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {previewFile.type === "image" && (
+                  <>
+                    <button
+                      onClick={() => setImageZoom(Math.max(50, imageZoom - 25))}
+                      className="p-2 hover:bg-slate-700 rounded-lg transition"
+                      title="Zoom Out"
+                    >
+                      <ZoomOut className="w-5 h-5" />
+                    </button>
+                    <span className="text-sm font-semibold min-w-[60px] text-center">
+                      {imageZoom}%
+                    </span>
+                    <button
+                      onClick={() =>
+                        setImageZoom(Math.min(200, imageZoom + 25))
+                      }
+                      className="p-2 hover:bg-slate-700 rounded-lg transition"
+                      title="Zoom In"
+                    >
+                      <ZoomIn className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
+                <a
+                  href={previewFile.url}
+                  download
+                  className="p-2 hover:bg-slate-700 rounded-lg transition"
+                  title="Download"
+                >
+                  <Download className="w-5 h-5" />
+                </a>
+                <button
+                  onClick={closePreview}
+                  className="p-2 hover:bg-slate-700 rounded-lg transition"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-auto bg-slate-100 p-4">
+              <div className="flex items-center justify-center min-h-full">
+                {previewFile.type === "pdf" ? (
+                  <iframe
+                    src={previewFile.url}
+                    className="w-full h-[80vh] rounded-lg shadow-xl bg-white"
+                    title="PDF Preview"
+                  />
+                ) : (
+                  <img
+                    src={previewFile.url}
+                    alt={previewFile.name}
+                    className="max-w-full h-auto rounded-lg shadow-xl transition-transform duration-200"
+                    style={{ transform: `scale(${imageZoom / 100})` }}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Review Modal */}
       {showReviewModal && selectedApp && (
@@ -428,46 +645,32 @@ export default function AdminApplications() {
                       name="status"
                       value="APPROVED"
                       checked={reviewData.status === "APPROVED"}
-                      onChange={(e) => setReviewData({ ...reviewData, status: e.target.value })}
+                      onChange={(e) =>
+                        setReviewData({ ...reviewData, status: e.target.value })
+                      }
                       className="sr-only"
                     />
-                    <div className={`border-3 rounded-2xl p-6 text-center transition-all ${
-                      reviewData.status === "APPROVED"
-                        ? "border-green-600 bg-green-50 shadow-xl shadow-green-600/20 scale-105"
-                        : "border-slate-200 hover:border-green-300 hover:shadow-lg"
-                    }`}>
-                      <CheckCircle className={`w-12 h-12 mx-auto mb-3 ${
-                        reviewData.status === "APPROVED" ? "text-green-600" : "text-slate-400"
-                      }`} />
-                      <p className={`font-bold text-xl mb-1 ${
-                        reviewData.status === "APPROVED" ? "text-green-800" : "text-slate-600"
-                      }`}>
-                        Approve
-                      </p>
-                      <p className="text-xs text-slate-500">Grant platform access</p>
-                    </div>
-                  </label>
-
-                  <label className="cursor-pointer group">
-                    <input
-                      type="radio"
-                      name="status"
-                      value="REJECTED"
-                      checked={reviewData.status === "REJECTED"}
-                      onChange={(e) => setReviewData({ ...reviewData, status: e.target.value })}
-                      className="sr-only"
-                    />
-                    <div className={`border-3 rounded-2xl p-6 text-center transition-all ${
-                      reviewData.status === "REJECTED"
-                        ? "border-rose-600 bg-rose-50 shadow-xl shadow-rose-600/20 scale-105"
-                        : "border-slate-200 hover:border-rose-300 hover:shadow-lg"
-                    }`}>
-                      <XCircle className={`w-12 h-12 mx-auto mb-3 ${
-                        reviewData.status === "REJECTED" ? "text-rose-600" : "text-slate-400"
-                      }`} />
-                      <p className={`font-bold text-xl mb-1 ${
-                        reviewData.status === "REJECTED" ? "text-rose-800" : "text-slate-600"
-                      }`}>
+                    <div
+                      className={`border-3 rounded-2xl p-6 text-center transition-all ${
+                        reviewData.status === "REJECTED"
+                          ? "border-rose-600 bg-rose-50 shadow-xl shadow-rose-600/20 scale-105"
+                          : "border-slate-200 hover:border-rose-300 hover:shadow-lg"
+                      }`}
+                    >
+                      <XCircle
+                        className={`w-12 h-12 mx-auto mb-3 ${
+                          reviewData.status === "REJECTED"
+                            ? "text-rose-600"
+                            : "text-slate-400"
+                        }`}
+                      />
+                      <p
+                        className={`font-bold text-xl mb-1 ${
+                          reviewData.status === "REJECTED"
+                            ? "text-rose-800"
+                            : "text-slate-600"
+                        }`}
+                      >
                         Reject
                       </p>
                       <p className="text-xs text-slate-500">Deny application</p>
@@ -484,7 +687,12 @@ export default function AdminApplications() {
                   </label>
                   <textarea
                     value={reviewData.rejectionReason}
-                    onChange={(e) => setReviewData({ ...reviewData, rejectionReason: e.target.value })}
+                    onChange={(e) =>
+                      setReviewData({
+                        ...reviewData,
+                        rejectionReason: e.target.value,
+                      })
+                    }
                     placeholder="Provide a clear explanation..."
                     rows={4}
                     className="w-full px-4 py-3 border-2 border-rose-300 rounded-xl focus:ring-4 focus:ring-rose-500/20 focus:border-rose-500 resize-none"
@@ -503,7 +711,9 @@ export default function AdminApplications() {
                 </label>
                 <textarea
                   value={reviewData.adminNotes}
-                  onChange={(e) => setReviewData({ ...reviewData, adminNotes: e.target.value })}
+                  onChange={(e) =>
+                    setReviewData({ ...reviewData, adminNotes: e.target.value })
+                  }
                   placeholder="Add notes for records..."
                   rows={3}
                   className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 resize-none"
@@ -519,7 +729,11 @@ export default function AdminApplications() {
                 <button
                   onClick={() => {
                     setShowReviewModal(false);
-                    setReviewData({ status: "APPROVED", rejectionReason: "", adminNotes: "" });
+                    setReviewData({
+                      status: "APPROVED",
+                      rejectionReason: "",
+                      adminNotes: "",
+                    });
                   }}
                   className="flex-1 px-6 py-4 border-2 border-slate-300 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition"
                 >
@@ -541,7 +755,11 @@ export default function AdminApplications() {
                     </span>
                   ) : (
                     <span className="flex items-center justify-center gap-2">
-                      {reviewData.status === "APPROVED" ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+                      {reviewData.status === "APPROVED" ? (
+                        <CheckCircle className="w-5 h-5" />
+                      ) : (
+                        <XCircle className="w-5 h-5" />
+                      )}
                       {reviewData.status === "APPROVED" ? "Approve" : "Reject"}
                     </span>
                   )}
