@@ -14,11 +14,15 @@ export default function ProtectedRoute({
   const { user, loading } = useAuth();
   const location = useLocation();
 
+  console.log("User:", user);
+
   // Show loader while auth state is hydrating
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen text-gray-600">
-        <span className="animate-pulse text-lg">Checking authentication...</span>
+        <span className="animate-pulse text-lg">
+          Checking authentication...
+        </span>
       </div>
     );
   }

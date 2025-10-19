@@ -4,7 +4,7 @@ import type { Quote } from "./quote";
 import type { Payment } from "./payment";
 import type { File } from "./file";
 
-export type ProviderStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+export type ProviderStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
 
 export interface Provider {
   id: string;
@@ -18,14 +18,6 @@ export interface Provider {
   };
   earnings?: number;
   includeHelpers?: boolean;
-  
-  // Business info
-  businessName?: string;
-  businessType?: string;
-  idNumber?: string;
-  taxNumber?: string;
-  
-  // Location
   latitude?: number;
   longitude?: number;
   address?: string;
@@ -33,13 +25,11 @@ export interface Provider {
   region?: string;
   country?: string;
   postalCode?: string;
-  
-  // Application review
   rejectionReason?: string;
   adminNotes?: string;
   reviewedBy?: string;
   reviewedAt?: string;
-  
+
   createdAt?: string;
   updatedAt?: string;
   vehicles?: Vehicle[];

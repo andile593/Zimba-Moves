@@ -4,6 +4,8 @@ import MainLayout from "../components/layouts/MainLayout";
 
 import Login from "../pages/Auth/Login";
 import Signup from "../pages/Auth/Signup";
+import ForgotPassword from "../pages/Auth/ForgotPassword";
+import ResetPassword from "../pages/Auth/ResetPassword";
 import Home from "../pages/Home";
 import Contact from "../pages/Contact/Contact";
 import QuoteRequest from "../pages/QuoteRequest";
@@ -44,6 +46,8 @@ export default function AppRoutes() {
         <Route path="/contact" element={<Contact />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
         <Route path="/search" element={<SearchResults />} />

@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuth";
-import type { SignupData } from "../../context/AuthContext";
-import { FcGoogle } from "react-icons/fc";
+import { useAuth } from "../../context/AuthContext";
+import type { SignupData } from "../../types/user";
+import { passwordRules } from "@/components/PasswordRules/passwordRules";
+import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
 import {
   Truck,
   User,
@@ -16,7 +17,7 @@ import {
 import toast from "react-hot-toast";
 
 export default function Signup() {
-  const { signup, signupWithGoogle } = useAuth();
+  const { signup, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -46,7 +47,6 @@ export default function Signup() {
     includeHelpers: false,
   });
 
-  // Document files state
   const [documents, setDocuments] = useState({
     ID_DOCUMENT: null as File | null,
     PROOF_OF_ADDRESS: null as File | null,
@@ -57,6 +57,7 @@ export default function Signup() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploadingDocs, setUploadingDocs] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -74,13 +75,10 @@ export default function Signup() {
   };
 
   const handleFileSelect = (category: keyof typeof documents, file: File) => {
-    // Validate file size (5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File size must be less than 5MB");
       return;
     }
-
-    // Validate file type
     const validTypes = [
       "image/jpeg",
       "image/jpg",
@@ -92,7 +90,6 @@ export default function Signup() {
       toast.error("Only JPG, PNG, WEBP, and PDF files are allowed");
       return;
     }
-
     setDocuments((prev) => ({ ...prev, [category]: file }));
     toast.success(`${file.name} selected`);
   };
@@ -104,14 +101,14 @@ export default function Signup() {
   const validateStep1 = () => {
     const { firstName, lastName, email, phone, password, confirmPassword } =
       form;
-
     if (!firstName || !lastName || !email || !phone || !password) {
       setError("Please fill in all required fields");
       return false;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+    const failedRule = passwordRules.find((rule) => !rule.test(password));
+    if (failedRule) {
+      setError(`Password requirement not met: ${failedRule.label}`);
       return false;
     }
 
@@ -119,18 +116,15 @@ export default function Signup() {
       setError("Passwords do not match");
       return false;
     }
-
     return true;
   };
 
   const validateStep2 = () => {
     const { idNumber, address, city } = providerForm;
-
     if (!idNumber || !address || !city) {
       setError("Please fill in all required demographic fields");
       return false;
     }
-
     return true;
   };
 
@@ -142,12 +136,10 @@ export default function Signup() {
       "VEHICLE_LICENSE_DISK",
     ] as const;
     const missingDocs = requiredDocs.filter((doc) => !documents[doc]);
-
     if (missingDocs.length > 0) {
       setError("Please upload all required documents");
       return false;
     }
-
     return true;
   };
 
@@ -166,107 +158,10 @@ export default function Signup() {
     setCurrentStep((prev) => prev - 1);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    try {
-      if (activeTab === "CUSTOMER") {
-        if (!validateStep1()) {
-          setLoading(false);
-          return;
-        }
-
-        const { confirmPassword, ...formWithoutConfirm } = form;
-
-        const signupData: SignupData = {
-          ...formWithoutConfirm,
-          role: activeTab,
-        };
-
-        await signup(signupData);
-
-        if (from) {
-          navigate(from, { replace: true });
-        } else {
-          navigate("/", { replace: true });
-        }
-      } else {
-        // PROVIDER
-        if (currentStep === 1) {
-          handleNext();
-          setLoading(false);
-          return;
-        }
-
-        if (currentStep === 2) {
-          handleNext();
-          setLoading(false);
-          return;
-        }
-
-        if (!validateStep3()) {
-          setLoading(false);
-          return;
-        }
-
-        // Remove confirmPassword before sending
-        const { confirmPassword, ...formWithoutConfirm } = form;
-
-        const signupData: SignupData = {
-          ...formWithoutConfirm,
-          role: activeTab,
-          providerData: providerForm,
-        };
-
-        console.log("Provider signup data:", signupData);
-
-        // Sign up the user first
-        const response = await signup(signupData);
-
-        // Get the provider ID and token from the response
-        const token = localStorage.getItem("token");
-        const storedUser = localStorage.getItem("user");
-
-        if (storedUser && token) {
-          const userData = JSON.parse(storedUser);
-
-          // Upload documents if we have a provider ID
-          if (userData.providerId) {
-            setUploadingDocs(true);
-            await uploadDocuments(userData.providerId, token);
-            setUploadingDocs(false);
-
-            toast.success(
-              "Account created and documents uploaded successfully!"
-            );
-          } else {
-            toast.success(
-              "Account created! Please upload documents from your dashboard."
-            );
-          }
-
-          navigate("/provider/pending", { replace: true });
-        }
-      }
-    } catch (err: any) {
-      console.error("Signup error:", err);
-      setError(
-        err.response?.data?.error ||
-          err.response?.data?.details ||
-          "Signup failed. Please try again."
-      );
-      setLoading(false);
-      setUploadingDocs(false);
-    }
-  };
-
   const uploadDocuments = async (providerId: string, token: string) => {
     const filesToUpload = Object.entries(documents).filter(
       ([_, file]) => file !== null
     );
-
     if (filesToUpload.length === 0) return;
 
     const uploadPromises = filesToUpload.map(async ([category, file]) => {
@@ -274,40 +169,87 @@ export default function Signup() {
       formData.append("file", file!);
       formData.append("category", category);
 
-      try {
-        const response = await fetch(
-          `${
-            import.meta.env.VITE_API_URL || "https://9lwj8t-5173.csb.app"
-          }/providers/${providerId}/files`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            body: formData,
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `Failed to upload ${category}`);
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/providers/${providerId}/files`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
         }
-
-        console.log(`✓ Uploaded ${category}`);
-        return response;
-      } catch (error) {
-        console.error(`✗ Failed to upload ${category}:`, error);
-        throw error;
-      }
+      );
+      if (!response.ok) throw new Error(`Failed to upload ${category}`);
     });
 
-    try {
-      await Promise.all(uploadPromises);
-    } catch (error) {
+    await Promise.all(uploadPromises).catch(() => {
       toast.error(
-        "Some documents failed to upload. Please upload them from your dashboard."
+        "Some documents failed to upload. Upload them from your dashboard."
       );
-      throw error;
+      throw new Error("Document upload failed");
+    });
+  };
+
+  const handleGoogleSuccess = async (
+    credentialResponse: CredentialResponse
+  ) => {
+    if (!credentialResponse.credential) {
+      toast.error("Google signup failed. Please try again.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      await loginWithGoogle(credentialResponse.credential);
+      toast.success("Successfully signed up with Google!");
+      navigate(from || "/", { replace: true });
+    } catch (err: any) {
+      setError(err.message || "Google signup failed. Please try again.");
+      toast.error(err.message || "Google signup failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    toast.error("Google signup was cancelled or failed");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const { confirmPassword, ...formWithoutConfirm } = form;
+      const signupData: SignupData = {
+        ...formWithoutConfirm,
+        role: activeTab,
+        ...(activeTab === "PROVIDER" ? { providerData: providerForm } : {}),
+      };
+
+      const createdUser = await signup(signupData);
+      if (activeTab === "PROVIDER") {
+        const token = localStorage.getItem("token");
+        if (createdUser.Provider?.id && token) {
+          setUploadingDocs(true);
+          await uploadDocuments(createdUser.Provider.id, token);
+          setUploadingDocs(false);
+          toast.success("Account created and documents uploaded successfully!");
+        } else {
+          toast.success(
+            "Account created! Upload documents from dashboard later."
+          );
+        }
+        navigate("/provider/pending", { replace: true });
+      } else {
+        navigate(from || "/", { replace: true });
+      }
+    } catch (err: any) {
+      setError(err.message || "Signup failed. Please try again.");
+    } finally {
+      setLoading(false);
+      setUploadingDocs(false);
     }
   };
 
@@ -319,7 +261,6 @@ export default function Signup() {
     label: string;
   }) => {
     const file = documents[category];
-
     return (
       <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-green-400 transition">
         <div className="flex items-start justify-between mb-2">
@@ -337,7 +278,6 @@ export default function Signup() {
             </button>
           )}
         </div>
-
         {file ? (
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-3">
             <FileText className="w-5 h-5 text-green-600 flex-shrink-0" />
@@ -372,12 +312,9 @@ export default function Signup() {
     );
   };
 
-  const totalSteps = activeTab === "PROVIDER" ? 3 : 1;
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 py-8">
       <div className="bg-white w-full max-w-2xl rounded-2xl shadow-lg overflow-hidden">
-        {/* Tab Headers */}
         <div className="flex border-b">
           <button
             type="button"
@@ -413,7 +350,6 @@ export default function Signup() {
           </button>
         </div>
 
-        {/* Progress Bar for Provider */}
         {activeTab === "PROVIDER" && (
           <div className="bg-gray-50 px-6 py-4 border-b">
             <div className="flex items-center justify-between">
@@ -454,9 +390,7 @@ export default function Signup() {
           </div>
         )}
 
-        {/* Form Content */}
         <form onSubmit={handleSubmit} className="p-6">
-          {/* Tab-specific messaging */}
           <div className="mb-6 text-center">
             {activeTab === "CUSTOMER" ? (
               <>
@@ -503,7 +437,6 @@ export default function Signup() {
             </div>
           )}
 
-          {/* Step 1: Account Details */}
           {(activeTab === "CUSTOMER" ||
             (activeTab === "PROVIDER" && currentStep === 1)) && (
             <div className="space-y-4">
@@ -527,7 +460,6 @@ export default function Signup() {
                   required
                 />
               </div>
-
               <input
                 name="email"
                 type="email"
@@ -550,13 +482,28 @@ export default function Signup() {
               <input
                 name="password"
                 type="password"
-                placeholder="Password (min. 6 characters)"
+                placeholder="Password"
                 className="w-full p-3 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
                 onChange={handleChange}
+                onFocus={() => setPasswordTouched(true)}
                 value={form.password}
                 disabled={loading}
                 required
               />
+              {passwordTouched && (
+                <ul className="pl-3 text-xs text-gray-500 mb-3">
+                  {passwordRules.map((rule) => (
+                    <li
+                      key={rule.label}
+                      className={
+                        rule.test(form.password) ? "text-green-600" : ""
+                      }
+                    >
+                      {rule.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
               <input
                 name="confirmPassword"
                 type="password"
@@ -606,7 +553,6 @@ export default function Signup() {
                   required
                 />
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Street Address <span className="text-red-500">*</span>
@@ -621,7 +567,6 @@ export default function Signup() {
                   required
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -651,7 +596,6 @@ export default function Signup() {
                   />
                 </div>
               </div>
-
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
@@ -671,7 +615,6 @@ export default function Signup() {
                   </div>
                 </label>
               </div>
-
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
@@ -694,7 +637,6 @@ export default function Signup() {
             </div>
           )}
 
-          {/* Step 3: Documents Upload */}
           {activeTab === "PROVIDER" && currentStep === 3 && (
             <div className="space-y-4">
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
@@ -703,24 +645,19 @@ export default function Signup() {
                   Accepted formats: JPG, PNG, WEBP, PDF (max 5MB each)
                 </p>
               </div>
-
               <DocumentUpload category="ID_DOCUMENT" label="ID Document" />
-
               <DocumentUpload
                 category="PROOF_OF_ADDRESS"
                 label="Proof of Address"
               />
-
               <DocumentUpload
                 category="VEHICLE_REGISTRATION"
                 label="Vehicle Registration"
               />
-
               <DocumentUpload
                 category="VEHICLE_LICENSE_DISK"
                 label="Valid License Disk"
               />
-
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-xs text-blue-800">
                   <strong>Reminder:</strong> Your application will be reviewed
@@ -728,7 +665,6 @@ export default function Signup() {
                   once approved.
                 </p>
               </div>
-
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
@@ -760,28 +696,30 @@ export default function Signup() {
             </div>
           )}
 
-          {/* OAuth signup - only show on step 1 */}
           {(activeTab === "CUSTOMER" ||
             (activeTab === "PROVIDER" && currentStep === 1)) && (
             <>
-              <div className="my-4 text-center text-gray-500 text-sm">
-                or sign up with
+              <div className="my-4 flex items-center gap-4">
+                <div className="flex-1 h-px bg-gray-300"></div>
+                <span className="text-sm text-gray-500">or</span>
+                <div className="flex-1 h-px bg-gray-300"></div>
               </div>
 
-              <div className="flex justify-center gap-3 mb-4">
-                <button
-                  type="button"
-                  onClick={signupWithGoogle}
-                  disabled={loading}
-                  className="flex text-gray-700 items-center gap-2 border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FcGoogle size={20} /> <span>Google</span>
-                </button>
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  theme="outline"
+                  size="medium"
+                  text="signup_with"
+                  shape="circle"
+                  width="100%"
+                />
               </div>
             </>
           )}
 
-          <p className="text-center text-gray-600 text-sm mt-4">
+          <p className="text-center text-gray-600 text-sm mt-6">
             Already have an account?{" "}
             <Link
               to="/login"
