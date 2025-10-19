@@ -1,173 +1,144 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
-import api from "../services/axios";
-import toast from "react-hot-toast";
+import {
+  createContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useContext,
+} from "react";
+import type { User, SignupData } from "../types/user";
 
-export interface User {
-  id: string;
-  email: string;
-  role: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  status: string;
-  providerStatus?: string | null;
-  providerId?: string | null;
-}
-
-export interface SignupData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  password: string;
-  role: string;
-  providerData?: {
-    idNumber: string;
-    address: string;
-    city: string;
-    region?: string;
-    postalCode?: string;
-    country?: string;
-    includeHelpers?: boolean;
-  };
-}
-
-export interface AuthContextType {
+interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (data: SignupData) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  loginWithGoogle: (credential: string) => Promise<User>;
   logout: () => void;
-  refreshUser: () => Promise<void>;
-  loginWithGoogle: () => void;
-  signupWithGoogle: () => void;
+  signup: (data: SignupData) => Promise<User>;
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined
+);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-// Normalize user and role to uppercase
-const normalizeUser = (user: any): User => ({
-  ...user,
-  role: user.role?.toUpperCase?.(),
-});
-
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
-  // Restore session from localStorage
   useEffect(() => {
     const token = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
+    const storedUser = localStorage.getItem("user");
 
-    if (token && savedUser) {
-      try {
-        const userData = normalizeUser(JSON.parse(savedUser));
-        setUser(userData);
-        api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      } catch (err) {
-        console.error("Error parsing user from localStorage:", err);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-      }
+    if (!token) {
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+      setLoading(false);
+      return;
+    }
+
+    fetchUser(token)
+      .then((fetchedUser) => {
+        setUser(fetchedUser);
+        localStorage.setItem("user", JSON.stringify(fetchedUser));
+      })
+      .catch(() => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setUser(null);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "token") {
-        console.log("Token changed in localStorage:", e.oldValue, "→", e.newValue);
-      }
-      if (e.key === "user") {
-        console.log("User changed in localStorage:", e.oldValue, "→", e.newValue);
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, []);
-
-  const login = async (email: string, password: string) => {
-    const res = await api.post("/login", { email, password });
-    const { token, user: rawUser } = res.data;
-    const userData = normalizeUser(rawUser);
-
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(userData));
-    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    setUser(userData);
+  const fetchUser = async (token: string): Promise<User> => {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("Failed to fetch user");
+    return res.json();
   };
 
-  const signup = async (data: SignupData) => {
-    const res = await api.post("/signup", data);
-    const { token, user: rawUser } = res.data;
-    const userData = normalizeUser(rawUser);
+  const login = async (email: string, password: string): Promise<User> => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) throw new Error("Invalid credentials");
+      const data = await res.json();
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
 
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(userData));
-    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    setUser(userData);
+      setUser(data.user);
+      return data.user;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithGoogle = async (credential: string): Promise<User> => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Google login failed");
+      }
+      const data = await res.json();
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      setUser(data.user);
+      return data.user;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signup = async (signupData: SignupData): Promise<User> => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(signupData),
+      });
+      if (!res.ok) throw new Error("Signup failed");
+      const data = await res.json();
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      setUser(data.user);
+      return data.user;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {
+    setUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    delete api.defaults.headers.common["Authorization"];
-    setUser(null);
-    navigate("/");
-    toast.success("Logged out successfully");
-  };
-
-  const refreshUser = async () => {
-    try {
-      const res = await api.get("/me");
-      const refreshed = normalizeUser(res.data);
-      setUser(refreshed);
-      localStorage.setItem("user", JSON.stringify(refreshed));
-    } catch (err) {
-      console.error("Failed to refresh user:", err);
-    }
-  };
-
-  const loginWithGoogle = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/google`;
-  };
-
-  const signupWithGoogle = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL || "http://localhost:4000"}/google`;
   };
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        signup,
-        logout,
-        refreshUser,
-        loginWithGoogle,
-        signupWithGoogle,
-      }}
+      value={{ user, loading, login, loginWithGoogle, logout, signup }}
     >
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth(): AuthContextType {
+export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 }

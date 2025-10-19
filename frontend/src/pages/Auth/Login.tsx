@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { FcGoogle } from "react-icons/fc";
 import { ArrowLeft } from "lucide-react";
+import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
+import toast from "react-hot-toast";
 
 export default function Login() {
   const { login, loginWithGoogle } = useAuth();
@@ -26,6 +27,8 @@ export default function Login() {
 
       // Get the stored user data after successful login
       const storedUser = localStorage.getItem("user");
+      console.log(storedUser);
+
       if (storedUser) {
         const userData = JSON.parse(storedUser);
 
@@ -45,6 +48,49 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (
+    credentialResponse: CredentialResponse
+  ) => {
+    if (!credentialResponse.credential) {
+      toast.error("Google login failed. Please try again.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      await loginWithGoogle(credentialResponse.credential);
+
+      const storedUser = localStorage.getItem("user");
+
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+
+        if (from) {
+          navigate(from, { replace: true });
+        } else if (userData.role === "PROVIDER") {
+          navigate("/provider", { replace: true });
+        } else if (userData.role === "ADMIN") {
+          navigate("/admin", { replace: true });
+        } else {
+          navigate("/", { replace: true });
+        }
+      }
+
+      toast.success("Successfully logged in with Google!");
+    } catch (err: any) {
+      setError(err.message || "Google login failed. Please try again.");
+      toast.error(err.message || "Google login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    toast.error("Google login was cancelled or failed");
   };
 
   const handleBack = () => {
@@ -105,20 +151,32 @@ export default function Login() {
         >
           {loading ? "Logging in..." : "Login"}
         </button>
-
-        <div className="my-4 text-center text-gray-500 text-sm">
-          or continue with
+        <div className="text-center mt-2 mb-5">
+          <Link
+            to="/forgot-password"
+            className="text-sm text-green-600 font-medium"
+          >
+            Forgot password?
+          </Link>
         </div>
 
-        <div className="flex justify-center gap-3 mb-4">
-          <button
-            type="button"
-            onClick={loginWithGoogle}
-            disabled={loading}
-            className="flex items-center text-gray-700 gap-2 border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <FcGoogle size={20} /> <span>Google</span>
-          </button>
+        <div className="my-4 flex items-center gap-4">
+          <div className="flex-1 h-px bg-gray-300"></div>
+          <span className="text-sm text-gray-500">or</span>
+          <div className="flex-1 h-px bg-gray-300"></div>
+        </div>
+
+        <div className="flex justify-center mb-3">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            useOneTap
+            theme="outline"
+            size="large"
+            text="signin"
+            shape="circle"
+            width="100%"
+          />
         </div>
 
         <p className="text-center text-gray-600 text-sm">

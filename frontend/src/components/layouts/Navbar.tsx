@@ -30,8 +30,6 @@ export default function Navbar() {
   const logout = auth?.logout;
   const navigate = useNavigate();
 
-  console.log(auth?.user);
-
   const toggleMenu = () => setIsOpen(!isOpen);
 
   useEffect(() => {

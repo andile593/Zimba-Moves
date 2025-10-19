@@ -13,6 +13,7 @@ export interface User {
   firstName: string;
   lastName: string;
   status: string;
+  providerStatus?: "PENDING" | "APPROVED" | "REJECTED";
   createdAt?: string;
   updatedAt?: string;
   Provider?: Provider;
@@ -39,10 +40,7 @@ export interface SignupData {
   password: string;
   role: string;
   providerData?: {
-    businessName: string;
-    businessType: string;
     idNumber: string;
-    taxNumber?: string;
     address: string;
     city: string;
     region?: string;
@@ -50,4 +48,9 @@ export interface SignupData {
     country?: string;
     includeHelpers?: boolean;
   };
+}
+
+export interface LoginData {
+  email: string;
+  password: string;
 }

@@ -5,23 +5,27 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id         String      @id @default(uuid())
-  role       Role
-  email      String      @unique
-  phone      String      @unique
-  password   String
-  firstName  String
-  lastName   String
-  status     UserStatus  @default(ACTIVE)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  Bookings   Booking[]
-  Complaints Complaint[]
-  Provider   Provider?
-  Quote      Quote[]
+  id            String          @id @default(uuid())
+  role          Role
+  email         String          @unique
+  phone         String          @unique
+  password      String
+  firstName     String
+  lastName      String
+  status        UserStatus      @default(ACTIVE)
+  googleId      String?         @unique
+  profilePicture  String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  Bookings      Booking[]
+  Complaints    Complaint[]
+  Provider      Provider?
+  Quote         Quote[]
+  PasswordReset PasswordReset[]
 }
 
 model Provider {
@@ -141,6 +145,16 @@ model Quote {
   @@map("quotes")
 }
 
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model Payment {
   id               String         @id @default(uuid())
   bookingId        String         @unique
@@ -221,14 +235,13 @@ enum FileType {
 }
 
 enum FileCategory {
-  INSURANCE
   BRANDING
   EVIDENCE
   PROFILE_PIC
   ID_DOCUMENT
   PROOF_OF_ADDRESS
-  VEHICLE_REGISTRATION
-  VEHICLE_LICENSE_DISK
+  VEHICLE_REGISTRATION_CERT
+  DRIVERS_LICENSE
   OTHER
 }
 
