@@ -26,9 +26,11 @@ export default function Navbar() {
   const auth = useContext(AuthContext);
   const isAuthenticated = !!auth?.user;
   const userRole = auth?.user?.role;
-  const providerStatus = auth?.user?.status; 
+  const providerStatus = auth?.user?.providerStatus;
   const logout = auth?.logout;
   const navigate = useNavigate();
+
+  console.log(auth?.user);
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
@@ -54,43 +56,43 @@ export default function Navbar() {
   const navLinks: NavLink[] = [
     { label: "Home", to: "/" },
     { label: "How it works", to: "/", anchor: "how-it-works" },
-    { 
-      label: "For providers", 
+    {
+      label: "For providers",
       to: "/provider",
       requiresAuth: true,
       allowedRoles: ["PROVIDER"],
-      requiresApprovedProvider: true
+      requiresApprovedProvider: true,
     },
-    { 
-      label: "My Bookings", 
-      to: "/bookings", 
+    {
+      label: "My Bookings",
+      to: "/bookings",
       requiresAuth: true,
-      allowedRoles: ["CUSTOMER"]
+      allowedRoles: ["CUSTOMER"],
     },
     { label: "About", to: "/about" },
     { label: "Contact", to: "/contact" },
   ];
 
   // Filter nav links based on auth, role, and provider status
-  const filteredNavLinks = navLinks.filter(link => {
+  const filteredNavLinks = navLinks.filter((link) => {
     // If link doesn't require auth, show it
     if (!link.requiresAuth) return true;
-    
+
     // If link requires auth, check if user is authenticated
     if (!isAuthenticated) return false;
-    
+
     // If link has role restrictions, check user role
     if (link.allowedRoles && link.allowedRoles.length > 0) {
       const hasRole = link.allowedRoles.includes(userRole || "");
       if (!hasRole) return false;
     }
-    
+
     // FIXED: Check provider status correctly
     if (link.requiresApprovedProvider && userRole === "PROVIDER") {
       // Only show if provider is approved
       return providerStatus === "APPROVED";
     }
-    
+
     return true;
   });
 
@@ -108,7 +110,8 @@ export default function Navbar() {
     const baseClasses =
       "px-5 py-2 rounded-md transition-all w-auto text-center";
     const primary = "bg-green-600 text-white hover:bg-green-700";
-    const secondary = "border border-green-600 text-green-600 hover:bg-green-50";
+    const secondary =
+      "border border-green-600 text-green-600 hover:bg-green-50";
 
     if (btn.onClick) {
       return (
@@ -118,7 +121,9 @@ export default function Navbar() {
             btn.onClick?.();
             if (isOpen) toggleMenu();
           }}
-          className={`${baseClasses} ${btn.type === "primary" ? primary : secondary}`}
+          className={`${baseClasses} ${
+            btn.type === "primary" ? primary : secondary
+          }`}
         >
           {btn.label}
         </button>
@@ -129,7 +134,9 @@ export default function Navbar() {
       <button
         key={btn.label}
         onClick={() => handleNavClick(btn.to!, btn.anchor)}
-        className={`${baseClasses} ${btn.type === "primary" ? primary : secondary}`}
+        className={`${baseClasses} ${
+          btn.type === "primary" ? primary : secondary
+        }`}
       >
         {btn.label}
       </button>
@@ -139,7 +146,10 @@ export default function Navbar() {
   return (
     <nav className="bg-white shadow-md px-6 py-3 flex justify-between items-center sticky top-0 z-50">
       {/* Logo */}
-      <button onClick={() => handleNavClick("/")} className="flex items-center gap-2">
+      <button
+        onClick={() => handleNavClick("/")}
+        className="flex items-center gap-2"
+      >
         <img src={Logo} alt="Logo" className="h-9 w-auto" />
       </button>
 
@@ -203,7 +213,12 @@ export default function Navbar() {
       </div>
 
       {/* Overlay */}
-      {isOpen && <div onClick={toggleMenu} className="fixed inset-0 bg-black bg-opacity-40 z-40" />}
+      {isOpen && (
+        <div
+          onClick={toggleMenu}
+          className="fixed inset-0 bg-black bg-opacity-40 z-40"
+        />
+      )}
     </nav>
   );
 }

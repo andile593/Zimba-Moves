@@ -5,36 +5,46 @@ interface ProtectedProviderRouteProps {
   children: React.ReactNode;
 }
 
-export default function ProtectedProviderRoute({ children }: ProtectedProviderRouteProps) {
+export default function ProtectedProviderRoute({
+  children,
+}: ProtectedProviderRouteProps) {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen text-gray-600">
-        <span className="animate-pulse text-lg">Verifying provider access...</span>
+        <span className="animate-pulse text-lg">
+          Verifying provider access...
+        </span>
       </div>
     );
   }
 
   if (!user) {
-    console.warn("ProtectedProviderRoute: No user found, redirecting to login.");
+    console.warn(
+      "ProtectedProviderRoute: No user found, redirecting to login."
+    );
     return <Navigate to="/login" replace />;
   }
 
   const normalizedRole = user.role?.toUpperCase?.();
-  const normalizedStatus = user.status?.toUpperCase?.();
+  const normalizedProviderStatus = user.providerStatus?.toUpperCase?.();
 
-  // 🧱 Step 4: Role check
+  // Role check
   if (normalizedRole !== "PROVIDER") {
-    console.warn("ProtectedProviderRoute: Non-provider attempted access:", user.role);
+    console.warn(
+      "ProtectedProviderRoute: Non-provider attempted access:",
+      user.role
+    );
     return <Navigate to="/" replace />;
   }
 
-  if (normalizedStatus === "PENDING") {
+  // Check providerStatus (not status)
+  if (normalizedProviderStatus === "PENDING") {
     return <Navigate to="/provider/pending" replace />;
   }
 
-  if (normalizedStatus === "REJECTED") {
+  if (normalizedProviderStatus === "REJECTED") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center">
@@ -55,9 +65,12 @@ export default function ProtectedProviderRoute({ children }: ProtectedProviderRo
               </svg>
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Application Rejected</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            Application Rejected
+          </h2>
           <p className="text-gray-600 mb-6">
-            Unfortunately, your provider application was not approved. Please contact support for more information.
+            Unfortunately, your provider application was not approved. Please
+            contact support for more information.
           </p>
           <div className="space-y-3">
             <button
@@ -78,7 +91,8 @@ export default function ProtectedProviderRoute({ children }: ProtectedProviderRo
     );
   }
 
-  if (!normalizedStatus || normalizedStatus !== "APPROVED") {
+  // Check if approved
+  if (!normalizedProviderStatus || normalizedProviderStatus !== "APPROVED") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center">
@@ -99,7 +113,9 @@ export default function ProtectedProviderRoute({ children }: ProtectedProviderRo
               </svg>
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Access Restricted</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            Access Restricted
+          </h2>
           <p className="text-gray-600 mb-6">
             You need to be an approved provider to access this area.
           </p>
@@ -113,5 +129,6 @@ export default function ProtectedProviderRoute({ children }: ProtectedProviderRo
       </div>
     );
   }
+
   return <>{children}</>;
 }

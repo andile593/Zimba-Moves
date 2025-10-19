@@ -3,7 +3,16 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import type { SignupData } from "../../context/AuthContext";
 import { FcGoogle } from "react-icons/fc";
-import { Truck, User, ArrowRight, ArrowLeft, CheckCircle, Upload, X, FileText } from "lucide-react";
+import {
+  Truck,
+  User,
+  ArrowRight,
+  ArrowLeft,
+  CheckCircle,
+  Upload,
+  X,
+  FileText,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function Signup() {
@@ -13,7 +22,9 @@ export default function Signup() {
 
   const from = (location.state as any)?.from?.pathname || null;
 
-  const [activeTab, setActiveTab] = useState<"CUSTOMER" | "PROVIDER">("CUSTOMER");
+  const [activeTab, setActiveTab] = useState<"CUSTOMER" | "PROVIDER">(
+    "CUSTOMER"
+  );
   const [currentStep, setCurrentStep] = useState(1);
 
   const [form, setForm] = useState({
@@ -32,7 +43,7 @@ export default function Signup() {
     region: "",
     postalCode: "",
     country: "South Africa",
-    includeHelpers: false
+    includeHelpers: false,
   });
 
   // Document files state
@@ -51,11 +62,14 @@ export default function Signup() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleProviderChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleProviderChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value, type } = e.target;
     setProviderForm({
       ...providerForm,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+      [name]:
+        type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
     });
   };
 
@@ -67,22 +81,29 @@ export default function Signup() {
     }
 
     // Validate file type
-    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"];
+    const validTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+      "application/pdf",
+    ];
     if (!validTypes.includes(file.type)) {
       toast.error("Only JPG, PNG, WEBP, and PDF files are allowed");
       return;
     }
 
-    setDocuments(prev => ({ ...prev, [category]: file }));
+    setDocuments((prev) => ({ ...prev, [category]: file }));
     toast.success(`${file.name} selected`);
   };
 
   const handleFileRemove = (category: keyof typeof documents) => {
-    setDocuments(prev => ({ ...prev, [category]: null }));
+    setDocuments((prev) => ({ ...prev, [category]: null }));
   };
 
   const validateStep1 = () => {
-    const { firstName, lastName, email, phone, password, confirmPassword } = form;
+    const { firstName, lastName, email, phone, password, confirmPassword } =
+      form;
 
     if (!firstName || !lastName || !email || !phone || !password) {
       setError("Please fill in all required fields");
@@ -114,9 +135,14 @@ export default function Signup() {
   };
 
   const validateStep3 = () => {
-    const requiredDocs = ['ID_DOCUMENT', 'PROOF_OF_ADDRESS', 'VEHICLE_REGISTRATION', 'VEHICLE_LICENSE_DISK'] as const;
-    const missingDocs = requiredDocs.filter(doc => !documents[doc]);
-    
+    const requiredDocs = [
+      "ID_DOCUMENT",
+      "PROOF_OF_ADDRESS",
+      "VEHICLE_REGISTRATION",
+      "VEHICLE_LICENSE_DISK",
+    ] as const;
+    const missingDocs = requiredDocs.filter((doc) => !documents[doc]);
+
     if (missingDocs.length > 0) {
       setError("Please upload all required documents");
       return false;
@@ -137,7 +163,7 @@ export default function Signup() {
 
   const handleBack = () => {
     setError("");
-    setCurrentStep(prev => prev - 1);
+    setCurrentStep((prev) => prev - 1);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -160,7 +186,7 @@ export default function Signup() {
         };
 
         await signup(signupData);
-        
+
         if (from) {
           navigate(from, { replace: true });
         } else {
@@ -194,59 +220,77 @@ export default function Signup() {
           providerData: providerForm,
         };
 
-        console.log('Provider signup data:', signupData);
-        
+        console.log("Provider signup data:", signupData);
+
         // Sign up the user first
         const response = await signup(signupData);
-        
-        // Get the provider ID from the response
+
+        // Get the provider ID and token from the response
+        const token = localStorage.getItem("token");
         const storedUser = localStorage.getItem("user");
-        if (storedUser) {
+
+        if (storedUser && token) {
           const userData = JSON.parse(storedUser);
-          
+
           // Upload documents if we have a provider ID
           if (userData.providerId) {
             setUploadingDocs(true);
-            await uploadDocuments(userData.providerId);
+            await uploadDocuments(userData.providerId, token);
             setUploadingDocs(false);
-            
-            toast.success("Account created and documents uploaded successfully!");
+
+            toast.success(
+              "Account created and documents uploaded successfully!"
+            );
           } else {
-            toast.success("Account created! Please upload documents from your dashboard.");
+            toast.success(
+              "Account created! Please upload documents from your dashboard."
+            );
           }
 
           navigate("/provider/pending", { replace: true });
         }
       }
     } catch (err: any) {
-      console.error('Signup error:', err);
-      setError(err.response?.data?.error || err.response?.data?.details || "Signup failed. Please try again.");
+      console.error("Signup error:", err);
+      setError(
+        err.response?.data?.error ||
+          err.response?.data?.details ||
+          "Signup failed. Please try again."
+      );
       setLoading(false);
       setUploadingDocs(false);
     }
   };
 
-  const uploadDocuments = async (providerId: string) => {
-    const filesToUpload = Object.entries(documents).filter(([_, file]) => file !== null);
-    
+  const uploadDocuments = async (providerId: string, token: string) => {
+    const filesToUpload = Object.entries(documents).filter(
+      ([_, file]) => file !== null
+    );
+
     if (filesToUpload.length === 0) return;
 
     const uploadPromises = filesToUpload.map(async ([category, file]) => {
       const formData = new FormData();
-      formData.append('file', file!);
-      formData.append('category', category);
+      formData.append("file", file!);
+      formData.append("category", category);
 
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/providers/${providerId}/files`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: formData,
-        });
+        const response = await fetch(
+          `${
+            import.meta.env.VITE_API_URL || "https://9lwj8t-5173.csb.app"
+          }/providers/${providerId}/files`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          }
+        );
 
         if (!response.ok) {
-          throw new Error(`Failed to upload ${category}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Failed to upload ${category}`);
         }
 
         console.log(`✓ Uploaded ${category}`);
@@ -260,19 +304,22 @@ export default function Signup() {
     try {
       await Promise.all(uploadPromises);
     } catch (error) {
-      toast.error("Some documents failed to upload. Please upload them from your dashboard.");
+      toast.error(
+        "Some documents failed to upload. Please upload them from your dashboard."
+      );
+      throw error;
     }
   };
 
-  const DocumentUpload = ({ 
-    category, 
-    label 
-  }: { 
-    category: keyof typeof documents; 
-    label: string; 
+  const DocumentUpload = ({
+    category,
+    label,
+  }: {
+    category: keyof typeof documents;
+    label: string;
   }) => {
     const file = documents[category];
-    
+
     return (
       <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-green-400 transition">
         <div className="flex items-start justify-between mb-2">
@@ -307,7 +354,9 @@ export default function Signup() {
         ) : (
           <label className="cursor-pointer flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition border border-gray-200">
             <Upload className="w-5 h-5 text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">Choose File</span>
+            <span className="text-sm font-medium text-gray-700">
+              Choose File
+            </span>
             <input
               type="file"
               accept="image/*,.pdf"
@@ -337,10 +386,11 @@ export default function Signup() {
               setCurrentStep(1);
               setError("");
             }}
-            className={`flex-1 py-4 px-6 text-center font-semibold transition-all ${activeTab === "CUSTOMER"
+            className={`flex-1 py-4 px-6 text-center font-semibold transition-all ${
+              activeTab === "CUSTOMER"
                 ? "bg-green-600 text-white"
                 : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-              }`}
+            }`}
           >
             <User className="inline-block w-5 h-5 mr-2 mb-1" />
             Customer
@@ -352,10 +402,11 @@ export default function Signup() {
               setCurrentStep(1);
               setError("");
             }}
-            className={`flex-1 py-4 px-6 text-center font-semibold transition-all ${activeTab === "PROVIDER"
+            className={`flex-1 py-4 px-6 text-center font-semibold transition-all ${
+              activeTab === "PROVIDER"
                 ? "bg-green-600 text-white"
                 : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-              }`}
+            }`}
           >
             <Truck className="inline-block w-5 h-5 mr-2 mb-1" />
             Provider
@@ -369,18 +420,33 @@ export default function Signup() {
               {[
                 { num: 1, label: "Account" },
                 { num: 2, label: "Demographic" },
-                { num: 3, label: "Documents" }
+                { num: 3, label: "Documents" },
               ].map((step, idx) => (
                 <div key={step.num} className="flex items-center flex-1">
                   <div className="flex items-center gap-2 flex-1">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${currentStep >= step.num ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'
-                      }`}>
-                      {currentStep > step.num ? <CheckCircle className="w-5 h-5" /> : step.num}
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        currentStep >= step.num
+                          ? "bg-green-600 text-white"
+                          : "bg-gray-300 text-gray-600"
+                      }`}
+                    >
+                      {currentStep > step.num ? (
+                        <CheckCircle className="w-5 h-5" />
+                      ) : (
+                        step.num
+                      )}
                     </div>
-                    <span className="text-sm font-medium text-gray-700 hidden sm:inline">{step.label}</span>
+                    <span className="text-sm font-medium text-gray-700 hidden sm:inline">
+                      {step.label}
+                    </span>
                   </div>
                   {idx < 2 && (
-                    <div className={`h-1 flex-1 mx-2 ${currentStep > step.num ? 'bg-green-600' : 'bg-gray-300'}`} />
+                    <div
+                      className={`h-1 flex-1 mx-2 ${
+                        currentStep > step.num ? "bg-green-600" : "bg-gray-300"
+                      }`}
+                    />
                   )}
                 </div>
               ))}
@@ -438,7 +504,8 @@ export default function Signup() {
           )}
 
           {/* Step 1: Account Details */}
-          {(activeTab === "CUSTOMER" || (activeTab === "PROVIDER" && currentStep === 1)) && (
+          {(activeTab === "CUSTOMER" ||
+            (activeTab === "PROVIDER" && currentStep === 1)) && (
             <div className="space-y-4">
               <div className="flex gap-3">
                 <input
@@ -595,7 +662,9 @@ export default function Signup() {
                     className="mt-1 w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
                   />
                   <div>
-                    <div className="font-semibold text-gray-800 text-sm">Include Helpers</div>
+                    <div className="font-semibold text-gray-800 text-sm">
+                      Include Helpers
+                    </div>
                     <div className="text-xs text-gray-600 mt-1">
                       Check this if you provide moving helpers with your service
                     </div>
@@ -630,14 +699,12 @@ export default function Signup() {
             <div className="space-y-4">
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
                 <p className="text-xs text-yellow-800">
-                  <strong>Note:</strong> All documents must be clear and valid. Accepted formats: JPG, PNG, WEBP, PDF (max 5MB each)
+                  <strong>Note:</strong> All documents must be clear and valid.
+                  Accepted formats: JPG, PNG, WEBP, PDF (max 5MB each)
                 </p>
               </div>
 
-              <DocumentUpload
-                category="ID_DOCUMENT"
-                label="ID Document"
-              />
+              <DocumentUpload category="ID_DOCUMENT" label="ID Document" />
 
               <DocumentUpload
                 category="PROOF_OF_ADDRESS"
@@ -656,8 +723,9 @@ export default function Signup() {
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-xs text-blue-800">
-                  <strong>Reminder:</strong> Your application will be reviewed within 2-3 business days.
-                  You'll receive an email notification once approved.
+                  <strong>Reminder:</strong> Your application will be reviewed
+                  within 2-3 business days. You'll receive an email notification
+                  once approved.
                 </p>
               </div>
 
@@ -677,7 +745,9 @@ export default function Signup() {
                 >
                   {loading || uploadingDocs ? (
                     <>
-                      {uploadingDocs ? "Uploading Documents..." : "Submitting..."}
+                      {uploadingDocs
+                        ? "Uploading Documents..."
+                        : "Submitting..."}
                     </>
                   ) : (
                     <>
@@ -691,9 +761,12 @@ export default function Signup() {
           )}
 
           {/* OAuth signup - only show on step 1 */}
-          {(activeTab === "CUSTOMER" || (activeTab === "PROVIDER" && currentStep === 1)) && (
+          {(activeTab === "CUSTOMER" ||
+            (activeTab === "PROVIDER" && currentStep === 1)) && (
             <>
-              <div className="my-4 text-center text-gray-500 text-sm">or sign up with</div>
+              <div className="my-4 text-center text-gray-500 text-sm">
+                or sign up with
+              </div>
 
               <div className="flex justify-center gap-3 mb-4">
                 <button

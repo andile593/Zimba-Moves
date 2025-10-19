@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { FcGoogle } from "react-icons/fc";
+import { ArrowLeft } from "lucide-react";
 
 export default function Login() {
   const { login, loginWithGoogle } = useAuth();
@@ -22,12 +23,12 @@ export default function Login() {
 
     try {
       await login(email, password);
-      
+
       // Get the stored user data after successful login
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         const userData = JSON.parse(storedUser);
-        
+
         // Redirect based on role or the page they were trying to access
         if (from) {
           navigate(from, { replace: true });
@@ -46,15 +47,31 @@ export default function Login() {
     }
   };
 
+  const handleBack = () => {
+    navigate(-1); // Go to previous page
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       <form
         onSubmit={handleLogin}
-        className="bg-white w-full max-w-sm p-6 rounded-2xl shadow-md"
+        className="bg-white w-full max-w-sm p-6 rounded-2xl shadow-md relative"
       >
-        <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="absolute top-6 left-4 p-2 hover:bg-gray-100 rounded-lg transition flex items-center gap-1 text-gray-600 text-sm"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+
+        <h1 className="text-2xl font-bold mb-2 text-center text-gray-800">
           Welcome Back
         </h1>
+
+        <p className="text-sm text-gray-600 text-center mb-6">
+          Sign in to your account to continue
+        </p>
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">
@@ -65,7 +82,7 @@ export default function Login() {
         <input
           type="email"
           placeholder="Email address"
-          className="w-full p-3 text-gray-500 border border-gray-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-green-600"
+          className="w-full p-3 text-gray-700 border border-gray-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-green-600"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={loading}
@@ -74,7 +91,7 @@ export default function Login() {
         <input
           type="password"
           placeholder="Password"
-          className="w-full p-3 text-gray-500 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-green-600"
+          className="w-full p-3 text-gray-700 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-green-600"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           disabled={loading}
@@ -89,14 +106,16 @@ export default function Login() {
           {loading ? "Logging in..." : "Login"}
         </button>
 
-        <div className="my-4 text-center text-gray-500 text-sm">or continue with</div>
+        <div className="my-4 text-center text-gray-500 text-sm">
+          or continue with
+        </div>
 
         <div className="flex justify-center gap-3 mb-4">
           <button
             type="button"
             onClick={loginWithGoogle}
             disabled={loading}
-            className="flex items-center text-gray-500 gap-2 border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center text-gray-700 gap-2 border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FcGoogle size={20} /> <span>Google</span>
           </button>
@@ -104,9 +123,9 @@ export default function Login() {
 
         <p className="text-center text-gray-600 text-sm">
           Not registered yet?{" "}
-          <Link 
-            to="/signup" 
-            state={{ from: location.state?.from }} 
+          <Link
+            to="/signup"
+            state={{ from: location.state?.from }}
             className="text-green-600 font-semibold hover:underline"
           >
             Sign up

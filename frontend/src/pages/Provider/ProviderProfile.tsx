@@ -59,12 +59,13 @@ export default function ProviderProfile() {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+      [name]:
+        type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
     }));
   };
 
   const handleSave = () => updateMutation.mutate(formData);
-  
+
   const handleCancel = () => {
     setFormData(profile || {});
     setIsEditing(false);
@@ -85,9 +86,12 @@ export default function ProviderProfile() {
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
             <div>
-              <h3 className="font-semibold text-yellow-900 mb-1">No Profile Found</h3>
+              <h3 className="font-semibold text-yellow-900 mb-1">
+                No Profile Found
+              </h3>
               <p className="text-sm text-yellow-800">
-                You need to create a provider profile before accessing this page.
+                You need to create a provider profile before accessing this
+                page.
               </p>
             </div>
           </div>
@@ -138,7 +142,9 @@ function Header({ isEditing, onEdit, onCancel, onSave, isSaving }: any) {
   return (
     <div className="mb-6 flex items-start justify-between">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Provider Profile</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
+          Provider Profile
+        </h1>
         <p className="text-sm sm:text-base text-gray-600">
           Manage your business information and settings
         </p>
@@ -174,7 +180,10 @@ function Header({ isEditing, onEdit, onCancel, onSave, isSaving }: any) {
 
 function ProfileHero({ profile, stats }: any) {
   const user = profile.user;
-  const displayLetter = profile.company?.[0]?.toUpperCase() || user?.firstName?.[0]?.toUpperCase() || "P";
+  const displayLetter =
+    profile.company?.[0]?.toUpperCase() ||
+    user?.firstName?.[0]?.toUpperCase() ||
+    "P";
 
   return (
     <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-2xl shadow-lg p-6 sm:p-8 mb-6 text-white">
@@ -188,7 +197,7 @@ function ProfileHero({ profile, stats }: any) {
             <CheckCircle className="w-4 h-4" />
             <span className="text-xs font-medium">Verified Provider</span>
           </div>
-          
+
           <h2 className="text-2xl sm:text-3xl font-bold mb-2">
             {profile.company || `${user?.firstName} ${user?.lastName}`}
           </h2>
@@ -229,9 +238,21 @@ function ProfileHero({ profile, stats }: any) {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-white/20">
         <StatBadge icon={Star} label="Rating" value={stats.rating.toString()} />
-        <StatBadge icon={Users} label="Reviews" value={stats.reviews.toString()} />
-        <StatBadge icon={CheckCircle} label="Bookings" value={stats.bookings.toString()} />
-        <StatBadge icon={Truck} label="Vehicles" value={stats.vehicles.toString()} />
+        <StatBadge
+          icon={Users}
+          label="Reviews"
+          value={stats.reviews.toString()}
+        />
+        <StatBadge
+          icon={CheckCircle}
+          label="Bookings"
+          value={stats.bookings.toString()}
+        />
+        <StatBadge
+          icon={Truck}
+          label="Vehicles"
+          value={stats.vehicles.toString()}
+        />
       </div>
     </div>
   );
@@ -262,7 +283,9 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
             ) : (
-              <p className="text-gray-800 font-medium">{profile.company || "Not provided"}</p>
+              <p className="text-gray-800 font-medium">
+                {profile.company || "Not provided"}
+              </p>
             )}
           </div>
 
@@ -303,9 +326,19 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
               </>
             ) : (
               <>
-                <CheckCircle className={`w-5 h-5 ${profile.includeHelpers ? "text-green-600" : "text-gray-400"}`} />
-                <span className={`text-sm font-medium ${profile.includeHelpers ? "text-green-800" : "text-gray-600"}`}>
-                  {profile.includeHelpers ? "Helpers Available" : "No Helpers Available"}
+                <CheckCircle
+                  className={`w-5 h-5 ${
+                    profile.includeHelpers ? "text-green-600" : "text-gray-400"
+                  }`}
+                />
+                <span
+                  className={`text-sm font-medium ${
+                    profile.includeHelpers ? "text-green-800" : "text-gray-600"
+                  }`}
+                >
+                  {profile.includeHelpers
+                    ? "Helpers Available"
+                    : "No Helpers Available"}
                 </span>
               </>
             )}
@@ -380,10 +413,10 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-gray-400" />
               <p className="text-gray-800">
-                {new Date(profile.createdAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
+                {new Date(profile.createdAt).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
                 })}
               </p>
             </div>
@@ -413,7 +446,9 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
             ) : (
-              <p className="text-gray-800">{profile.address || "Not provided"}</p>
+              <p className="text-gray-800">
+                {profile.address || "Not provided"}
+              </p>
             )}
           </div>
 
@@ -449,7 +484,9 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
             ) : (
-              <p className="text-gray-800">{profile.region || "Not provided"}</p>
+              <p className="text-gray-800">
+                {profile.region || "Not provided"}
+              </p>
             )}
           </div>
 
@@ -467,7 +504,9 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
             ) : (
-              <p className="text-gray-800">{profile.postalCode || "Not provided"}</p>
+              <p className="text-gray-800">
+                {profile.postalCode || "Not provided"}
+              </p>
             )}
           </div>
 
@@ -485,7 +524,9 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
             ) : (
-              <p className="text-gray-800">{profile.country || "South Africa"}</p>
+              <p className="text-gray-800">
+                {profile.country || "South Africa"}
+              </p>
             )}
           </div>
 
