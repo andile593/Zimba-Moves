@@ -5,6 +5,10 @@ import type { Quote } from "./quote";
 export interface Vehicle {
   id?: string;
   providerId: string;
+  make: string;
+  model: string;
+  year: number;
+  color: string;
   type: VehicleType;
   capacity: number;
   weight: number;
@@ -17,13 +21,17 @@ export interface Vehicle {
   Quote?: Quote[];
   files?: {
     id: string;
-    url: string; // Full URL or relative path
+    url: string;
     category: string;
   }[];
 }
 
 export type CreateVehicleInput = {
   providerId: string;
+  make: string;
+  model: string;
+  year: number;
+  color: string;
   type: VehicleType;
   capacity: number;
   weight: number;

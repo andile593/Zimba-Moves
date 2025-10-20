@@ -2,12 +2,28 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { OAuth2Client } = require("google-auth-library");
+const ApiError = require("../utils/ApiError");
+const emailService = require("../services/emailService");
 
-exports.createUser = async (req, res) => {
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+exports.createUser = async (req, res, next) => {
   try {
     const { firstName, lastName, email, phone, password, role, providerData } =
       req.body;
 
+    // Validate required fields
+    if (!firstName || !lastName || !email || !phone || !password || !role) {
+      throw new ApiError(
+        400,
+        "All fields are required",
+        "Missing required fields",
+        "MISSING_FIELDS"
+      );
+    }
+
+    // Check for existing user
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [{ email: email.toLowerCase() }, { phone: phone }],
@@ -16,16 +32,20 @@ exports.createUser = async (req, res) => {
 
     if (existingUser) {
       if (existingUser.email === email.toLowerCase()) {
-        return res.status(409).json({
-          error: "Email already exists",
-          details: "An account with this email address already exists",
-        });
+        throw new ApiError(
+          409,
+          "Email already exists",
+          "An account with this email already exists",
+          "EMAIL_EXISTS"
+        );
       }
       if (existingUser.phone === phone) {
-        return res.status(409).json({
-          error: "Phone number already exists",
-          details: "An account with this phone number already exists",
-        });
+        throw new ApiError(
+          409,
+          "Phone number already exists",
+          "An account with this phone number already exists",
+          "PHONE_EXISTS"
+        );
       }
     }
 
@@ -44,19 +64,13 @@ exports.createUser = async (req, res) => {
       });
 
       let providerRecord = null;
-
       if (role === "PROVIDER" && providerData) {
         providerRecord = await tx.provider.create({
           data: {
             userId: user.id,
             status: "PENDING",
-            idNumber: providerData.idNumber || null,
-            address: providerData.address || null,
-            city: providerData.city || null,
-            region: providerData.region || null,
+            ...providerData,
             country: providerData.country || "South Africa",
-            postalCode: providerData.postalCode || null,
-            includeHelpers: providerData.includeHelpers || false,
           },
         });
       }
@@ -79,79 +93,59 @@ exports.createUser = async (req, res) => {
         firstName: result.user.firstName,
         lastName: result.user.lastName,
         phone: result.user.phone,
-        status: result.user.status,
-        providerStatus: result.provider?.status || null,
         providerId: result.provider?.id || null,
+        providerStatus: result.provider?.status || null,
       },
     });
   } catch (err) {
-    console.error("Signup error details:", {
-      message: err.message,
-      code: err.code,
-      meta: err.meta,
-      stack: err.stack,
-    });
-
-    // Handle specific Prisma errors
-    if (err.code === "P2002") {
-      // Unique constraint violation
-      const field = err.meta?.target?.[0] || "field";
-      return res.status(409).json({
-        error: "User already exists",
-        details: `An account with this ${field} already exists`,
-      });
-    }
-
-    if (err.code === "P2003") {
-      // Foreign key constraint violation
-      return res.status(400).json({
-        error: "Invalid data",
-        details: "Please check your input data",
-      });
-    }
-
-    res.status(500).json({
-      error: "Failed to create user",
-      details:
-        process.env.NODE_ENV === "development"
-          ? err.message
-          : "An error occurred during signup",
-    });
+    next(err);
   }
 };
 
-exports.login = async (req, res) => {
+exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      throw new ApiError(
+        400,
+        "Email and password are required",
+        "Missing credentials",
+        "MISSING_CREDENTIALS"
+      );
+    }
+
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
-      include: {
-        Provider: true,
-      },
+      include: { Provider: true },
     });
 
     if (!user) {
-      return res.status(401).json({
-        error: "Invalid credentials",
-        details: "Email or password is incorrect",
-      });
+      throw new ApiError(
+        401,
+        "Invalid credentials",
+        "Email or password is incorrect",
+        "INVALID_CREDENTIALS"
+      );
     }
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
-      return res.status(401).json({
-        error: "Invalid credentials",
-        details: "Email or password is incorrect",
-      });
+      throw new ApiError(
+        401,
+        "Invalid credentials",
+        "Email or password is incorrect",
+        "INVALID_CREDENTIALS"
+      );
     }
 
-    // Check if user account is active
-    if (user.status === "SUSPENDED" || user.status === "DELETED") {
-      return res.status(403).json({
-        error: "Account suspended",
-        details: "Your account has been suspended. Please contact support.",
-      });
+    if (["SUSPENDED", "DELETED"].includes(user.status)) {
+      throw new ApiError(
+        403,
+        "Account suspended",
+        "Your account has been suspended",
+        "ACCOUNT_SUSPENDED"
+      );
     }
 
     const token = jwt.sign(
@@ -169,29 +163,26 @@ exports.login = async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         phone: user.phone,
-        status: user.status,
-        providerStatus: user.Provider?.status || null,
         providerId: user.Provider?.id || null,
+        providerStatus: user.Provider?.status || null,
       },
     });
   } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({
-      error: "Login failed",
-      details:
-        process.env.NODE_ENV === "development"
-          ? err.message
-          : "An error occurred during login",
-    });
+    next(err);
   }
 };
 
-exports.forgotPassword = async (req, res) => {
+exports.forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({ error: "Email is required" });
+      throw new ApiError(
+        400,
+        "Email is required",
+        "Please provide an email address",
+        "MISSING_EMAIL"
+      );
     }
 
     const user = await prisma.user.findUnique({
@@ -203,6 +194,7 @@ exports.forgotPassword = async (req, res) => {
         .status(200)
         .json({ message: "If that email exists, a reset link was sent." });
     }
+
     // Generate reset token
     const { token, tokenHash } =
       require("../utils/generateResetToken").createResetToken(user.id);
@@ -225,18 +217,21 @@ exports.forgotPassword = async (req, res) => {
       message: "If that email exists, a password reset link has been sent.",
     });
   } catch (err) {
-    console.error("Forgot password error:", err);
-    res.status(500).json({ error: "Failed to send password reset link" });
+    next(err);
   }
 };
 
-exports.resetPassword = async (req, res) => {
+exports.resetPassword = async (req, res, next) => {
   try {
     const { token, newPassword } = req.body;
+
     if (!token || !newPassword) {
-      return res
-        .status(400)
-        .json({ error: "Token and new password are required" });
+      throw new ApiError(
+        400,
+        "Token and new password are required",
+        "Missing required fields",
+        "MISSING_FIELDS"
+      );
     }
 
     // Verify JWT
@@ -244,7 +239,12 @@ exports.resetPassword = async (req, res) => {
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
-      return res.status(400).json({ error: "Invalid or expired token" });
+      throw new ApiError(
+        400,
+        "Invalid or expired reset token",
+        "The reset link is invalid or has expired",
+        "INVALID_TOKEN"
+      );
     }
 
     const crypto = require("crypto");
@@ -263,37 +263,47 @@ exports.resetPassword = async (req, res) => {
     });
 
     if (!resetRecord) {
-      return res.status(400).json({ error: "Invalid or expired reset token" });
+      throw new ApiError(
+        400,
+        "Invalid or expired reset token",
+        "The reset link is invalid or has expired",
+        "INVALID_TOKEN"
+      );
     }
 
     // Hash new password
-    const hashedPassword = await require("bcryptjs").hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update user
-    await prisma.user.update({
+    const user = await prisma.user.update({
       where: { id: decoded.userId },
       data: { password: hashedPassword },
     });
 
     // Delete used token
     await prisma.passwordReset.delete({ where: { id: resetRecord.id } });
+
     await emailService.sendPasswordResetSuccessEmail(user);
 
-    res
-      .status(200)
-      .json({ message: "Password reset successful. Please login again." });
+    res.status(200).json({
+      message: "Password reset successful. Please login again.",
+    });
   } catch (err) {
-    console.error("Reset password error:", err);
-    res.status(500).json({ error: "Failed to reset password" });
+    next(err);
   }
 };
 
-exports.googleOAuth = async (req, res) => {
+exports.googleOAuth = async (req, res, next) => {
   try {
     const { credential } = req.body;
 
     if (!credential) {
-      return res.status(400).json({ error: "Credential is required" });
+      throw new ApiError(
+        400,
+        "Credential is required",
+        "Google credential is missing",
+        "MISSING_CREDENTIAL"
+      );
     }
 
     // Verify the Google token
@@ -308,7 +318,7 @@ exports.googleOAuth = async (req, res) => {
     // Check if user exists
     let user = await prisma.user.findUnique({
       where: { email },
-      include: { Provider: true, Customer: true },
+      include: { Provider: true },
     });
 
     if (!user) {
@@ -320,18 +330,11 @@ exports.googleOAuth = async (req, res) => {
           email,
           firstName: given_name || "User",
           lastName: family_name || "",
-          password: randomPassword, // They won't use this password
-          phone: "", // Optional: prompt user to add phone later
-          role: "CUSTOMER", // Default to customer
-          googleId, // Store Google ID for future logins
-          profilePicture: picture, // Optional: store profile picture
-        },
-      });
-
-      // Create customer profile
-      await prisma.customer.create({
-        data: {
-          userId: user.id,
+          password: randomPassword,
+          phone: "",
+          role: "CUSTOMER",
+          googleId,
+          profilePicture: picture,
         },
       });
     } else if (!user.googleId) {
@@ -357,10 +360,18 @@ exports.googleOAuth = async (req, res) => {
 
     res.json({
       token,
-      user: userWithoutPassword,
+      user: {
+        id: userWithoutPassword.id,
+        email: userWithoutPassword.email,
+        role: userWithoutPassword.role,
+        firstName: userWithoutPassword.firstName,
+        lastName: userWithoutPassword.lastName,
+        phone: userWithoutPassword.phone,
+        providerId: userWithoutPassword.Provider?.id || null,
+        providerStatus: userWithoutPassword.Provider?.status || null,
+      },
     });
-  } catch (error) {
-    console.error("Google auth error:", error);
-    res.status(401).json({ error: "Invalid Google token" });
+  } catch (err) {
+    next(err);
   }
 };

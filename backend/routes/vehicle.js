@@ -1,110 +1,35 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize } = require("../middleware/auth");
+const { vehicleSchema } = require("../validators/schema");
+const {
+  addVehicle,
+  updateVehicle,
+  deleteVehicle,
+  getVehicleById,
+  getVehiclesByProvider,
+} = require("../controllers/vehiclesController");
+const validate = require("../middleware/validate");
 
-// Get single vehicle by ID
-router.get('/:id', authenticate, async (req, res) => {
-  try {
-    const vehicle = await prisma.vehicle.findUnique({
-      where: { id: req.params.id },
-      include: {
-        provider: {
-          include: {
-            user: {
-              select: { id: true, firstName: true, lastName: true, email: true }
-            }
-          }
-        }
-      }
-    });
+// Get all vehicles for a provider (public)
+router.get("/:id/vehicles", getVehiclesByProvider);
 
-    if (!vehicle) {
-      return res.status(404).json({ error: 'Vehicle not found' });
-    }
+// Get single vehicle by ID (public)
+router.get("/:id", getVehicleById);
 
-    res.json(vehicle);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch vehicle', details: err.message });
-  }
-});
+// Add vehicle to provider (authenticated - provider owner only)
+router.post(
+  "/:id/vehicles",
+  authenticate,
+  validate(vehicleSchema),
+  authorize("PROVIDER"),
+  addVehicle
+);
 
-// Update vehicle
-router.put('/:id', authenticate, authorize('PROVIDER', 'ADMIN'), async (req, res) => {
-  try {
-    const { type, capacity, weight, plate, baseRate, perKmRate } = req.body;
-    
-    const vehicle = await prisma.vehicle.findUnique({
-      where: { id: req.params.id },
-      include: { provider: true }
-    });
+// Update vehicle (authenticated - owner or admin)
+router.put("/:id", authenticate, updateVehicle);
 
-    if (!vehicle) {
-      return res.status(404).json({ error: 'Vehicle not found' });
-    }
-
-    // Check authorization
-    if (req.user.role !== 'ADMIN' && vehicle.provider.userId !== req.user.userId) {
-      return res.status(403).json({ error: 'Forbidden: You can only update your own vehicles' });
-    }
-
-    const updatedVehicle = await prisma.vehicle.update({
-      where: { id: req.params.id },
-      data: {
-        ...(type && { type }),
-        ...(capacity && { capacity }),
-        ...(weight && { weight }),
-        ...(plate && { plate }),
-        ...(baseRate && { baseRate }),
-        ...(perKmRate !== undefined && { perKmRate })
-      }
-    });
-
-    res.json(updatedVehicle);
-  } catch (err) {
-    res.status(400).json({ error: 'Failed to update vehicle', details: err.message });
-  }
-});
-
-// Delete vehicle
-router.delete('/:id', authenticate, authorize('PROVIDER', 'ADMIN'), async (req, res) => {
-  try {
-    const vehicle = await prisma.vehicle.findUnique({
-      where: { id: req.params.id },
-      include: { provider: true }
-    });
-
-    if (!vehicle) {
-      return res.status(404).json({ error: 'Vehicle not found' });
-    }
-
-    // Check authorization
-    if (req.user.role !== 'ADMIN' && vehicle.provider.userId !== req.user.userId) {
-      return res.status(403).json({ error: 'Forbidden: You can only delete your own vehicles' });
-    }
-
-    // Check if vehicle has active bookings
-    const activeBookings = await prisma.booking.count({
-      where: {
-        vehicleId: req.params.id,
-        status: { in: ['PENDING', 'CONFIRMED'] }
-      }
-    });
-
-    if (activeBookings > 0) {
-      return res.status(400).json({ 
-        error: 'Cannot delete vehicle with active bookings',
-        activeBookings 
-      });
-    }
-
-    await prisma.vehicle.delete({ where: { id: req.params.id } });
-
-    res.json({ message: 'Vehicle deleted successfully' });
-  } catch (err) {
-    res.status(400).json({ error: 'Failed to delete vehicle', details: err.message });
-  }
-});
+// Delete vehicle (authenticated - owner or admin)
+router.delete("/:id", authenticate, deleteVehicle);
 
 module.exports = router;

@@ -68,11 +68,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      if (!res.ok) throw new Error("Invalid credentials");
+
       const data = await res.json();
+
+      if (!res.ok) {
+        const errorMessage =
+          data.details || data.error || data.message || "Login failed";
+        throw new Error(errorMessage);
+      }
+
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-
       setUser(data.user);
       return data.user;
     } finally {
@@ -88,14 +94,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ credential }),
       });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Google login failed");
-      }
+
       const data = await res.json();
+
+      if (!res.ok) {
+        const errorMessage =
+          data.details || data.error || data.message || "Google login failed";
+        throw new Error(errorMessage);
+      }
+
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-
       setUser(data.user);
       return data.user;
     } finally {
@@ -111,12 +120,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(signupData),
       });
-      if (!res.ok) throw new Error("Signup failed");
+
       const data = await res.json();
+
+      if (!res.ok) {
+        // Prioritize details field which contains the user-friendly message
+        const errorMessage =
+          data.details || data.error || data.message || "Signup failed";
+        throw new Error(errorMessage);
+      }
+
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
       setUser(data.user);
       return data.user;
+    } catch (error) {
+      console.error("💥 Caught error in signup:", error);
+      throw error;
     } finally {
       setLoading(false);
     }

@@ -5,8 +5,8 @@ const cors = require("cors");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 const path = require("path");
-const session = require('express-session');
-const passport = require('./config/passport');
+const session = require("express-session");
+const passport = require("./config/passport");
 const errorHandler = require("./middleware/errorHandler");
 const { authenticate } = require("./middleware/auth");
 
@@ -57,19 +57,19 @@ app.use(
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Initialize Passport
-app.use(passport.initialize());    require('node:crypto').randomBytes(32).toString('hex')
+app.use(passport.initialize());
+require("node:crypto").randomBytes(32).toString("hex");
 app.use(passport.session());
-
-
 
 // Public routes
 app.use("/", require("./routes/auth"));
 app.use("/", require("./routes/pages"));
 
-// Provider routes
+// Provider & vehicles routes
 app.use("/providers", require("./routes/provider"));
+app.use("/providers", require("./routes/vehicle"));
 
-app.use("/quotes",require("./routes/quote"));
+app.use("/quotes", require("./routes/quote"));
 
 // Protected routes
 app.use("/bookings", authenticate, require("./routes/booking"));
