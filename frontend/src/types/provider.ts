@@ -3,8 +3,7 @@ import type { Booking } from "./booking";
 import type { Quote } from "./quote";
 import type { Payment } from "./payment";
 import type { File } from "./file";
-
-export type ProviderStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
+import type { ProviderStatus } from "./enums";
 
 export interface Provider {
   id: string;
@@ -29,7 +28,6 @@ export interface Provider {
   adminNotes?: string;
   reviewedBy?: string;
   reviewedAt?: string;
-
   createdAt?: string;
   updatedAt?: string;
   vehicles?: Vehicle[];

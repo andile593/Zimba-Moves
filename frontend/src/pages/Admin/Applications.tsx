@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import FilePreviewModal from "../../components/FilePreview";
 import {
   CheckCircle,
   XCircle,
@@ -40,7 +41,6 @@ export default function AdminApplications() {
     name: string;
   } | null>(null);
   const [expandedApps, setExpandedApps] = useState<Set<string>>(new Set());
-  const [imageZoom, setImageZoom] = useState(100);
   const [reviewData, setReviewData] = useState({
     status: "APPROVED",
     rejectionReason: "",
@@ -92,22 +92,27 @@ export default function AdminApplications() {
     setShowReviewModal(true);
   };
 
-  const handlePreviewFile = (url: string, fileName: string) => {
-    const fileExtension = fileName.split(".").pop()?.toLowerCase();
-    const fileType = fileExtension === "pdf" ? "pdf" : "image";
-    const fullUrl = `${
-      import.meta.env.VITE_API_URL || "http://localhost:4000"
-    }/${url.replace(/\\/g, "/")}`;
-
-    setPreviewFile({ url: fullUrl, type: fileType, name: fileName });
-    setShowPreviewModal(true);
-    setImageZoom(100);
+  const handlePreviewFile = async (url: string) => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/${url.replace(/\\/g, "/")}`
+      );
+      const blob = await res.blob();
+      const fileUrl = URL.createObjectURL(blob);
+      setPreviewFile({
+        url: fileUrl,
+        type: "image",
+        name: url.split("/").pop() || "",
+      });
+      setShowPreviewModal(true);
+    } catch (err) {
+      console.error("Failed to load file", err);
+    }
   };
 
   const closePreview = () => {
     setShowPreviewModal(false);
     setPreviewFile(null);
-    setImageZoom(100);
   };
 
   const submitReview = () => {
@@ -131,7 +136,8 @@ export default function AdminApplications() {
 
   const getDocumentFileName = (app: any, category: string) => {
     const doc = app.files?.find((f: any) => f.category === category);
-    return doc?.fileName || "";
+    if (!doc?.url) return "";
+    return doc.url.split("/").pop() || "";
   };
 
   const getDocumentStatusBadge = (status: string) => {
@@ -162,8 +168,8 @@ export default function AdminApplications() {
     const requiredDocs = [
       "ID_DOCUMENT",
       "PROOF_OF_ADDRESS",
-      "VEHICLE_REGISTRATION",
-      "VEHICLE_LICENSE_DISK",
+      "VEHICLE_REGISTRATION_CERT",
+      "DRIVERS_LICENSE",
     ];
     const submitted = requiredDocs.filter(
       (cat) => getDocumentStatus(app, cat) !== "MISSING"
@@ -227,7 +233,7 @@ export default function AdminApplications() {
               <CheckCircle className="w-12 h-12 text-green-600" />
             </div>
             <h3 className="text-2xl font-bold text-slate-900 mb-3">
-              All Caught Up! 🎉
+              All Caught Up!
             </h3>
             <p className="text-slate-600 max-w-md mx-auto text-lg">
               No pending applications at the moment. New submissions will appear
@@ -441,14 +447,12 @@ export default function AdminApplications() {
                           },
                           {
                             label: "Vehicle Reg",
-                            category: "VEHICLE_REGISTRATION",
+                            category: "VEHICLE_REGISTRATION_CERT",
                           },
                           {
                             label: "License Disk",
-                            category: "VEHICLE_LICENSE_DISK",
+                            category: "DRIVERS_LICENSE",
                           },
-                          { label: "Business License", category: "LICENSE" },
-                          { label: "Insurance", category: "INSURANCE" },
                         ].map((doc) => {
                           const status = getDocumentStatus(app, doc.category);
                           const url = getDocumentUrl(app, doc.category);
@@ -456,6 +460,7 @@ export default function AdminApplications() {
                             app,
                             doc.category
                           );
+                          console.log("URl", url);
 
                           return (
                             <div
@@ -469,9 +474,7 @@ export default function AdminApplications() {
                                 {url && (
                                   <div className="flex gap-1">
                                     <button
-                                      onClick={() =>
-                                        handlePreviewFile(url, fileName)
-                                      }
+                                      onClick={() => handlePreviewFile(url)}
                                       className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition opacity-0 group-hover:opacity-100"
                                       title="Preview"
                                     >
@@ -536,84 +539,14 @@ export default function AdminApplications() {
         )}
       </div>
 
-      {/* File Preview Modal */}
       {showPreviewModal && previewFile && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="relative w-full max-w-6xl max-h-[95vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <FileText className="w-6 h-6" />
-                <div>
-                  <h3 className="font-bold text-lg">Document Preview</h3>
-                  <p className="text-sm text-slate-300 truncate max-w-md">
-                    {previewFile.name}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {previewFile.type === "image" && (
-                  <>
-                    <button
-                      onClick={() => setImageZoom(Math.max(50, imageZoom - 25))}
-                      className="p-2 hover:bg-slate-700 rounded-lg transition"
-                      title="Zoom Out"
-                    >
-                      <ZoomOut className="w-5 h-5" />
-                    </button>
-                    <span className="text-sm font-semibold min-w-[60px] text-center">
-                      {imageZoom}%
-                    </span>
-                    <button
-                      onClick={() =>
-                        setImageZoom(Math.min(200, imageZoom + 25))
-                      }
-                      className="p-2 hover:bg-slate-700 rounded-lg transition"
-                      title="Zoom In"
-                    >
-                      <ZoomIn className="w-5 h-5" />
-                    </button>
-                  </>
-                )}
-                <a
-                  href={previewFile.url}
-                  download
-                  className="p-2 hover:bg-slate-700 rounded-lg transition"
-                  title="Download"
-                >
-                  <Download className="w-5 h-5" />
-                </a>
-                <button
-                  onClick={closePreview}
-                  className="p-2 hover:bg-slate-700 rounded-lg transition"
-                  title="Close"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-auto bg-slate-100 p-4">
-              <div className="flex items-center justify-center min-h-full">
-                {previewFile.type === "pdf" ? (
-                  <iframe
-                    src={previewFile.url}
-                    className="w-full h-[80vh] rounded-lg shadow-xl bg-white"
-                    title="PDF Preview"
-                  />
-                ) : (
-                  <img
-                    src={previewFile.url}
-                    alt={previewFile.name}
-                    className="max-w-full h-auto rounded-lg shadow-xl transition-transform duration-200"
-                    style={{ transform: `scale(${imageZoom / 100})` }}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <FilePreviewModal
+          file={previewFile}
+          onClose={() => {
+            setShowPreviewModal(false);
+            setPreviewFile(null);
+          }}
+        />
       )}
 
       {/* Review Modal */}

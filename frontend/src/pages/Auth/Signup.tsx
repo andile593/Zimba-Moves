@@ -50,8 +50,8 @@ export default function Signup() {
   const [documents, setDocuments] = useState({
     ID_DOCUMENT: null as File | null,
     PROOF_OF_ADDRESS: null as File | null,
-    VEHICLE_REGISTRATION: null as File | null,
-    VEHICLE_LICENSE_DISK: null as File | null,
+    VEHICLE_REGISTRATION_CERT: null as File | null,
+    DRIVERS_LICENSE: null as File | null,
   });
 
   const [error, setError] = useState("");
@@ -132,8 +132,8 @@ export default function Signup() {
     const requiredDocs = [
       "ID_DOCUMENT",
       "PROOF_OF_ADDRESS",
-      "VEHICLE_REGISTRATION",
-      "VEHICLE_LICENSE_DISK",
+      "VEHICLE_REGISTRATION_CERT",
+      "DRIVERS_LICENSE",
     ] as const;
     const missingDocs = requiredDocs.filter((doc) => !documents[doc]);
     if (missingDocs.length > 0) {
@@ -162,30 +162,79 @@ export default function Signup() {
     const filesToUpload = Object.entries(documents).filter(
       ([_, file]) => file !== null
     );
-    if (filesToUpload.length === 0) return;
+
+    console.log("=== STARTING DOCUMENT UPLOAD ===");
+    console.log("Provider ID:", providerId);
+    console.log("Token exists:", !!token);
+    console.log("Files to upload:", filesToUpload.length);
+
+    if (filesToUpload.length === 0) {
+      console.log("No files to upload");
+      return;
+    }
 
     const uploadPromises = filesToUpload.map(async ([category, file]) => {
       const formData = new FormData();
       formData.append("file", file!);
       formData.append("category", category);
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/providers/${providerId}/files`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        }
+      console.log(`\n--- Uploading ${category} ---`);
+      console.log("File name:", file!.name);
+      console.log("File size:", file!.size);
+      console.log("File type:", file!.type);
+      console.log(
+        "URL:",
+        `${import.meta.env.VITE_API_URL}/providers/${providerId}/files`
       );
-      if (!response.ok) throw new Error(`Failed to upload ${category}`);
+
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/providers/${providerId}/files`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              // Don't set Content-Type - let browser set it with boundary
+            },
+            body: formData,
+          }
+        );
+
+        console.log(`Response status for ${category}:`, response.status);
+
+        const responseData = await response.json();
+        console.log(`Response data for ${category}:`, responseData);
+
+        if (!response.ok) {
+          console.error(`Failed to upload ${category}:`, responseData);
+          throw new Error(
+            `Failed to upload ${category}: ${
+              responseData.error || "Unknown error"
+            }`
+          );
+        }
+
+        console.log(`✓ Successfully uploaded ${category}`);
+        return responseData;
+      } catch (error) {
+        console.error(`Exception uploading ${category}:`, error);
+        throw error;
+      }
     });
 
-    await Promise.all(uploadPromises).catch(() => {
+    try {
+      const results = await Promise.all(uploadPromises);
+      console.log("=== ALL DOCUMENTS UPLOADED SUCCESSFULLY ===");
+      console.log("Results:", results);
+      return results;
+    } catch (error) {
+      console.error("=== DOCUMENT UPLOAD FAILED ===");
+      console.error("Error:", error);
       toast.error(
         "Some documents failed to upload. Upload them from your dashboard."
       );
       throw new Error("Document upload failed");
-    });
+    }
   };
 
   const handleGoogleSuccess = async (
@@ -221,6 +270,14 @@ export default function Signup() {
     setLoading(true);
 
     try {
+      // Validate current step before submitting
+      if (activeTab === "PROVIDER" && currentStep === 3) {
+        if (!validateStep3()) {
+          setLoading(false);
+          return;
+        }
+      }
+
       const { confirmPassword, ...formWithoutConfirm } = form;
       const signupData: SignupData = {
         ...formWithoutConfirm,
@@ -228,25 +285,57 @@ export default function Signup() {
         ...(activeTab === "PROVIDER" ? { providerData: providerForm } : {}),
       };
 
+      console.log("=== SIGNUP START ===");
+      console.log("Signup data:", signupData);
+
       const createdUser = await signup(signupData);
+
+      console.log("User created:", createdUser);
+      console.log("Provider ID:", createdUser.providerId);
+
       if (activeTab === "PROVIDER") {
         const token = localStorage.getItem("token");
-        if (createdUser.Provider?.id && token) {
+
+        console.log("Token from localStorage:", token ? "exists" : "missing");
+        console.log("Provider ID:", createdUser.providerId);
+
+        // Use createdUser.providerId instead of createdUser.Provider?.id
+        if (createdUser.providerId && token) {
+          console.log("Starting document upload...");
           setUploadingDocs(true);
-          await uploadDocuments(createdUser.Provider.id, token);
-          setUploadingDocs(false);
-          toast.success("Account created and documents uploaded successfully!");
+
+          try {
+            await uploadDocuments(createdUser.providerId, token);
+            setUploadingDocs(false);
+            toast.success(
+              "Account created and documents uploaded successfully!"
+            );
+          } catch (uploadError) {
+            console.error("Document upload error:", uploadError);
+            setUploadingDocs(false);
+            toast.success(
+              "Account created! Upload documents from dashboard later."
+            );
+          }
         } else {
+          console.warn("Missing data for upload:", {
+            hasProviderId: !!createdUser.providerId,
+            hasToken: !!token,
+          });
           toast.success(
             "Account created! Upload documents from dashboard later."
           );
         }
+
         navigate("/provider/pending", { replace: true });
       } else {
+        toast.success("Account created successfully!");
         navigate(from || "/", { replace: true });
       }
     } catch (err: any) {
+      console.error("Signup error:", err);
       setError(err.message || "Signup failed. Please try again.");
+      toast.error(err.message || "Signup failed");
     } finally {
       setLoading(false);
       setUploadingDocs(false);
@@ -553,19 +642,35 @@ export default function Signup() {
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Street Address <span className="text-red-500">*</span>
-                </label>
-                <input
-                  name="address"
-                  placeholder="123 Main Street"
-                  className="w-full p-3 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
-                  onChange={handleProviderChange}
-                  value={providerForm.address}
-                  disabled={loading}
-                  required
-                />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-start-1 col-end-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Street Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    name="address"
+                    placeholder="23 Main Street"
+                    className="w-full p-3 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+                    onChange={handleProviderChange}
+                    value={providerForm.address}
+                    disabled={loading}
+                    required
+                  />
+                </div>
+                <div className="col-start-3 col-end-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Postal Code <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    name="postalCode"
+                    placeholder="4520"
+                    className="w-full p-3 text-gray-700 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
+                    onChange={handleProviderChange}
+                    value={providerForm.postalCode}
+                    disabled={loading}
+                    required
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -642,7 +747,7 @@ export default function Signup() {
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
                 <p className="text-xs text-yellow-800">
                   <strong>Note:</strong> All documents must be clear and valid.
-                  Accepted formats: JPG, PNG, WEBP, PDF (max 5MB each)
+                  Accepted formats: JPG, PNG, WEBP, PDF (max 2MB each)
                 </p>
               </div>
               <DocumentUpload category="ID_DOCUMENT" label="ID Document" />
@@ -651,12 +756,12 @@ export default function Signup() {
                 label="Proof of Address"
               />
               <DocumentUpload
-                category="VEHICLE_REGISTRATION"
-                label="Vehicle Registration"
+                category="VEHICLE_REGISTRATION_CERT"
+                label="Vehicle Registration Certificate"
               />
               <DocumentUpload
-                category="VEHICLE_LICENSE_DISK"
-                label="Valid License Disk"
+                category="DRIVERS_LICENSE"
+                label="Valid Drivers License"
               />
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-xs text-blue-800">

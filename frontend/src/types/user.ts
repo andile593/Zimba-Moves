@@ -3,6 +3,7 @@ import type { Booking } from "./booking";
 import type { Complaint } from "./complaint";
 import type { Quote } from "./quote";
 import type { File } from "./file";
+import type { ProviderStatus } from "./enums";
 
 export interface User {
   id: string;
@@ -13,7 +14,8 @@ export interface User {
   firstName: string;
   lastName: string;
   status: string;
-  providerStatus?: "PENDING" | "APPROVED" | "REJECTED";
+  providerStatus: ProviderStatus;
+  providerId?: string | null;
   createdAt?: string;
   updatedAt?: string;
   Provider?: Provider;
