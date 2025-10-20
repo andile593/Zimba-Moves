@@ -52,13 +52,6 @@ export default function EnhancedProviderDetail() {
       .join("/");
     const fullUrl = `${baseUrl}/uploads/${encodedPath}`;
 
-    console.log("Image path processing:", {
-      original: imagePath,
-      cleaned: cleanPath,
-      encoded: encodedPath,
-      final: fullUrl,
-    });
-
     return fullUrl;
   };
 
@@ -115,7 +108,6 @@ export default function EnhancedProviderDetail() {
   // Get the primary vehicle image
   const vehicleImage = provider.vehicles?.[0]?.files?.[0]?.url;
   const imageUrl = getVehicleImageUrl(vehicleImage);
-  
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 sm:pb-8">
