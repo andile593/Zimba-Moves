@@ -1,13 +1,34 @@
 const nodemailer = require("nodemailer");
 
+// Create transporter with better configuration
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: process.env.SMTP_PORT || 587,
-  secure: false,
+  port: parseInt(process.env.SMTP_PORT) || 587,
+  secure: false, // true for 465, false for other ports
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  tls: {
+    rejectUnauthorized: false, // Allow self-signed certificates
+  },
+  connectionTimeout: 10000, // 10 seconds
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
+  pool: true, // Use pooled connections
+  maxConnections: 5,
+  maxMessages: 100,
+});
+
+// Verify transporter configuration on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("Email transporter verification failed:");
+    console.error("Error:", error.message);
+  } else {
+    console.log("Email server is ready to send messages");
+    console.log(`Using: ${process.env.SMTP_USER}`);
+  }
 });
 
 const emailTemplates = {
@@ -23,9 +44,6 @@ const emailTemplates = {
         <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
           <h3>Application Details:</h3>
           <p><strong>Application ID:</strong> ${provider.id}</p>
-          <p><strong>Business Name:</strong> ${
-            provider.businessName || "N/A"
-          }</p>
           <p><strong>City:</strong> ${provider.city || "N/A"}</p>
         </div>
 
@@ -35,7 +53,7 @@ const emailTemplates = {
   }),
 
   applicationApproved: (provider) => ({
-    subject: "Hooray, Provider Application Approved.",
+    subject: "Congratulations! Provider Application Approved",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
         <h2 style="color: #16a34a;">Congratulations! Your Application is Approved</h2>
@@ -93,7 +111,7 @@ const emailTemplates = {
           </a>
         </div>
 
-        <p>This link will expire in <strong>15 minutes</strong>. If you didn’t request this, you can ignore this email.</p>
+        <p>This link will expire in <strong>15 minutes</strong>. If you didn't request this, you can ignore this email.</p>
         <p>– The MoveEase Team</p>
       </div>
     `,
@@ -106,7 +124,7 @@ const emailTemplates = {
         <h2 style="color: #16a34a;">Password Reset Successful</h2>
         <p>Hi ${user.firstName},</p>
         <p>Your password has been successfully reset.</p>
-        <p>If you didn’t perform this action, contact our support immediately.</p>
+        <p>If you didn't perform this action, contact our support immediately.</p>
         <p>– The MoveEase Team</p>
       </div>
     `,
@@ -115,6 +133,16 @@ const emailTemplates = {
 
 async function sendEmail(to, template, options = {}) {
   try {
+    // Check if SMTP is configured
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.warn(
+        "⚠️  SMTP not configured. Email would have been sent to:",
+        to
+      );
+      console.warn("   Subject:", template.subject);
+      return { success: false, error: "SMTP not configured" };
+    }
+
     if (!template?.subject || !template?.html) {
       throw new Error("Invalid email template provided");
     }
@@ -130,20 +158,32 @@ async function sendEmail(to, template, options = {}) {
       headers: options.headers || {},
     };
 
+    console.log(`📧 Attempting to send email to: ${to}`);
+    console.log(`   Subject: ${template.subject}`);
+
     const info = await transporter.sendMail(mailOptions);
 
-    console.log(
-      `[${template.subject}] sent to ${to} — MessageID: ${info.messageId}`
-    );
+    console.log(`✅ Email sent successfully!`);
+    console.log(`   MessageID: ${info.messageId}`);
+    console.log(`   Response: ${info.response}`);
+
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error(`Failed to send email to ${to}:`, error.message);
+    console.error(`❌ Failed to send email to ${to}`);
+    console.error(`   Error: ${error.message}`);
+    if (error.code) {
+      console.error(`   Code: ${error.code}`);
+    }
+    if (error.command) {
+      console.error(`   Command: ${error.command}`);
+    }
     return { success: false, error: error.message };
   }
 }
 
 module.exports = {
   sendEmail,
+  transporter, // Export for testing
 
   sendApplicationSubmitted: (provider) =>
     sendEmail(

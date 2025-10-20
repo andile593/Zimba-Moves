@@ -163,11 +163,6 @@ export default function Signup() {
       ([_, file]) => file !== null
     );
 
-    console.log("=== STARTING DOCUMENT UPLOAD ===");
-    console.log("Provider ID:", providerId);
-    console.log("Token exists:", !!token);
-    console.log("Files to upload:", filesToUpload.length);
-
     if (filesToUpload.length === 0) {
       console.log("No files to upload");
       return;
@@ -177,15 +172,6 @@ export default function Signup() {
       const formData = new FormData();
       formData.append("file", file!);
       formData.append("category", category);
-
-      console.log(`\n--- Uploading ${category} ---`);
-      console.log("File name:", file!.name);
-      console.log("File size:", file!.size);
-      console.log("File type:", file!.type);
-      console.log(
-        "URL:",
-        `${import.meta.env.VITE_API_URL}/providers/${providerId}/files`
-      );
 
       try {
         const response = await fetch(
@@ -200,10 +186,7 @@ export default function Signup() {
           }
         );
 
-        console.log(`Response status for ${category}:`, response.status);
-
         const responseData = await response.json();
-        console.log(`Response data for ${category}:`, responseData);
 
         if (!response.ok) {
           console.error(`Failed to upload ${category}:`, responseData);
@@ -214,7 +197,6 @@ export default function Signup() {
           );
         }
 
-        console.log(`✓ Successfully uploaded ${category}`);
         return responseData;
       } catch (error) {
         console.error(`Exception uploading ${category}:`, error);
@@ -224,11 +206,8 @@ export default function Signup() {
 
     try {
       const results = await Promise.all(uploadPromises);
-      console.log("=== ALL DOCUMENTS UPLOADED SUCCESSFULLY ===");
-      console.log("Results:", results);
       return results;
     } catch (error) {
-      console.error("=== DOCUMENT UPLOAD FAILED ===");
       console.error("Error:", error);
       toast.error(
         "Some documents failed to upload. Upload them from your dashboard."
