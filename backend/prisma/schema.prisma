@@ -62,6 +62,10 @@ model Provider {
 model Vehicle {
   id         String      @id @default(uuid())
   providerId String
+  make       String
+  model      String
+  year       Int
+  color      String
   type       VehicleType
   capacity   Float
   weight     Float

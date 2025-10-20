@@ -19,6 +19,8 @@ export default function Vehicles() {
     queryFn: async () => {
       const res = await api.get("/providers/me/profile");
       setProviderId(res.data.id);
+      console.log("Response Data:", res.data);
+
       return res.data;
     },
   });
@@ -83,7 +85,9 @@ export default function Vehicles() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">My Vehicles</h1>
-          <p className="text-gray-600 mt-1">Manage your fleet and vehicle information</p>
+          <p className="text-gray-600 mt-1">
+            Manage your fleet and vehicle information
+          </p>
         </div>
         <button
           onClick={handleAddVehicle}
@@ -98,8 +102,12 @@ export default function Vehicles() {
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Truck className="w-10 h-10 text-gray-400" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">No Vehicles Added</h3>
-          <p className="text-gray-600 mb-6">Start by adding your first vehicle</p>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">
+            No Vehicles Added
+          </h3>
+          <p className="text-gray-600 mb-6">
+            Start by adding your first vehicle
+          </p>
           <button
             onClick={handleAddVehicle}
             className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
@@ -112,23 +120,34 @@ export default function Vehicles() {
           {vehicles.map((vehicle) => {
             const hasImages = vehicle.files && vehicle.files.length > 0;
             const primaryImage = vehicle.files?.[0]?.url || null;
-            
+
             // Debug: Log the image path
             if (primaryImage) {
-              console.log('Vehicle:', vehicle.plate, 'Image path:', primaryImage);
+              console.log(
+                "Vehicle:",
+                vehicle.plate,
+                "Image path:",
+                primaryImage
+              );
             }
 
             return (
-              <div key={vehicle.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
+              <div
+                key={vehicle.id}
+                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition"
+              >
                 {/* Vehicle Image */}
                 <div className="h-48 bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center relative overflow-hidden">
                   {primaryImage ? (
                     <img
-                      src={`${import.meta.env.VITE_API_URL || window.location.origin.replace('5173', '4000')}/${primaryImage.replace(/\\/g, '/')}`}
-                      alt={vehicle.plate}
+                      src={`${
+                        import.meta.env.VITE_API_URL ||
+                        window.location.origin.replace("5173", "4000")
+                      }/${primaryImage.replace(/\\/g, "/")}`}
+                      alt={`${vehicle.make} ${vehicle.model}`}
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        console.error('Image failed to load:', primaryImage);
+                        console.error("Image failed to load:", primaryImage);
                         const target = e.target as HTMLImageElement;
                         target.style.display = "none";
                       }}
@@ -148,25 +167,51 @@ export default function Vehicles() {
 
                 {/* Vehicle Details */}
                 <div className="p-5">
-                  <h3 className="text-lg font-bold text-gray-800">{getVehicleTypeLabel(vehicle.type)}</h3>
-                  <p className="text-sm text-gray-600 font-mono mt-1">{vehicle.plate}</p>
+                  {/* Vehicle Name & Type */}
+                  <div className="mb-3">
+                    <h3 className="text-lg font-bold text-gray-800">
+                      {vehicle.year} {vehicle.make} {vehicle.model}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+                        {getVehicleTypeLabel(vehicle.type)}
+                      </span>
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full font-medium">
+                        {vehicle.color}
+                      </span>
+                    </div>
+                  </div>
 
-                  <div className="space-y-2 mt-3">
+                  {/* License Plate */}
+                  <p className="text-sm text-gray-600 font-mono bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 mb-3">
+                    {vehicle.plate}
+                  </p>
+
+                  {/* Specifications */}
+                  <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Capacity:</span>
-                      <span className="font-semibold text-gray-800">{vehicle.capacity} m³</span>
+                      <span className="font-semibold text-gray-800">
+                        {vehicle.capacity} m³
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Max Weight:</span>
-                      <span className="font-semibold text-gray-800">{vehicle.weight} kg</span>
+                      <span className="font-semibold text-gray-800">
+                        {vehicle.weight} kg
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Base Rate:</span>
-                      <span className="font-semibold text-green-600">R {vehicle.baseRate.toFixed(2)}</span>
+                      <span className="font-semibold text-green-600">
+                        R {vehicle.baseRate.toFixed(2)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Per KM:</span>
-                      <span className="font-semibold text-green-600">R {vehicle.perKmRate?.toFixed(2) || 0}</span>
+                      <span className="font-semibold text-green-600">
+                        R {vehicle.perKmRate?.toFixed(2) || 0}
+                      </span>
                     </div>
                   </div>
 
