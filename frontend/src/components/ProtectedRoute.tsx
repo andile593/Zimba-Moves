@@ -14,8 +14,6 @@ export default function ProtectedRoute({
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  console.log("User:", user);
-
   // Show loader while auth state is hydrating
   if (loading) {
     return (

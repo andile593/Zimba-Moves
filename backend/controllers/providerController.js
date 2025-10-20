@@ -268,7 +268,13 @@ exports.getPendingApplications = async (req, res) => {
           },
         },
         files: {
-          select: { id: true, category: true, status: true, createdAt: true },
+          select: {
+            id: true,
+            category: true,
+            status: true,
+            createdAt: true,
+            url: true,
+          },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -713,12 +719,18 @@ exports.getVehiclesByProvider = async (req, res) => {
   }
 };
 
-// Upload provider file (license, insurance, branding, KYC documents)
 exports.uploadProviderFile = async (req, res) => {
   try {
     const providerId = req.params.id;
+    console.log("=== FILE UPLOAD START ===");
+    console.log("Provider ID:", providerId);
+    console.log("User ID:", req.user?.userId);
+    console.log("User Role:", req.user?.role);
+    console.log("File received:", req.file ? req.file.originalname : "NO FILE");
+    console.log("Category:", req.body.category);
 
     if (!req.file) {
+      console.error("ERROR: No file uploaded");
       return res.status(400).json({ error: "No file uploaded" });
     }
 
@@ -726,36 +738,54 @@ exports.uploadProviderFile = async (req, res) => {
     const provider = await prisma.provider.findUnique({
       where: { id: providerId },
     });
+
     if (!provider) {
+      console.error("ERROR: Provider not found:", providerId);
       await fs.unlink(req.file.path);
       return res.status(404).json({ error: "Provider not found" });
     }
 
-    // Check authorization
+    console.log("Provider found:", {
+      id: provider.id,
+      userId: provider.userId,
+      status: provider.status,
+    });
+
+    // Check authorization - allow if user owns the provider OR is admin
     if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId) {
+      console.error(
+        "ERROR: Authorization failed. Provider userId:",
+        provider.userId,
+        "Request userId:",
+        req.user.userId
+      );
       await fs.unlink(req.file.path);
       return res.status(403).json({
         error: "Forbidden: You can only upload files to your own profile",
       });
     }
 
-    // Validate category - UPDATED to include KYC document types
     const category = req.body.category?.toUpperCase() || "OTHER";
+    console.log("Category (uppercase):", category);
+
+    // FIXED: Updated to match Prisma schema FileCategory enum
     const validCategories = [
-      "LICENSE",
       "BRANDING",
       "PROFILE_PIC",
       "ID_DOCUMENT",
       "PROOF_OF_ADDRESS",
-      "VEHICLE_REGISTRATION",
-      "LICENSE",
+      "VEHICLE_REGISTRATION_CERT",
+      "DRIVERS_LICENSE",
+      "EVIDENCE",
       "OTHER",
     ];
 
     if (!validCategories.includes(category)) {
+      console.error("ERROR: Invalid category:", category);
       await fs.unlink(req.file.path);
       return res.status(400).json({
         error: "Invalid category",
+        received: category,
         validCategories,
       });
     }
@@ -770,6 +800,7 @@ exports.uploadProviderFile = async (req, res) => {
       });
 
       if (!vehicle || vehicle.providerId !== providerId) {
+        console.error("ERROR: Invalid vehicle ID:", vehicleId);
         await fs.unlink(req.file.path);
         return res.status(400).json({ error: "Invalid vehicle ID" });
       }
@@ -778,6 +809,16 @@ exports.uploadProviderFile = async (req, res) => {
     const fileType = req.file.mimetype.startsWith("image/")
       ? "IMAGE"
       : "DOCUMENT";
+
+    console.log("Creating file record in database...");
+    console.log("File data:", {
+      url: req.file.path,
+      type: fileType,
+      category: category,
+      providerId: providerId,
+      vehicleId: vehicleId,
+      status: "PENDING",
+    });
 
     // Save file metadata in DB
     const file = await prisma.file.create({
@@ -790,6 +831,9 @@ exports.uploadProviderFile = async (req, res) => {
         status: "PENDING",
       },
     });
+
+    console.log("File saved to database successfully:", file.id);
+    console.log("=== FILE UPLOAD END ===");
 
     res.status(201).json({
       message: "File uploaded successfully",
@@ -804,17 +848,26 @@ exports.uploadProviderFile = async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("=== FILE UPLOAD ERROR ===");
+    console.error("Error type:", err.name);
+    console.error("Error message:", err.message);
+    console.error("Error code:", err.code);
+    console.error("Full error:", err);
+
     if (req.file) {
       try {
         await fs.unlink(req.file.path);
+        console.log("Cleaned up file after error");
       } catch (unlinkErr) {
         console.error("Failed to delete file after error:", unlinkErr);
       }
     }
-    console.error("Upload error:", err);
-    res
-      .status(400)
-      .json({ error: "Failed to upload file", details: err.message });
+
+    res.status(400).json({
+      error: "Failed to upload file",
+      details: err.message,
+      code: err.code,
+    });
   }
 };
 
