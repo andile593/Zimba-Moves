@@ -84,6 +84,23 @@ exports.createUser = async (req, res, next) => {
       { expiresIn: "24h" }
     );
 
+    // Send confirmation email if provider was created
+    if (result.provider) {
+      try {
+        await emailService.sendApplicationSubmitted({
+          ...result.provider,
+          user: result.user,
+        });
+        console.log(
+          "✅ Application confirmation email sent to:",
+          result.user.email
+        );
+      } catch (emailError) {
+        console.error("⚠️ Failed to send application email:", emailError);
+        // Don't fail the signup if email fails
+      }
+    }
+
     res.status(201).json({
       token,
       user: {
