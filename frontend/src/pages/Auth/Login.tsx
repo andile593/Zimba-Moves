@@ -32,6 +32,8 @@ export default function Login() {
       if (storedUser) {
         const userData = JSON.parse(storedUser);
 
+        toast.success("Successfully logged in!");
+
         // Redirect based on role or the page they were trying to access
         if (from) {
           navigate(from, { replace: true });
@@ -44,7 +46,16 @@ export default function Login() {
         }
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || "Login failed. Please try again.");
+      console.error("Login error:", err);
+
+      // Extract the error message
+      const errorMessage = err?.message || "Login failed. Please try again.";
+
+      // Set the error state for display in the UI
+      setError(errorMessage);
+
+      // Show toast notification
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -69,6 +80,8 @@ export default function Login() {
       if (storedUser) {
         const userData = JSON.parse(storedUser);
 
+        toast.success("Successfully logged in with Google!");
+
         if (from) {
           navigate(from, { replace: true });
         } else if (userData.role === "PROVIDER") {
@@ -79,11 +92,18 @@ export default function Login() {
           navigate("/", { replace: true });
         }
       }
-
-      toast.success("Successfully logged in with Google!");
     } catch (err: any) {
-      setError(err.message || "Google login failed. Please try again.");
-      toast.error(err.message || "Google login failed");
+      console.error("Google login error:", err);
+
+      // Extract the error message
+      const errorMessage =
+        err?.message || "Google login failed. Please try again.";
+
+      // Set the error state for display in the UI
+      setError(errorMessage);
+
+      // Show toast notification
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

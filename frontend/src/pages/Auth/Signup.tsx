@@ -285,23 +285,13 @@ export default function Signup() {
         ...(activeTab === "PROVIDER" ? { providerData: providerForm } : {}),
       };
 
-      console.log("=== SIGNUP START ===");
-      console.log("Signup data:", signupData);
-
       const createdUser = await signup(signupData);
-
-      console.log("User created:", createdUser);
-      console.log("Provider ID:", createdUser.providerId);
 
       if (activeTab === "PROVIDER") {
         const token = localStorage.getItem("token");
 
-        console.log("Token from localStorage:", token ? "exists" : "missing");
-        console.log("Provider ID:", createdUser.providerId);
-
         // Use createdUser.providerId instead of createdUser.Provider?.id
         if (createdUser.providerId && token) {
-          console.log("Starting document upload...");
           setUploadingDocs(true);
 
           try {
@@ -334,8 +324,12 @@ export default function Signup() {
       }
     } catch (err: any) {
       console.error("Signup error:", err);
-      setError(err.message || "Signup failed. Please try again.");
-      toast.error(err.message || "Signup failed");
+
+      const errorMessage = err?.message || "Signup failed. Please try again.";
+
+      setError(errorMessage);
+
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
       setUploadingDocs(false);

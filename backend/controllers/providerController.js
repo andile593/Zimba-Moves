@@ -3,6 +3,7 @@ const prisma = new PrismaClient();
 const fs = require("fs").promises;
 const path = require("path");
 const emailService = require("../services/emailService");
+const ApiError = require("../utils/ApiError");
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371; // Earth's radius in km
@@ -20,11 +21,8 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 exports.createProviderApplication = async (req, res) => {
   try {
-    if (req.user.role !== "PROVIDER") {
-      return res
-        .status(403)
-        .json({ error: "Only users with PROVIDER role can apply" });
-    }
+    if (req.user.role !== "PROVIDER")
+      throw new ApiError(403, "Only providers can apply");
 
     const {
       idNumber,
@@ -46,12 +44,7 @@ exports.createProviderApplication = async (req, res) => {
       where: { userId: req.user.userId },
     });
 
-    if (existing) {
-      return res.status(400).json({
-        error: "Application already exists",
-        status: existing.status,
-      });
-    }
+    if (existing) throw new ApiError(400, "Application already exists");
 
     // Create provider application
     const provider = await prisma.provider.create({
@@ -92,11 +85,7 @@ exports.createProviderApplication = async (req, res) => {
       provider,
     });
   } catch (err) {
-    console.error("Error creating provider application:", err);
-    res.status(400).json({
-      error: "Failed to submit application",
-      details: err.message,
-    });
+    next(err);
   }
 };
 
@@ -112,9 +101,8 @@ exports.reviewApplication = async (req, res) => {
     const { status, rejectionReason, adminNotes } = req.body;
     const providerId = req.params.id;
 
-    if (!["APPROVED", "REJECTED"].includes(status)) {
-      return res.status(400).json({ error: "Invalid status" });
-    }
+    if (!["APPROVED", "REJECTED"].includes(status))
+      throw new ApiError(400, "Your application hasn't been approved ");
 
     const provider = await prisma.provider.update({
       where: { id: providerId },
@@ -149,22 +137,15 @@ exports.reviewApplication = async (req, res) => {
       provider,
     });
   } catch (err) {
-    console.error("Error reviewing application:", err);
-    res.status(400).json({
-      error: "Failed to review application",
-      details: err.message,
-    });
+    next(err);
   }
 };
 
 // Admin: Schedule inspection
 exports.scheduleInspection = async (req, res) => {
   try {
-    if (req.user.role !== "ADMIN") {
-      return res
-        .status(403)
-        .json({ error: "Only admins can schedule inspections" });
-    }
+    if (req.user.role !== "ADMIN")
+      throw new ApiError(403, "Only admins can schedule inspections");
 
     const { inspectionDate, inspectionAddress, inspectionNotes } = req.body;
     const providerId = req.params.id;
@@ -195,21 +176,15 @@ exports.scheduleInspection = async (req, res) => {
       provider,
     });
   } catch (err) {
-    res.status(400).json({
-      error: "Failed to schedule inspection",
-      details: err.message,
-    });
+    next(err);
   }
 };
 
 // Admin: Request additional documents
 exports.requestDocuments = async (req, res) => {
   try {
-    if (req.user.role !== "ADMIN") {
-      return res
-        .status(403)
-        .json({ error: "Only admins can request documents" });
-    }
+    if (req.user.role !== "ADMIN")
+      throw new ApiError(403, "Only admins can request documents");
 
     const { missingDocuments } = req.body;
     const providerId = req.params.id;
@@ -227,9 +202,7 @@ exports.requestDocuments = async (req, res) => {
       },
     });
 
-    if (!provider) {
-      return res.status(404).json({ error: "Provider not found" });
-    }
+    if (!provider) throw new ApiError(404, "Provider does not exists");
 
     // Send email notification
     await emailService.sendDocumentsRequired(provider, missingDocuments);
@@ -239,21 +212,15 @@ exports.requestDocuments = async (req, res) => {
       provider,
     });
   } catch (err) {
-    res.status(400).json({
-      error: "Failed to request documents",
-      details: err.message,
-    });
+    next(err);
   }
 };
 
 // Get all pending applications (Admin)
 exports.getPendingApplications = async (req, res) => {
   try {
-    if (req.user.role !== "ADMIN") {
-      return res
-        .status(403)
-        .json({ error: "Only admins can view applications" });
-    }
+    if (req.user.role !== "ADMIN")
+      throw new ApiError(403, "Only admins can view application");
 
     const applications = await prisma.provider.findMany({
       where: { status: "PENDING" },
@@ -282,10 +249,7 @@ exports.getPendingApplications = async (req, res) => {
 
     res.json(applications);
   } catch (err) {
-    res.status(500).json({
-      error: "Failed to fetch applications",
-      details: err.message,
-    });
+    next(err);
   }
 };
 
@@ -293,7 +257,6 @@ exports.getProviders = async (req, res) => {
   try {
     const { userId, lat, lng, radius = 30 } = req.query;
 
-    // Build where clause - only show APPROVED providers publicly
     const where = userId ? { userId } : { status: "APPROVED" };
 
     const providers = await prisma.provider.findMany({
@@ -322,22 +285,15 @@ exports.getProviders = async (req, res) => {
         },
       },
     });
-
-    // ... rest of the function (distance calculation, etc.)
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch providers", details: err.message });
+    next(err);
   }
 };
 
 exports.createProvider = async (req, res) => {
   try {
-    if (req.user.role !== "PROVIDER") {
-      return res.status(403).json({
-        error: "Only users with PROVIDER role can create provider profiles",
-      });
-    }
+    if (req.user.role !== "PROVIDER")
+      throw new ApiError(403, "Only providers can create a profile");
 
     const {
       includeHelpers,
@@ -354,9 +310,7 @@ exports.createProvider = async (req, res) => {
     const existing = await prisma.provider.findUnique({
       where: { userId: req.user.userId },
     });
-    if (existing) {
-      return res.status(400).json({ error: "Provider profile already exists" });
-    }
+    if (existing) throw new ApiError(400, "Provider profile already exists");
 
     // Build the data object only with provided fields
     const providerData = {
@@ -389,8 +343,6 @@ exports.createProvider = async (req, res) => {
       providerData.postalCode = postalCode.trim();
     }
 
-    console.log("Creating provider with data:", providerData);
-
     const provider = await prisma.provider.create({
       data: providerData,
       include: {
@@ -407,12 +359,7 @@ exports.createProvider = async (req, res) => {
 
     res.status(201).json(provider);
   } catch (err) {
-    console.error("Error creating provider:", err);
-    res.status(400).json({
-      error: "Failed to create provider",
-      details: err.message,
-      stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
-    });
+    next(err);
   }
 };
 
@@ -431,20 +378,15 @@ exports.getMyProvider = async (req, res) => {
           },
         },
         vehicles: {},
-        File: true,
+        files: true,
       },
     });
 
-    if (!provider) {
-      return res.status(404).json({ error: "Provider profile not found" });
-    }
+    if (!provider) throw new ApiError(404, "Provider does not exist");
 
     res.json(provider);
   } catch (err) {
-    res.status(500).json({
-      error: "Failed to fetch provider profile",
-      details: err.message,
-    });
+    next(err);
   }
 };
 
@@ -478,13 +420,11 @@ exports.getProviderById = async (req, res) => {
       },
     });
 
-    if (!provider) return res.status(404).json({ error: "Provider not found" });
+    if (!provider) throw new ApiError(404, "Provider does not exist");
 
     res.json(provider);
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch provider", details: err.message });
+    next(err);
   }
 };
 
@@ -495,11 +435,10 @@ exports.updateProvider = async (req, res) => {
       where: { id: req.params.id },
     });
 
-    if (!provider) return res.status(404).json({ error: "Provider not found" });
+    if (!provider) throw new ApiError(404, "Provider does not exist");
 
-    if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId) {
-      return res.status(403).json({ error: "Forbidden: not your profile" });
-    }
+    if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId)
+      throw new ApiError(403, "Forbidden: Can't edit this profile");
 
     const updatedProvider = await prisma.provider.update({
       where: { id: req.params.id },
@@ -507,27 +446,20 @@ exports.updateProvider = async (req, res) => {
     });
     res.json(updatedProvider);
   } catch (err) {
-    res
-      .status(400)
-      .json({ error: "Failed to update provider", details: err.message });
+    next(err);
   }
 };
 
 // Delete provider (ADMIN only)
 exports.deleteProvider = async (req, res) => {
   try {
-    if (req.user.role !== "ADMIN") {
-      return res
-        .status(403)
-        .json({ error: "Only admins can delete providers" });
-    }
+    if (req.user.role !== "ADMIN")
+      throw new ApiError(403, "Only Admins can delete providers");
 
     await prisma.provider.delete({ where: { id: req.params.id } });
     res.json({ message: "Provider deleted successfully" });
   } catch (err) {
-    res
-      .status(400)
-      .json({ error: "Failed to delete provider", details: err.message });
+    next(err);
   }
 };
 
@@ -577,7 +509,7 @@ exports.searchProviders = async (req, res) => {
 
     res.json(filtered);
   } catch (err) {
-    res.status(500).json({ error: "Search failed", details: err.message });
+    next(err);
   }
 };
 
@@ -632,107 +564,15 @@ exports.searchProvidersByLocation = async (req, res) => {
 
     res.json(providers);
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to search providers", details: err.message });
-  }
-};
-
-// Add vehicle (only owner provider)
-exports.addVehicle = async (req, res) => {
-  try {
-    const {
-      type,
-      capacity,
-      weight,
-      plate,
-      baseRate,
-      perKmRate,
-      helpersIncluded,
-    } = req.body;
-    const providerId = req.params.id;
-
-    console.log("Backend received:", req.body, "ProviderID:", req.params.id);
-
-    const provider = await prisma.provider.findUnique({
-      where: { id: providerId },
-    });
-    if (!provider) return res.status(404).json({ error: "Provider not found" });
-
-    if (provider.userId !== req.user.userId) {
-      return res.status(403).json({
-        error: "Forbidden: You can only add vehicles to your own profile",
-      });
-    }
-
-    const existingVehicle = await prisma.vehicle.findUnique({
-      where: { plate: req.body.plate },
-    });
-    if (existingVehicle) {
-      return res
-        .status(400)
-        .json({ error: "A vehicle with this plate already exists" });
-    }
-
-    const vehicle = await prisma.vehicle.create({
-      data: {
-        providerId,
-        type,
-        capacity,
-        weight,
-        plate,
-        baseRate,
-        perKmRate,
-      },
-    });
-
-    res.status(201).json(vehicle);
-  } catch (err) {
-    console.log(err);
-    res
-      .status(400)
-      .json({ error: "Failed to add vehicle", details: err.message });
-  }
-};
-
-// Get all vehicles for a provider (public)
-exports.getVehiclesByProvider = async (req, res) => {
-  try {
-    const vehicles = await prisma.vehicle.findMany({
-      where: { providerId: req.params.id },
-      include: {
-        files: {
-          where: {
-            category: "BRANDING",
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-      },
-    });
-    res.json(vehicles);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch vehicles", details: err.message });
+    next(err);
   }
 };
 
 exports.uploadProviderFile = async (req, res) => {
   try {
     const providerId = req.params.id;
-    console.log("=== FILE UPLOAD START ===");
-    console.log("Provider ID:", providerId);
-    console.log("User ID:", req.user?.userId);
-    console.log("User Role:", req.user?.role);
-    console.log("File received:", req.file ? req.file.originalname : "NO FILE");
-    console.log("Category:", req.body.category);
 
-    if (!req.file) {
-      console.error("ERROR: No file uploaded");
-      return res.status(400).json({ error: "No file uploaded" });
-    }
+    if (!req.file) throw new ApiError(400, "No file uploaded");
 
     // Ensure provider exists
     const provider = await prisma.provider.findUnique({
@@ -740,35 +580,18 @@ exports.uploadProviderFile = async (req, res) => {
     });
 
     if (!provider) {
-      console.error("ERROR: Provider not found:", providerId);
       await fs.unlink(req.file.path);
-      return res.status(404).json({ error: "Provider not found" });
+      throw new ApiError(404, "Provider does not exist");
     }
-
-    console.log("Provider found:", {
-      id: provider.id,
-      userId: provider.userId,
-      status: provider.status,
-    });
 
     // Check authorization - allow if user owns the provider OR is admin
     if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId) {
-      console.error(
-        "ERROR: Authorization failed. Provider userId:",
-        provider.userId,
-        "Request userId:",
-        req.user.userId
-      );
       await fs.unlink(req.file.path);
-      return res.status(403).json({
-        error: "Forbidden: You can only upload files to your own profile",
-      });
+      throw new ApiError(403, "You can only upload files to your own profile");
     }
 
     const category = req.body.category?.toUpperCase() || "OTHER";
-    console.log("Category (uppercase):", category);
 
-    // FIXED: Updated to match Prisma schema FileCategory enum
     const validCategories = [
       "BRANDING",
       "PROFILE_PIC",
@@ -781,13 +604,8 @@ exports.uploadProviderFile = async (req, res) => {
     ];
 
     if (!validCategories.includes(category)) {
-      console.error("ERROR: Invalid category:", category);
       await fs.unlink(req.file.path);
-      return res.status(400).json({
-        error: "Invalid category",
-        received: category,
-        validCategories,
-      });
+      throw new ApiError(400, "Invalid category");
     }
 
     // Get vehicleId from request body if provided
@@ -800,25 +618,14 @@ exports.uploadProviderFile = async (req, res) => {
       });
 
       if (!vehicle || vehicle.providerId !== providerId) {
-        console.error("ERROR: Invalid vehicle ID:", vehicleId);
         await fs.unlink(req.file.path);
-        return res.status(400).json({ error: "Invalid vehicle ID" });
+        throw new ApiError(400, "Invalid vehicle ID");
       }
     }
 
     const fileType = req.file.mimetype.startsWith("image/")
       ? "IMAGE"
       : "DOCUMENT";
-
-    console.log("Creating file record in database...");
-    console.log("File data:", {
-      url: req.file.path,
-      type: fileType,
-      category: category,
-      providerId: providerId,
-      vehicleId: vehicleId,
-      status: "PENDING",
-    });
 
     // Save file metadata in DB
     const file = await prisma.file.create({
@@ -831,9 +638,6 @@ exports.uploadProviderFile = async (req, res) => {
         status: "PENDING",
       },
     });
-
-    console.log("File saved to database successfully:", file.id);
-    console.log("=== FILE UPLOAD END ===");
 
     res.status(201).json({
       message: "File uploaded successfully",
@@ -848,26 +652,7 @@ exports.uploadProviderFile = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("=== FILE UPLOAD ERROR ===");
-    console.error("Error type:", err.name);
-    console.error("Error message:", err.message);
-    console.error("Error code:", err.code);
-    console.error("Full error:", err);
-
-    if (req.file) {
-      try {
-        await fs.unlink(req.file.path);
-        console.log("Cleaned up file after error");
-      } catch (unlinkErr) {
-        console.error("Failed to delete file after error:", unlinkErr);
-      }
-    }
-
-    res.status(400).json({
-      error: "Failed to upload file",
-      details: err.message,
-      code: err.code,
-    });
+    next(err);
   }
 };
 
@@ -879,14 +664,11 @@ exports.getProviderFiles = async (req, res) => {
     const provider = await prisma.provider.findUnique({
       where: { id: providerId },
     });
-    if (!provider) {
-      return res.status(404).json({ error: "Provider not found" });
-    }
+    if (!provider) throw new ApiError(404, "Provider doesn't exists");
 
     // Only provider owner or admin can view files
-    if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
+    if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId)
+      throw new ApiError(403, "Forbidden");
 
     const files = await prisma.file.findMany({
       where: { providerId: providerId },
@@ -895,9 +677,7 @@ exports.getProviderFiles = async (req, res) => {
 
     res.json(files);
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch files", details: err.message });
+    next(err);
   }
 };
 
@@ -911,20 +691,14 @@ exports.deleteProviderFile = async (req, res) => {
       include: { provider: true },
     });
 
-    if (!file) {
-      return res.status(404).json({ error: "File not found" });
-    }
+    if (!file) throw new ApiError(404, "File does not exist");
 
-    if (file.providerId !== id) {
-      return res
-        .status(400)
-        .json({ error: "File does not belong to this provider" });
-    }
+    if (file.providerId !== id)
+      throw new ApiError(400, "File does not belong to this provider");
 
     // Check authorization
-    if (req.user.role !== "ADMIN" && file.provider.userId !== req.user.userId) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
+    if (req.user.role !== "ADMIN" && file.provider.userId !== req.user.userId)
+      throw new ApiError(403, "Forbidden");
 
     // Delete file from filesystem
     try {
@@ -938,8 +712,6 @@ exports.deleteProviderFile = async (req, res) => {
 
     res.json({ message: "File deleted successfully" });
   } catch (err) {
-    res
-      .status(400)
-      .json({ error: "Failed to delete file", details: err.message });
+    next(err);
   }
 };

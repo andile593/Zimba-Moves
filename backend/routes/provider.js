@@ -50,21 +50,6 @@ router.delete(
   providerController.deleteProvider
 );
 
-// Vehicle routes
-router.post(
-  "/:id/vehicles",
-  authenticate,
-  authorize("PROVIDER"),
-  validate(vehicleSchema),
-  providerController.addVehicle
-);
-router.get(
-  "/:id/vehicles",
-  authenticate,
-  authorize("PROVIDER", "ADMIN"),
-  providerController.getVehiclesByProvider
-);
-
 // File upload routes
 router.post(
   "/:id/files",
