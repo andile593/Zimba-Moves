@@ -62,7 +62,6 @@ export default function FeaturedProviders() {
 
           setUserLocation(location);
           setPermissionDenied(false);
-          console.log("Location set:", location);
         },
         (error) => {
           console.error("Location error:", error.code, error.message);
@@ -85,7 +84,6 @@ export default function FeaturedProviders() {
     queryKey: ["featuredProviders"],
     queryFn: async () => {
       const res = await getProviders();
-      console.log("Fetched providers:", res.data?.length || 0);
       return res.data || [];
     },
     staleTime: 5 * 60 * 1000,
@@ -125,13 +123,8 @@ export default function FeaturedProviders() {
       (provider) => provider.latitude && provider.longitude
     );
 
-    console.log(
-      `Providers with coordinates: ${providersWithCoords.length} out of ${allProviders.length}`
-    );
-
     // If no providers have coordinates, show random ones
     if (providersWithCoords.length === 0) {
-      console.log("No providers have coordinates, showing random providers");
       return [...allProviders].sort(() => Math.random() - 0.5).slice(0, 6);
     }
 
@@ -166,8 +159,6 @@ export default function FeaturedProviders() {
       return nearbyProviders;
     }
 
-    // Fallback: show closest 6 providers regardless of distance
-    console.log("No providers within 30km, showing closest providers");
     return providersWithDistance
       .sort((a, b) => (a.distance || 0) - (b.distance || 0))
       .slice(0, 6);

@@ -253,7 +253,7 @@ exports.getPendingApplications = async (req, res) => {
   }
 };
 
-exports.getProviders = async (req, res) => {
+exports.getProviders = async (req, res, next) => {
   try {
     const { userId, lat, lng, radius = 30 } = req.query;
 
@@ -285,6 +285,51 @@ exports.getProviders = async (req, res) => {
         },
       },
     });
+    providers.forEach((p) => {
+      p.vehicles?.forEach((v) => {
+        v.files?.forEach((f) => {
+          console.log("📸 Image path in DB:", f.url);
+        });
+      });
+    });
+
+    // If location params provided, filter by distance
+    if (lat && lng) {
+      const userLat = parseFloat(lat);
+      const userLng = parseFloat(lng);
+      const maxRadius = parseFloat(radius);
+
+      const providersWithDistance = providers
+        .map((provider) => {
+          // Skip providers without location
+          if (!provider.latitude || !provider.longitude) {
+            return { ...provider, distance: null };
+          }
+
+          const distance = calculateDistance(
+            userLat,
+            userLng,
+            provider.latitude,
+            provider.longitude
+          );
+
+          return {
+            ...provider,
+            distance: parseFloat(distance.toFixed(2)),
+          };
+        })
+        .filter((p) => p.distance === null || p.distance <= maxRadius)
+        .sort((a, b) => {
+          // Providers without location go to the end
+          if (a.distance === null) return 1;
+          if (b.distance === null) return -1;
+          return a.distance - b.distance;
+        });
+
+      return res.json(providersWithDistance);
+    }
+
+    res.json(providers);
   } catch (err) {
     next(err);
   }
@@ -390,8 +435,9 @@ exports.getMyProvider = async (req, res) => {
   }
 };
 
-exports.getProviderById = async (req, res) => {
+exports.getProviderById = async (req, res, next) => {
   try {
+    console.log("ID in params", req.params.id);
     const provider = await prisma.provider.findUnique({
       where: { id: req.params.id },
       include: {
@@ -416,7 +462,7 @@ exports.getProviderById = async (req, res) => {
             },
           },
         },
-        File: true,
+        files: true,
       },
     });
 
