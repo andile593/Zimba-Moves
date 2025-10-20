@@ -4,6 +4,7 @@ const fs = require("fs").promises;
 const path = require("path");
 const emailService = require("../services/emailService");
 const ApiError = require("../utils/ApiError");
+const ApiError = require("../utils/ApiError");
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371; // Earth's radius in km
@@ -21,6 +22,8 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 exports.createProviderApplication = async (req, res) => {
   try {
+    if (req.user.role !== "PROVIDER")
+      throw new ApiError(403, "Only providers can apply");
     if (req.user.role !== "PROVIDER")
       throw new ApiError(403, "Only providers can apply");
 
@@ -44,6 +47,7 @@ exports.createProviderApplication = async (req, res) => {
       where: { userId: req.user.userId },
     });
 
+    if (existing) throw new ApiError(400, "Application already exists");
     if (existing) throw new ApiError(400, "Application already exists");
 
     // Create provider application
@@ -86,6 +90,7 @@ exports.createProviderApplication = async (req, res) => {
     });
   } catch (err) {
     next(err);
+    next(err);
   }
 };
 
@@ -101,6 +106,8 @@ exports.reviewApplication = async (req, res) => {
     const { status, rejectionReason, adminNotes } = req.body;
     const providerId = req.params.id;
 
+    if (!["APPROVED", "REJECTED"].includes(status))
+      throw new ApiError(400, "Your application hasn't been approved ");
     if (!["APPROVED", "REJECTED"].includes(status))
       throw new ApiError(400, "Your application hasn't been approved ");
 
@@ -138,12 +145,15 @@ exports.reviewApplication = async (req, res) => {
     });
   } catch (err) {
     next(err);
+    next(err);
   }
 };
 
 // Admin: Schedule inspection
 exports.scheduleInspection = async (req, res) => {
   try {
+    if (req.user.role !== "ADMIN")
+      throw new ApiError(403, "Only admins can schedule inspections");
     if (req.user.role !== "ADMIN")
       throw new ApiError(403, "Only admins can schedule inspections");
 
@@ -177,12 +187,15 @@ exports.scheduleInspection = async (req, res) => {
     });
   } catch (err) {
     next(err);
+    next(err);
   }
 };
 
 // Admin: Request additional documents
 exports.requestDocuments = async (req, res) => {
   try {
+    if (req.user.role !== "ADMIN")
+      throw new ApiError(403, "Only admins can request documents");
     if (req.user.role !== "ADMIN")
       throw new ApiError(403, "Only admins can request documents");
 
@@ -203,6 +216,7 @@ exports.requestDocuments = async (req, res) => {
     });
 
     if (!provider) throw new ApiError(404, "Provider does not exists");
+    if (!provider) throw new ApiError(404, "Provider does not exists");
 
     // Send email notification
     await emailService.sendDocumentsRequired(provider, missingDocuments);
@@ -213,12 +227,15 @@ exports.requestDocuments = async (req, res) => {
     });
   } catch (err) {
     next(err);
+    next(err);
   }
 };
 
 // Get all pending applications (Admin)
 exports.getPendingApplications = async (req, res) => {
   try {
+    if (req.user.role !== "ADMIN")
+      throw new ApiError(403, "Only admins can view application");
     if (req.user.role !== "ADMIN")
       throw new ApiError(403, "Only admins can view application");
 
@@ -249,6 +266,7 @@ exports.getPendingApplications = async (req, res) => {
 
     res.json(applications);
   } catch (err) {
+    next(err);
     next(err);
   }
 };
@@ -332,11 +350,14 @@ exports.getProviders = async (req, res, next) => {
     res.json(providers);
   } catch (err) {
     next(err);
+    next(err);
   }
 };
 
 exports.createProvider = async (req, res) => {
   try {
+    if (req.user.role !== "PROVIDER")
+      throw new ApiError(403, "Only providers can create a profile");
     if (req.user.role !== "PROVIDER")
       throw new ApiError(403, "Only providers can create a profile");
 
@@ -355,6 +376,7 @@ exports.createProvider = async (req, res) => {
     const existing = await prisma.provider.findUnique({
       where: { userId: req.user.userId },
     });
+    if (existing) throw new ApiError(400, "Provider profile already exists");
     if (existing) throw new ApiError(400, "Provider profile already exists");
 
     // Build the data object only with provided fields
@@ -405,6 +427,7 @@ exports.createProvider = async (req, res) => {
     res.status(201).json(provider);
   } catch (err) {
     next(err);
+    next(err);
   }
 };
 
@@ -424,13 +447,16 @@ exports.getMyProvider = async (req, res) => {
         },
         vehicles: {},
         files: true,
+        files: true,
       },
     });
 
     if (!provider) throw new ApiError(404, "Provider does not exist");
+    if (!provider) throw new ApiError(404, "Provider does not exist");
 
     res.json(provider);
   } catch (err) {
+    next(err);
     next(err);
   }
 };
@@ -467,9 +493,11 @@ exports.getProviderById = async (req, res, next) => {
     });
 
     if (!provider) throw new ApiError(404, "Provider does not exist");
+    if (!provider) throw new ApiError(404, "Provider does not exist");
 
     res.json(provider);
   } catch (err) {
+    next(err);
     next(err);
   }
 };
@@ -482,7 +510,10 @@ exports.updateProvider = async (req, res) => {
     });
 
     if (!provider) throw new ApiError(404, "Provider does not exist");
+    if (!provider) throw new ApiError(404, "Provider does not exist");
 
+    if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId)
+      throw new ApiError(403, "Forbidden: Can't edit this profile");
     if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId)
       throw new ApiError(403, "Forbidden: Can't edit this profile");
 
@@ -493,6 +524,7 @@ exports.updateProvider = async (req, res) => {
     res.json(updatedProvider);
   } catch (err) {
     next(err);
+    next(err);
   }
 };
 
@@ -501,10 +533,13 @@ exports.deleteProvider = async (req, res) => {
   try {
     if (req.user.role !== "ADMIN")
       throw new ApiError(403, "Only Admins can delete providers");
+    if (req.user.role !== "ADMIN")
+      throw new ApiError(403, "Only Admins can delete providers");
 
     await prisma.provider.delete({ where: { id: req.params.id } });
     res.json({ message: "Provider deleted successfully" });
   } catch (err) {
+    next(err);
     next(err);
   }
 };
@@ -555,6 +590,7 @@ exports.searchProviders = async (req, res) => {
 
     res.json(filtered);
   } catch (err) {
+    next(err);
     next(err);
   }
 };
@@ -611,12 +647,15 @@ exports.searchProvidersByLocation = async (req, res) => {
     res.json(providers);
   } catch (err) {
     next(err);
+    next(err);
   }
 };
 
 exports.uploadProviderFile = async (req, res) => {
   try {
     const providerId = req.params.id;
+
+    if (!req.file) throw new ApiError(400, "No file uploaded");
 
     if (!req.file) throw new ApiError(400, "No file uploaded");
 
@@ -628,11 +667,13 @@ exports.uploadProviderFile = async (req, res) => {
     if (!provider) {
       await fs.unlink(req.file.path);
       throw new ApiError(404, "Provider does not exist");
+      throw new ApiError(404, "Provider does not exist");
     }
 
     // Check authorization - allow if user owns the provider OR is admin
     if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId) {
       await fs.unlink(req.file.path);
+      throw new ApiError(403, "You can only upload files to your own profile");
       throw new ApiError(403, "You can only upload files to your own profile");
     }
 
@@ -652,6 +693,7 @@ exports.uploadProviderFile = async (req, res) => {
     if (!validCategories.includes(category)) {
       await fs.unlink(req.file.path);
       throw new ApiError(400, "Invalid category");
+      throw new ApiError(400, "Invalid category");
     }
 
     // Get vehicleId from request body if provided
@@ -665,6 +707,7 @@ exports.uploadProviderFile = async (req, res) => {
 
       if (!vehicle || vehicle.providerId !== providerId) {
         await fs.unlink(req.file.path);
+        throw new ApiError(400, "Invalid vehicle ID");
         throw new ApiError(400, "Invalid vehicle ID");
       }
     }
@@ -699,6 +742,7 @@ exports.uploadProviderFile = async (req, res) => {
     });
   } catch (err) {
     next(err);
+    next(err);
   }
 };
 
@@ -711,8 +755,11 @@ exports.getProviderFiles = async (req, res) => {
       where: { id: providerId },
     });
     if (!provider) throw new ApiError(404, "Provider doesn't exists");
+    if (!provider) throw new ApiError(404, "Provider doesn't exists");
 
     // Only provider owner or admin can view files
+    if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId)
+      throw new ApiError(403, "Forbidden");
     if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId)
       throw new ApiError(403, "Forbidden");
 
@@ -723,6 +770,7 @@ exports.getProviderFiles = async (req, res) => {
 
     res.json(files);
   } catch (err) {
+    next(err);
     next(err);
   }
 };
@@ -738,11 +786,16 @@ exports.deleteProviderFile = async (req, res) => {
     });
 
     if (!file) throw new ApiError(404, "File does not exist");
+    if (!file) throw new ApiError(404, "File does not exist");
 
+    if (file.providerId !== id)
+      throw new ApiError(400, "File does not belong to this provider");
     if (file.providerId !== id)
       throw new ApiError(400, "File does not belong to this provider");
 
     // Check authorization
+    if (req.user.role !== "ADMIN" && file.provider.userId !== req.user.userId)
+      throw new ApiError(403, "Forbidden");
     if (req.user.role !== "ADMIN" && file.provider.userId !== req.user.userId)
       throw new ApiError(403, "Forbidden");
 
@@ -758,6 +811,7 @@ exports.deleteProviderFile = async (req, res) => {
 
     res.json({ message: "File deleted successfully" });
   } catch (err) {
+    next(err);
     next(err);
   }
 };
