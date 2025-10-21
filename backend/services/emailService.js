@@ -1,23 +1,22 @@
 const nodemailer = require("nodemailer");
 
-// Create transporter with better configuration
+// Gmail-optimized transporter configuration
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: false, // true for 465, false for other ports
+  service: "gmail", 
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    pass: process.env.SMTP_PASS, 
   },
+  // Fallback to manual config if service doesn't work
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
   tls: {
-    rejectUnauthorized: false, // Allow self-signed certificates
+    rejectUnauthorized: false,
   },
-  connectionTimeout: 10000, // 10 seconds
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-  pool: true, // Use pooled connections
-  maxConnections: 5,
-  maxMessages: 100,
+  connectionTimeout: 15000, // Increased to 15 seconds
+  greetingTimeout: 15000,
+  socketTimeout: 15000,
 });
 
 // Verify transporter configuration on startup
@@ -25,6 +24,7 @@ transporter.verify((error, success) => {
   if (error) {
     console.error("Email transporter verification failed:");
     console.error("Error:", error.message);
+    console.error("Make sure you're using a Gmail App Password!");
   } else {
     console.log("Email server is ready to send messages");
     console.log(`Using: ${process.env.SMTP_USER}`);
@@ -136,7 +136,7 @@ async function sendEmail(to, template, options = {}) {
     // Check if SMTP is configured
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
       console.warn(
-        "⚠️  SMTP not configured. Email would have been sent to:",
+        "SMTP not configured. Email would have been sent to:",
         to
       );
       console.warn("   Subject:", template.subject);
@@ -158,18 +158,12 @@ async function sendEmail(to, template, options = {}) {
       headers: options.headers || {},
     };
 
-    console.log(`📧 Attempting to send email to: ${to}`);
-    console.log(`   Subject: ${template.subject}`);
 
     const info = await transporter.sendMail(mailOptions);
 
-    console.log(`✅ Email sent successfully!`);
-    console.log(`   MessageID: ${info.messageId}`);
-    console.log(`   Response: ${info.response}`);
-
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error(`❌ Failed to send email to ${to}`);
+    console.error(`Failed to send email to ${to}`);
     console.error(`   Error: ${error.message}`);
     if (error.code) {
       console.error(`   Code: ${error.code}`);
@@ -177,13 +171,20 @@ async function sendEmail(to, template, options = {}) {
     if (error.command) {
       console.error(`   Command: ${error.command}`);
     }
-    return { success: false, error: error.message };
+    
+    // Return error details for debugging
+    return { 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      command: error.command 
+    };
   }
 }
 
 module.exports = {
   sendEmail,
-  transporter, // Export for testing
+  transporter,
 
   sendApplicationSubmitted: (provider) =>
     sendEmail(
