@@ -88,7 +88,6 @@ export default function FeaturedProviders() {
     },
     staleTime: 5 * 60 * 1000,
   });
-  console.log("Providers: ", allProviders);
   
 
   const calculateDistance = (
@@ -329,16 +328,16 @@ export default function FeaturedProviders() {
                   </div>
 
                   <div className="p-4">
-                    <h3 className="font-bold text-gray-800 mb-2 group-hover:text-green-600 transition truncate">
+                    <h3 className="font-bold text-green-600 mb-2 group-hover:text-green-600 transition truncate">
                       {`${provider.user?.firstName || ""} ${
                         provider.user?.lastName || ""
                       }`.trim() || "Provider"}
                     </h3>
 
                     {provider.user && (
-                      <div className="mb-3 pb-3 border-b border-gray-100">
+                      <div className=" flex gap-2 items-center mb-3 pb-3 border-b border-gray-100">
                         {provider.user.phone && (
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2">
                             <Phone className="w-3.5 h-3.5 text-gray-400" />
                             <span className="text-xs text-gray-600">
                               {provider.user.phone}

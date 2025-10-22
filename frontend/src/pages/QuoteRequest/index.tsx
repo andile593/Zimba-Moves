@@ -1,87 +1,26 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { MapPin, Truck, Users, Calculator, ArrowRight, Info, Phone, Mail, Clock, Download, FileText } from "lucide-react";
+import { MapPin, Truck, Users, Calculator, ArrowRight, Info, Phone, Mail, Clock, Download, FileText, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { useProvider } from "../../hooks/useProvider";
+import { calculateDistance } from "../../services/googleMapsService";
+import AddressAutocomplete from "../../components/AddressAutocomplete";
+import type { MoveType } from "@/types";
+import LoadingScreen from "@/components/Loading";
+import ErrorScreen from "@/components/ErrorScreen";
+import MissingProvider from "@/components/MissingProviders";
+import downloadQuotePDF from "@/components/DownloadPDF";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-
-type MoveType = "APARTMENT" | "OFFICE" | "SINGLE_ITEM" | "OTHER";
 
 interface DistanceResult {
   distance: number;
   duration: number;
   distanceText: string;
   durationText: string;
+  status: 'OK' | 'INVALID_ADDRESS' | 'NOT_FOUND' | 'ERROR';
+  errorMessage?: string;
 }
 
-// Add this function to download the quote
-const downloadQuote = (quoteData: {
-  provider: any;
-  pickup: string;
-  dropoff: string;
-  distanceResult: any;
-  vehicle: any;
-  helpersNeeded: number;
-  moveType: string;
-  instantEstimate: number;
-}) => {
-  const { provider, pickup, dropoff, distanceResult, vehicle, helpersNeeded, moveType, instantEstimate } = quoteData;
-
-  const displayName = provider?.company ||
-    (provider?.user ? `${provider.user.firstName} ${provider.user.lastName}` : "Moving Company");
-
-  const quoteText = `
-═══════════════════════════════════════════════
-              MOVING QUOTE
-═══════════════════════════════════════════════
-
-Provider: ${displayName}
-Date: ${new Date().toLocaleDateString()}
-Reference: QT-${Date.now().toString().slice(-8)}
-
-ROUTE DETAILS
-Pickup: ${pickup}
-Dropoff: ${dropoff}
-Distance: ${distanceResult.distanceText}
-Est. Time: ${distanceResult.durationText}
-
-VEHICLE INFORMATION
-Type: ${vehicle?.type.replace(/_/g, ' ')}
-Plate: ${vehicle?.plate}
-Capacity: ${vehicle?.capacity} m³
-Max Weight: ${vehicle?.weight} kg
-
-PRICING BREAKDOWN
-Base Rate: R${vehicle?.baseRate}
-Distance (${distanceResult.distance.toFixed(1)} km × R${vehicle?.perKmRate}/km): R${(distanceResult.distance * (vehicle?.perKmRate || 0)).toFixed(2)}
-Helpers (${helpersNeeded} × R150): R${helpersNeeded * 150}
-Move Type: ${moveType.replace(/_/g, ' ')}
-
-TOTAL ESTIMATE: R${instantEstimate.toFixed(2)}
-
-TERMS & CONDITIONS
-- Quote valid for 14 days
-- Final price may vary based on actual conditions
-- Deposit may be required to confirm booking
-
-CONTACT
-${provider?.user?.phone || ''}
-${provider?.user?.email || ''}
-
-Thank you for choosing ${displayName}!
-`;
-
-  const blob = new Blob([quoteText], { type: 'text/plain;charset=utf-8' });
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `quote-${displayName.replace(/\s+/g, '-')}-${Date.now()}.txt`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
-};
 
 export default function QuoteRequest() {
   const [params] = useSearchParams();
@@ -89,115 +28,72 @@ export default function QuoteRequest() {
   const vehicleId = params.get("vehicleId");
   const navigate = useNavigate();
 
+  const { data: provider, isLoading, isError } = useProvider(providerId || "");
+
   const [pickup, setPickup] = useState("");
   const [dropoff, setDropoff] = useState("");
   const [moveType, setMoveType] = useState<MoveType>("APARTMENT");
   const [helpersNeeded, setHelpersNeeded] = useState(0);
   const [selectedVehicleId, setSelectedVehicleId] = useState(vehicleId || "");
-
   const [distanceResult, setDistanceResult] = useState<DistanceResult | null>(null);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [instantEstimate, setInstantEstimate] = useState<number | null>(null);
+  const [addressError, setAddressError] = useState<string>("");
 
-  // Fetch provider data from API
-  const { data: provider, isLoading, isError } = useProvider(providerId || "");
-
-  // Handle loading and error states
-  if (!providerId) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 py-8 px-4">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="bg-white rounded-2xl shadow-lg p-8">
-            <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Provider Not Found</h2>
-            <p className="text-gray-600 mb-6">No provider ID was provided.</p>
-            <button
-              onClick={() => navigate("/search")}
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl transition"
-            >
-              Back to Search
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 py-8 px-4 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading provider details...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isError || !provider) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 py-8 px-4">
-        <div className="max-w-2xl mx-auto text-center">
-          <div className="bg-white rounded-2xl shadow-lg p-8">
-            <FileText className="w-16 h-16 text-red-300 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading Provider</h2>
-            <p className="text-gray-600 mb-6">We couldn't load the provider information. Please try again.</p>
-            <button
-              onClick={() => navigate("/search")}
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-xl transition"
-            >
-              Back to Search
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const displayName =
-    provider?.user
-      ? `${provider.user.firstName} ${provider.user.lastName}`
-      :  "Moving Company";
-  const displayLetter = displayName[0]?.toUpperCase() || "M";
-
-  // Set default vehicle
   useEffect(() => {
     if (vehicleId) {
       setSelectedVehicleId(vehicleId);
-    } else if (provider?.vehicles && provider.vehicles.length === 1 && !selectedVehicleId) {
+    } else if (provider?.vehicles?.length === 1 && !selectedVehicleId) {
       setSelectedVehicleId(provider.vehicles[0].id || "");
     }
   }, [provider, selectedVehicleId, vehicleId]);
 
-  // Simulate distance calculation (you can replace this with real Google Maps API call)
+  // Real distance calculation with validation
   useEffect(() => {
-    const calculateDistance = async () => {
+    const fetchDistance = async () => {
+      // Reset previous results
+      setDistanceResult(null);
+      setAddressError("");
+
       if (!pickup.trim() || !dropoff.trim()) {
-        setDistanceResult(null);
+        return;
+      }
+
+      // Check minimum length
+      if (pickup.trim().length < 5 || dropoff.trim().length < 5) {
+        setAddressError("Please enter complete addresses (minimum 5 characters)");
         return;
       }
 
       setIsCalculatingDistance(true);
 
-      // Simulate API call - replace with actual Google Maps API call
-      setTimeout(() => {
-        setDistanceResult({
-          distance: 25.5,
-          duration: 35,
-          distanceText: "25.5 km",
-          durationText: "35 mins"
-        });
+      try {
+        const result = await calculateDistance(pickup, dropoff);
+
+        if (result.status === 'OK') {
+          setDistanceResult(result);
+          setAddressError("");
+        } else {
+          setAddressError(result.errorMessage || "Unable to calculate distance");
+          setDistanceResult(null);
+        }
+      } catch (error: any) {
+        console.error("Distance calculation error:", error);
+        setAddressError("Failed to calculate distance. Please check your addresses.");
+        setDistanceResult(null);
+      } finally {
         setIsCalculatingDistance(false);
-      }, 1500);
+      }
     };
 
-    const debounce = setTimeout(calculateDistance, 1500);
-    return () => clearTimeout(debounce);
+    // Debounce the API call
+    const debounceTimer = setTimeout(fetchDistance, 2000);
+    return () => clearTimeout(debounceTimer);
   }, [pickup, dropoff]);
 
   // Calculate instant estimate
   useEffect(() => {
-    if (!selectedVehicleId || !distanceResult || !provider?.vehicles) {
+    if (!selectedVehicleId || !distanceResult || distanceResult.status !== 'OK' || !provider?.vehicles) {
       setInstantEstimate(null);
       return;
     }
@@ -220,9 +116,42 @@ export default function QuoteRequest() {
     setInstantEstimate(Math.round(estimate * 100) / 100);
   }, [selectedVehicleId, distanceResult, helpersNeeded, moveType, provider]);
 
+  if (!providerId) {
+    return <MissingProvider navigate={navigate} />;
+  }
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  if (isError || !provider) {
+    return <ErrorScreen navigate={navigate} />;
+  }
+
+  const displayName = provider?.user
+    ? `${provider.user.firstName} ${provider.user.lastName}`.trim()
+    : "Moving Company";
+  
+  const displayLetter = displayName[0]?.toUpperCase() || "M";
+
   const handleProceedToCheckout = () => {
-    if (!pickup.trim() || !dropoff.trim() || !selectedVehicleId || !distanceResult || !instantEstimate) {
-      toast.error("Please fill in all required fields");
+    if (!pickup.trim() || !dropoff.trim()) {
+      toast.error("Please enter both pickup and dropoff addresses");
+      return;
+    }
+
+    if (!selectedVehicleId) {
+      toast.error("Please select a vehicle");
+      return;
+    }
+
+    if (!distanceResult || distanceResult.status !== 'OK') {
+      toast.error("Please wait for valid distance calculation");
+      return;
+    }
+
+    if (!instantEstimate) {
+      toast.error("Price calculation in progress");
       return;
     }
 
@@ -244,30 +173,30 @@ export default function QuoteRequest() {
     });
   };
 
-  const handleDownloadQuote = () => {
-    if (!instantEstimate || !distanceResult) {
-      toast.error("Please complete the quote first");
-      return;
-    }
+ const handleDownloadQuote = () => {
+  if (!instantEstimate || !distanceResult || distanceResult.status !== 'OK') {
+    toast.error("Please complete the quote first");
+    return;
+  }
 
-    const vehicle = provider?.vehicles?.find((v: any) => v.id === selectedVehicleId);
-    if (!vehicle) {
-      toast.error("Please select a vehicle");
-      return;
-    }
+  const vehicle = provider?.vehicles?.find((v: any) => v.id === selectedVehicleId);
+  if (!vehicle) {
+    toast.error("Please select a vehicle");
+    return;
+  }
 
-    downloadQuote({
-      provider,
-      pickup,
-      dropoff,
-      distanceResult,
-      vehicle,
-      helpersNeeded,
-      moveType,
-      instantEstimate
-    });
-    toast.success("Quote downloaded successfully!");
-  };
+  downloadQuotePDF({
+    provider,
+    pickup,
+    dropoff,
+    distanceResult,
+    vehicle,
+    helpersNeeded,
+    moveType,
+    instantEstimate
+  });
+  toast.success("Opening PDF preview...");
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 py-8 px-4">
@@ -308,7 +237,6 @@ export default function QuoteRequest() {
 
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {/* Address inputs */}
             <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-gray-100">
               <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <MapPin className="w-7 h-7 text-green-600" />
@@ -316,40 +244,37 @@ export default function QuoteRequest() {
               </h2>
 
               <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Pickup Address <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={pickup}
-                    onChange={(e) => setPickup(e.target.value)}
-                    placeholder="123 Main St, Johannesburg, 2000"
-                    className="w-full text-gray-700 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
-                  />
-                </div>
+                <AddressAutocomplete
+                  value={pickup}
+                  onChange={setPickup}
+                  placeholder="e.g., 593 Simmonds Street, Johannesburg"
+                  label="Pickup Address"
+                  error={addressError && !pickup.trim() ? "Pickup address is required" : ""}
+                />
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Dropoff Address <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={dropoff}
-                    onChange={(e) => setDropoff(e.target.value)}
-                    placeholder="456 Oak Ave, Sandton, 2146"
-                    className="w-full text-gray-700 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
-                  />
-                </div>
+                <AddressAutocomplete
+                  value={dropoff}
+                  onChange={setDropoff}
+                  placeholder="e.g., 15 Oxford Road, Rosebank, Johannesburg"
+                  label="Dropoff Address"
+                  error={addressError && !dropoff.trim() ? "Dropoff address is required" : ""}
+                />
 
                 {isCalculatingDistance && (
-                  <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-4 py-3 rounded-xl">
+                  <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-4 py-3 rounded-xl border border-green-200">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
                     Calculating route via Google Maps...
                   </div>
                 )}
 
-                {distanceResult && (
+                {addressError && (
+                  <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 px-4 py-3 rounded-xl border border-red-200">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span>{addressError}</span>
+                  </div>
+                )}
+
+                {distanceResult && distanceResult.status === 'OK' && (
                   <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-5">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -621,3 +546,7 @@ export default function QuoteRequest() {
     </div>
   );
 }
+
+
+
+
