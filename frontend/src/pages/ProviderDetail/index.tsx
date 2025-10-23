@@ -16,7 +16,7 @@ import {
   Mail,
 } from "lucide-react";
 import { useProvider } from "@/hooks/useProvider";
-import LoadingScreen from "@/components/Loading";
+import LoadingScreen from "@/components/LoadingScreen/Loading";
 import ErrorScreen from "@/components/ErrorScreen";
 
 export default function EnhancedProviderDetail() {
@@ -377,8 +377,7 @@ export default function EnhancedProviderDetail() {
                       Selected Vehicle
                     </p>
                     <p className="font-bold text-lg text-gray-800 mb-2">
-                      {selectedVehicleData.type?.replace(/_/g, " ") ||
-                        "Vehicle"}
+                      {selectedVehicleData.make} {selectedVehicleData.model}
                     </p>
                     <div className="flex items-baseline justify-center gap-1">
                       <span className="text-3xl font-bold text-green-700">
@@ -561,7 +560,7 @@ function VehicleCard({
             </div>
             <div className="flex-1">
               <h4 className="font-bold text-gray-800 text-lg mb-1">
-                {getVehicleTypeLabel(vehicle.type)}
+                {getVehicleTypeLabel(vehicle.make)} {getVehicleTypeLabel(vehicle.model)}
               </h4>
               <p className="text-sm text-gray-600">Plate: {vehicle.plate}</p>
             </div>

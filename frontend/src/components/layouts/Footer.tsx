@@ -51,9 +51,9 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Brand */}
         <div>
-          <h2 className="text-xl font-bold text-gray-900">
+          <Link to='/' className="text-xl font-bold text-gray-900">
             Zimba<span className="text-green-600">Moves</span>
-          </h2>
+          </Link>
           <p className="italic text-sm mt-1 text-gray-500">Moving Made Simple</p>
           <p className="text-sm mt-3 text-gray-600 leading-relaxed">
             ZimbaMoves is a marketplace connecting customers with trusted movers

@@ -14,19 +14,18 @@ export default function Vehicles() {
   const [providerId, setProviderId] = useState<string>("");
 
   // Fetch provider profile
-  useQuery({
+  const { isLoading: isLoadingProvider } = useQuery({
     queryKey: ["myProvider"],
     queryFn: async () => {
       const res = await api.get("/providers/me/profile");
       setProviderId(res.data.id);
       console.log("Response Data:", res.data);
-
       return res.data;
     },
   });
 
   // Fetch vehicles with images
-  const { data: vehicles = [], isLoading } = useQuery({
+  const { data: vehicles = [], isLoading: isLoadingVehicles } = useQuery({
     queryKey: ["vehicles", providerId],
     queryFn: async () => {
       if (!providerId) return [];
@@ -72,10 +71,37 @@ export default function Vehicles() {
     return labels[type] || type;
   };
 
+  // Show loading state while fetching provider or vehicles
+  const isLoading = isLoadingProvider || isLoadingVehicles;
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-2"></div>
+            <div className="h-4 w-64 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+          <div className="h-10 w-32 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="h-48 bg-gray-200 animate-pulse"></div>
+              <div className="p-5 space-y-3">
+                <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
+                <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

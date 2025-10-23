@@ -34,7 +34,7 @@ const HowItWorks = forwardRef<HTMLDivElement>((_, ref) => {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-10">
           <h2 className="text-2xl sm:text-3xl font-bold text-green-700 mb-2">
-            Book Your Move in 3 Simple Steps
+            Book Your Move in 4 Simple Steps
           </h2>
         </div>
 

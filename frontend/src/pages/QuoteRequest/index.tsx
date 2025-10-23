@@ -4,11 +4,11 @@ import { MapPin, Truck, Users, Calculator, ArrowRight, Info, Phone, Mail, Clock,
 import toast from "react-hot-toast";
 import { useProvider } from "../../hooks/useProvider";
 import { calculateDistance } from "../../services/googleMapsService";
-import AddressAutocomplete from "../../components/AddressAutocomplete";
+import AddressAutocomplete from "../../components/AddressAutocomplete/AddressAutocomplete";
 import type { MoveType } from "@/types";
-import LoadingScreen from "@/components/Loading";
+import LoadingScreen from "@/components/LoadingScreen/Loading";
 import ErrorScreen from "@/components/ErrorScreen";
-import MissingProvider from "@/components/MissingProviders";
+import MissingProvider from "@/components/MissingProvider/MissingProviders";
 import downloadQuotePDF from "@/components/DownloadPDF";
 
 
@@ -377,7 +377,7 @@ export default function QuoteRequest() {
                         </div>
                         <div>
                           <h3 className="font-bold text-gray-800">
-                            {vehicle.type.replace("_", " ")}
+                            {vehicle.make} {vehicle.model}
                           </h3>
                           <p className="text-sm text-gray-600">{vehicle.plate}</p>
                         </div>

@@ -24,22 +24,27 @@ export default function Earnings() {
     );
   }
 
-  // Use real data from API or fallback to mock data
+  // Handle case where no data is returned
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-600">No earnings data available</p>
+      </div>
+    );
+  }
+
+  // Use data from API
   const earningsData = {
-    total: data?.total || 15750.5,
-    pending: data?.pending || 2340.0,
-    completed: data?.completed || 13410.5,
-    thisMonth: 4250.0,
-    lastMonth: 3890.0,
-    growth: 9.3,
+    total: data.total || 0,
+    pending: data.pending || 0,
+    completed: data.completed || 0,
+    thisMonth: data.thisMonth || 0,
+    lastMonth: data.lastMonth || 0,
+    growth: data.growth || 0,
   };
 
-  const recentPayouts = [
-    { id: 1, amount: 1250.0, date: "2024-01-15", status: "Completed", bookings: 5 },
-    { id: 2, amount: 890.5, date: "2024-01-08", status: "Completed", bookings: 3 },
-    { id: 3, amount: 1450.0, date: "2024-01-01", status: "Completed", bookings: 6 },
-    { id: 4, amount: 780.0, date: "2023-12-25", status: "Completed", bookings: 4 },
-  ];
+  const recentPayouts = data.recentPayouts || [];
+  const nextPayout = data.nextPayout || "TBD";
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -66,7 +71,9 @@ export default function Earnings() {
             </h2>
             <div className="flex items-center gap-2 text-green-100">
               <TrendingUp className="w-4 h-4" />
-              <span className="text-sm">+{earningsData.growth}% from last month</span>
+              <span className="text-sm">
+                {earningsData.growth >= 0 ? '+' : ''}{earningsData.growth.toFixed(1)}% from last month
+              </span>
             </div>
           </div>
 
@@ -108,7 +115,7 @@ export default function Earnings() {
         <StatCard
           icon={Calendar}
           title="Next Payout"
-          value="Jan 25, 2024"
+          value={nextPayout}
           description="Estimated date"
           color="blue"
         />
@@ -128,88 +135,104 @@ export default function Earnings() {
           </div>
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Bookings
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {recentPayouts.map((payout) => (
-                <tr key={payout.id} className="hover:bg-gray-50 transition">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-800">
-                        {new Date(payout.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-gray-600">
-                      {payout.bookings} bookings
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-lg font-bold text-gray-800">
+        {recentPayouts.length > 0 ? (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Bookings
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {recentPayouts.map((payout: any) => (
+                    <tr key={payout.id} className="hover:bg-gray-50 transition">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm font-medium text-gray-800">
+                            {new Date(payout.date).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-gray-600">
+                          {payout.bookings} bookings
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-lg font-bold text-gray-800">
+                          R{payout.amount.toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full ${
+                          payout.status === 'Completed' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          <CheckCircle className="w-3 h-3" />
+                          {payout.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="sm:hidden divide-y">
+              {recentPayouts.map((payout: any) => (
+                <div key={payout.id} className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-2xl font-bold text-gray-800">
                       R{payout.amount.toFixed(2)}
                     </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
+                      payout.status === 'Completed' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
                       <CheckCircle className="w-3 h-3" />
                       {payout.status}
                     </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="sm:hidden divide-y">
-          {recentPayouts.map((payout) => (
-            <div key={payout.id} className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-2xl font-bold text-gray-800">
-                  R{payout.amount.toFixed(2)}
-                </span>
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                  <CheckCircle className="w-3 h-3" />
-                  {payout.status}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  {new Date(payout.date).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })}
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      {new Date(payout.date).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </div>
+                    <span>{payout.bookings} bookings</span>
+                  </div>
                 </div>
-                <span>{payout.bookings} bookings</span>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        ) : (
+          <div className="p-8 text-center text-gray-500">
+            No payout history available yet
+          </div>
+        )}
       </div>
 
       {/* Info Card */}

@@ -759,3 +759,166 @@ exports.deleteProviderFile = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.getMyEarnings = async (req, res) => {
+  try {
+    // Ensure user is a provider
+    if (req.user.role !== 'PROVIDER') {
+      return res.status(403).json({ error: 'Only providers can access earnings' });
+    }
+
+    // Get provider profile
+    const provider = await prisma.provider.findUnique({
+      where: { userId: req.user.userId }
+    });
+
+    if (!provider) {
+      return res.status(404).json({ error: 'Provider profile not found' });
+    }
+
+    // Get all payments for this provider
+    const payments = await prisma.payment.findMany({
+      where: { 
+        providerId: provider.id,
+      },
+      include: {
+        booking: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Calculate total earnings
+    const total = payments
+      .filter(p => p.status === 'PAID')
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    // Calculate pending earnings
+    const pending = payments
+      .filter(p => p.status === 'PENDING')
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    // Calculate completed earnings
+    const completed = total; // Same as total for now
+
+    // Get this month's earnings
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    const thisMonth = payments
+      .filter(p => p.status === 'PAID' && new Date(p.createdAt) >= firstDayOfMonth)
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    // Get last month's earnings
+    const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    
+    const lastMonth = payments
+      .filter(p => {
+        const date = new Date(p.createdAt);
+        return p.status === 'PAID' && date >= firstDayOfLastMonth && date <= lastDayOfLastMonth;
+      })
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    // Calculate growth percentage
+    const growth = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : 0;
+
+    // Get recent payouts (group by week or similar logic)
+    const recentPayouts = await generateRecentPayouts(provider.id);
+
+    // Calculate next payout date (every Friday)
+    const nextPayout = getNextFriday();
+
+    res.json({
+      total,
+      pending,
+      completed,
+      thisMonth,
+      lastMonth,
+      growth,
+      nextPayout,
+      recentPayouts
+    });
+
+  } catch (err) {
+    console.error('Error fetching earnings:', err);
+    res.status(500).json({ error: 'Failed to fetch earnings', details: err.message });
+  }
+};
+
+
+
+async function generateRecentPayouts(providerId) {
+  const fourWeeksAgo = new Date();
+  fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+
+  const payments = await prisma.payment.findMany({
+    where: {
+      providerId,
+      status: 'PAID',
+      createdAt: {
+        gte: fourWeeksAgo
+      }
+    },
+    include: {
+      booking: true
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  // Group payments by week
+  const payoutMap = new Map();
+
+  payments.forEach(payment => {
+    const date = new Date(payment.createdAt);
+    const friday = getLastFriday(date);
+    const weekKey = friday.toISOString().split('T')[0];
+
+    if (!payoutMap.has(weekKey)) {
+      payoutMap.set(weekKey, {
+        id: weekKey,
+        date: weekKey,
+        amount: 0,
+        bookings: 0,
+        status: 'Completed'
+      });
+    }
+
+    const payout = payoutMap.get(weekKey);
+    payout.amount += payment.amount;
+    payout.bookings += 1;
+  });
+
+  // Convert map to array and sort by date descending
+  return Array.from(payoutMap.values())
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 10); // Return last 10 payouts
+}
+
+
+function getLastFriday(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day >= 5 ? day - 5 : day + 2; // Friday is 5
+  d.setDate(d.getDate() - diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
+ * Helper: Get next Friday date
+ */
+function getNextFriday() {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7; // Friday is 5
+  
+  const nextFriday = new Date(today);
+  nextFriday.setDate(today.getDate() + daysUntilFriday);
+  
+  return nextFriday.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+}
+

@@ -13,10 +13,22 @@ import {
   ChevronRight,
   TrendingUp,
   Clock,
-  Star
+  Star,
+  MapPin,
+  Calendar
 } from "lucide-react";
-import { useState } from "react";
-import { useAuth } from "../../hooks/useAuth";
+import { useState, useEffect } from "react";
+
+// Mock auth hook - replace with your actual implementation
+const useAuth = () => ({
+  logout: () => {
+    localStorage.removeItem("token");
+    window.location.href = "/login";
+  }
+});
+
+// API base URL - adjust as needed
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 interface ProviderDashboardProps {
   provider: any;
@@ -26,6 +38,63 @@ export default function ProviderDashboard({ provider }: ProviderDashboardProps) 
   const { pathname } = useLocation();
   const { logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const token = localStorage.getItem("token");
+        
+        if (!token) {
+          throw new Error("No authentication token found");
+        }
+
+        const headers = { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        };
+
+        // Fetch bookings
+        const bookingsRes = await fetch(`${API_URL}/bookings`, { headers });
+        if (!bookingsRes.ok) {
+          throw new Error(`Failed to fetch bookings: ${bookingsRes.status}`);
+        }
+        const bookingsData = await bookingsRes.json();
+        setBookings(Array.isArray(bookingsData) ? bookingsData : []);
+
+        // Fetch vehicles if provider ID exists
+        if (provider?.id) {
+          const vehiclesRes = await fetch(
+            `${API_URL}/providers/${provider.id}/vehicles`,
+            { headers }
+          );
+          if (!vehiclesRes.ok) {
+            throw new Error(`Failed to fetch vehicles: ${vehiclesRes.status}`);
+          }
+          const vehiclesData = await vehiclesRes.json();
+          setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
+        }
+      } catch (err) {
+        console.error("Error fetching dashboard data:", err);
+        setError(err instanceof Error ? err.message : "Failed to load dashboard data");
+        setBookings([]);
+        setVehicles([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (provider?.id) {
+      fetchDashboardData();
+    }
+  }, [provider?.id]);
+
+  const pendingBookingsCount = bookings.filter(b => b.status === 'PENDING').length;
 
   const menuItems = [
     {
@@ -38,7 +107,7 @@ export default function ProviderDashboard({ provider }: ProviderDashboardProps) 
       to: "/provider/bookings",
       icon: Package,
       label: "Bookings",
-      badge: "3",
+      badge: pendingBookingsCount > 0 ? pendingBookingsCount.toString() : undefined,
       match: ["/provider/bookings"]
     },
     {
@@ -67,6 +136,9 @@ export default function ProviderDashboard({ provider }: ProviderDashboardProps) 
 
   const isOverview = pathname === "/provider" || pathname === "/provider/overview";
 
+  const totalEarnings = calculateTotalEarnings(bookings);
+  const paidBookingsCount = bookings.filter(b => b.paymentStatus === 'PAID').length;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Header */}
@@ -75,11 +147,11 @@ export default function ProviderDashboard({ provider }: ProviderDashboardProps) 
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center text-white font-bold shadow-md">
-                {provider.company?.[0]?.toUpperCase() || "P"}
+                {provider?.user?.firstName?.[0]?.toUpperCase() || provider?.user?.email?.[0]?.toUpperCase() || "P"}
               </div>
               <div>
                 <h1 className="font-bold text-base text-gray-800 truncate max-w-[180px]">
-                  {provider.company}
+                  {provider?.user?.firstName} {provider?.user?.lastName}
                 </h1>
                 <p className="text-xs text-gray-500">Provider Dashboard</p>
               </div>
@@ -87,7 +159,9 @@ export default function ProviderDashboard({ provider }: ProviderDashboardProps) 
             <div className="flex items-center gap-2">
               <button className="p-2 hover:bg-gray-100 rounded-lg transition relative">
                 <Bell className="w-5 h-5 text-gray-600" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                {pendingBookingsCount > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                )}
               </button>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -108,16 +182,20 @@ export default function ProviderDashboard({ provider }: ProviderDashboardProps) 
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 border border-green-200">
                 <p className="text-xs text-green-700 mb-1">Earnings</p>
                 <p className="text-lg font-bold text-green-800">
-                  R{provider.earnings?.toFixed(0) || "0"}
+                  {loading ? "..." : `R${totalEarnings.toFixed(0)}`}
                 </p>
               </div>
               <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
                 <p className="text-xs text-blue-700 mb-1">Bookings</p>
-                <p className="text-lg font-bold text-blue-800">12</p>
+                <p className="text-lg font-bold text-blue-800">
+                  {loading ? "..." : bookings.length}
+                </p>
               </div>
               <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
-                <p className="text-xs text-purple-700 mb-1">Rating</p>
-                <p className="text-lg font-bold text-purple-800">4.8★</p>
+                <p className="text-xs text-purple-700 mb-1">Vehicles</p>
+                <p className="text-lg font-bold text-purple-800">
+                  {loading ? "..." : vehicles.length}
+                </p>
               </div>
             </div>
           )}
@@ -131,15 +209,15 @@ export default function ProviderDashboard({ provider }: ProviderDashboardProps) 
           <div className="p-6 border-b">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-14 h-14 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                {provider.company?.[0]?.toUpperCase() || "P"}
+                {provider?.user?.firstName?.[0]?.toUpperCase() || provider?.user?.email?.[0]?.toUpperCase() || "P"}
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="font-bold text-gray-800 truncate text-lg">
-                  {provider.company}
+                  {provider?.user?.firstName} {provider?.user?.lastName}
                 </h2>
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                   <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
-                  4.8 Rating
+                  Provider Account
                 </p>
               </div>
             </div>
@@ -151,9 +229,11 @@ export default function ProviderDashboard({ provider }: ProviderDashboardProps) 
                 Total Earnings
               </p>
               <p className="text-3xl font-bold mb-1">
-                R{provider.earnings?.toFixed(2) || "0.00"}
+                {loading ? "..." : `R${totalEarnings.toFixed(2)}`}
               </p>
-              <p className="text-xs text-green-100">+15% this month</p>
+              <p className="text-xs text-green-100">
+                {paidBookingsCount} paid {paidBookingsCount === 1 ? 'booking' : 'bookings'}
+              </p>
             </div>
           </div>
 
@@ -219,11 +299,11 @@ export default function ProviderDashboard({ provider }: ProviderDashboardProps) 
               <div className="p-6 border-b">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
-                    {provider.company?.[0]?.toUpperCase() || "P"}
+                    {provider?.user?.firstName?.[0]?.toUpperCase() || provider?.user?.email?.[0]?.toUpperCase() || "P"}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h2 className="font-bold text-gray-800 truncate">
-                      {provider.company}
+                      {provider?.user?.firstName} {provider?.user?.lastName}
                     </h2>
                     <p className="text-xs text-gray-500">Provider Account</p>
                   </div>
@@ -233,7 +313,7 @@ export default function ProviderDashboard({ provider }: ProviderDashboardProps) 
                 <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-4 text-white shadow-lg">
                   <p className="text-xs text-green-100 mb-1">Total Earnings</p>
                   <p className="text-2xl font-bold">
-                    R{provider.earnings?.toFixed(2) || "0.00"}
+                    {loading ? "..." : `R${totalEarnings.toFixed(2)}`}
                   </p>
                 </div>
               </div>
@@ -296,7 +376,13 @@ export default function ProviderDashboard({ provider }: ProviderDashboardProps) 
         {/* Main Content */}
         <main className="flex-1 min-h-screen">
           {isOverview ? (
-            <ProviderOverview provider={provider} />
+            <ProviderOverview 
+              provider={provider} 
+              bookings={bookings}
+              vehicles={vehicles}
+              loading={loading}
+              error={error}
+            />
           ) : (
             <div className="p-4 sm:p-6 lg:p-8">
               <Outlet />
@@ -344,55 +430,123 @@ export default function ProviderDashboard({ provider }: ProviderDashboardProps) 
   );
 }
 
-// Overview Component with Mobile-First Design
-function ProviderOverview({ provider }: { provider: any }) {
+// Helper Functions
+function calculateTotalEarnings(bookings: any[]) {
+  return bookings
+    .filter(booking => booking.paymentStatus === 'PAID')
+    .reduce((total, booking) => total + (booking.pricing?.total || 0), 0);
+}
+
+function calculateMonthlyEarnings(bookings: any[]) {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  
+  return bookings
+    .filter(booking => {
+      const bookingDate = new Date(booking.dateTime);
+      return booking.paymentStatus === 'PAID' &&
+             bookingDate.getMonth() === currentMonth &&
+             bookingDate.getFullYear() === currentYear;
+    })
+    .reduce((total, booking) => total + (booking.pricing?.total || 0), 0);
+}
+
+function getStatusColor(status: string) {
+  const colors: Record<string, string> = {
+    'PENDING': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    'CONFIRMED': 'bg-blue-100 text-blue-700 border-blue-200',
+    'IN_PROGRESS': 'bg-purple-100 text-purple-700 border-purple-200',
+    'COMPLETED': 'bg-green-100 text-green-700 border-green-200',
+    'CANCELLED': 'bg-red-100 text-red-700 border-red-200',
+  };
+  return colors[status] || 'bg-gray-100 text-gray-700 border-gray-200';
+}
+
+function getPaymentStatusColor(status: string) {
+  const colors: Record<string, string> = {
+    'PAID': 'text-green-600',
+    'PENDING': 'text-yellow-600',
+    'FAILED': 'text-red-600',
+  };
+  return colors[status] || 'text-gray-600';
+}
+
+// Overview Component
+function ProviderOverview({ provider, bookings, vehicles, loading, error }: { 
+  provider: any; 
+  bookings: any[];
+  vehicles: any[];
+  loading: boolean;
+  error: string | null;
+}) {
+  const activeBookings = bookings.filter(b => 
+    ['PENDING', 'CONFIRMED', 'IN_PROGRESS'].includes(b.status)
+  ).length;
+  
+  const monthlyEarnings = calculateMonthlyEarnings(bookings);
+  const totalEarnings = calculateTotalEarnings(bookings);
+  const paidBookingsCount = bookings.filter(b => b.paymentStatus === 'PAID').length;
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
       {/* Welcome Section */}
       <div className="mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">
-          Welcome back!
+          Welcome back, {provider?.user?.firstName || 'Provider'}!
         </h1>
         <p className="text-sm sm:text-base text-gray-600">
           Here's what's happening with your business today
         </p>
       </div>
 
-      {/* Stats Grid - Mobile Optimized */}
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
+          <p className="text-red-700 text-sm">{error}</p>
+        </div>
+      )}
+
+      {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <StatCard
           icon={Package}
           label="Active Bookings"
-          value="12"
-          change="+3 this week"
-          positive
+          value={loading ? "..." : activeBookings.toString()}
+          change={`${bookings.length} total`}
           gradient="from-blue-500 to-blue-600"
         />
         <StatCard
           icon={Truck}
           label="Vehicles"
-          value={provider.vehicles?.length || "0"}
-          change="All active"
+          value={loading ? "..." : vehicles.length.toString()}
+          change={vehicles.length === 1 ? "1 vehicle" : `${vehicles.length} vehicles`}
           gradient="from-purple-500 to-purple-600"
         />
         <StatCard
           icon={DollarSign}
           label="This Month"
-          value={`R${Math.floor(Math.random() * 5000) + 2000}`}
-          change="+15%"
-          positive
+          value={loading ? "..." : `R${monthlyEarnings.toFixed(0)}`}
+          change={`${bookings.filter(b => {
+            const bookingDate = new Date(b.dateTime);
+            const now = new Date();
+            return bookingDate.getMonth() === now.getMonth() && 
+                   bookingDate.getFullYear() === now.getFullYear();
+          }).length} bookings`}
+          positive={monthlyEarnings > 0}
           gradient="from-green-500 to-green-600"
         />
         <StatCard
           icon={BarChart3}
-          label="Rating"
-          value="4.8"
-          change="45 reviews"
+          label="Total Earned"
+          value={loading ? "..." : `R${totalEarnings.toFixed(0)}`}
+          change={`${paidBookingsCount} paid`}
+          positive={paidBookingsCount > 0}
           gradient="from-yellow-500 to-yellow-600"
         />
       </div>
 
-      {/* Quick Actions - Mobile First */}
+      {/* Quick Actions */}
       <div className="bg-white rounded-2xl shadow-sm border p-4 sm:p-6 mb-6">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">
           Quick Actions
@@ -422,23 +576,50 @@ function ProviderOverview({ provider }: { provider: any }) {
         </div>
       </div>
 
-      {/* Recent Activity */}
+      {/* Recent Bookings */}
       <div className="bg-white rounded-2xl shadow-sm border p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
-            Recent Activity
+            Recent Bookings
           </h2>
           <Clock className="w-5 h-5 text-gray-400" />
         </div>
-        <div className="text-center py-12">
-          <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-            <Package className="w-8 h-8 text-gray-400" />
+        
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <Package className="w-8 h-8 text-gray-400 animate-pulse" />
+            </div>
+            <p className="text-gray-500 text-sm">Loading bookings...</p>
           </div>
-          <p className="text-gray-500 text-sm">No recent activity</p>
-          <p className="text-gray-400 text-xs mt-1">
-            Your booking updates will appear here
-          </p>
-        </div>
+        ) : bookings.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <Package className="w-8 h-8 text-gray-400" />
+            </div>
+            <p className="text-gray-500 text-sm">No bookings yet</p>
+            <p className="text-gray-400 text-xs mt-1">
+              Your bookings will appear here
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {bookings
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(0, 5)
+              .map((booking) => (
+                <BookingCard key={booking.id} booking={booking} />
+              ))}
+            {bookings.length > 5 && (
+              <Link 
+                to="/provider/bookings"
+                className="block text-center text-sm text-green-600 hover:text-green-700 font-medium pt-2"
+              >
+                View all {bookings.length} bookings →
+              </Link>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -460,7 +641,7 @@ function StatCard({ icon: Icon, label, value, change, positive, gradient }: any)
 }
 
 function QuickActionButton({ to, icon: Icon, label, description, color }: any) {
-  const colors = {
+  const colors: Record<string, string> = {
     green: "from-green-500 to-green-600 hover:from-green-600 hover:to-green-700",
     blue: "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700",
     purple: "from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700",
@@ -469,7 +650,7 @@ function QuickActionButton({ to, icon: Icon, label, description, color }: any) {
   return (
     <Link
       to={to}
-      className={`flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br text-white shadow-md hover:shadow-lg transition group`}
+      className={`flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br ${colors[color]} text-white shadow-md hover:shadow-lg transition group`}
     >
       <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition">
         <Icon className="w-6 h-6" />
@@ -482,5 +663,66 @@ function QuickActionButton({ to, icon: Icon, label, description, color }: any) {
       </div>
       <ChevronRight className="w-5 h-5 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition" />
     </Link>
+  );
+}
+
+function BookingCard({ booking }: { booking: any }) {
+  const statusColor = getStatusColor(booking.status);
+  const paymentColor = getPaymentStatusColor(booking.paymentStatus);
+
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <p className="font-semibold text-gray-800">
+            {booking.customer?.firstName} {booking.customer?.lastName}
+          </p>
+          <span className={`px-2 py-0.5 text-xs rounded-full border ${statusColor}`}>
+            {booking.status}
+          </span>
+        </div>
+        
+        <div className="space-y-1">
+          <div className="flex items-start gap-2 text-sm text-gray-600">
+            <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="truncate">{booking.pickup?.address || 'Pickup location'}</p>
+              <p className="truncate text-gray-500">→ {booking.dropoff?.address || 'Dropoff location'}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <Calendar className="w-3 h-3" />
+            <span>
+              {new Date(booking.dateTime).toLocaleDateString('en-ZA', { 
+                day: 'numeric', 
+                month: 'short', 
+                year: 'numeric' 
+              })} at {new Date(booking.dateTime).toLocaleTimeString('en-ZA', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </span>
+          </div>
+
+          {booking.vehicle && (
+            <p className="text-xs text-gray-500">
+              Vehicle: {booking.vehicle.make} {booking.vehicle.model}
+            </p>
+          )}
+        </div>
+      </div>
+      
+      <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-1 sm:ml-4">
+        <div className="text-right">
+          <p className="font-bold text-lg text-green-600">
+            R{booking.pricing?.total?.toFixed(2) || '0.00'}
+          </p>
+          <p className={`text-xs font-medium ${paymentColor}`}>
+            {booking.paymentStatus || 'PENDING'}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

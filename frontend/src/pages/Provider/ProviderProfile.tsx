@@ -15,8 +15,8 @@ import {
   AlertCircle,
   Mail,
   Phone,
-  Building2,
   Calendar,
+  User,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ProviderProfileForm from "../../components/ProviderProfileForm/ProviderProfileForm";
@@ -146,7 +146,7 @@ function Header({ isEditing, onEdit, onCancel, onSave, isSaving }: any) {
           Provider Profile
         </h1>
         <p className="text-sm sm:text-base text-gray-600">
-          Manage your business information and settings
+          Manage your profile information and settings
         </p>
       </div>
       {!isEditing ? (
@@ -180,10 +180,7 @@ function Header({ isEditing, onEdit, onCancel, onSave, isSaving }: any) {
 
 function ProfileHero({ profile, stats }: any) {
   const user = profile.user;
-  const displayLetter =
-    profile.company?.[0]?.toUpperCase() ||
-    user?.firstName?.[0]?.toUpperCase() ||
-    "P";
+  const displayLetter = user?.firstName?.[0]?.toUpperCase() || "P";
 
   return (
     <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-2xl shadow-lg p-6 sm:p-8 mb-6 text-white">
@@ -199,15 +196,11 @@ function ProfileHero({ profile, stats }: any) {
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-bold mb-2">
-            {profile.company || `${user?.firstName} ${user?.lastName}`}
+            {user?.firstName} {user?.lastName}
           </h2>
 
           {/* User Contact Info */}
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-sm text-green-100 mb-3">
-            <div className="flex items-center gap-1">
-              <Users className="w-4 h-4" />
-              {user?.firstName} {user?.lastName}
-            </div>
             <div className="flex items-center gap-1">
               <Mail className="w-4 h-4" />
               {user?.email}
@@ -261,34 +254,14 @@ function ProfileHero({ profile, stats }: any) {
 function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
   return (
     <div className="grid lg:grid-cols-2 gap-6 mb-6">
-      {/* Business Information */}
+      {/* Profile Information */}
       <div className="bg-white rounded-2xl shadow-sm border p-6">
         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <Building2 className="w-5 h-5 text-green-600" />
-          Business Information
+          <User className="w-5 h-5 text-green-600" />
+          Profile Information
         </h3>
 
         <div className="space-y-4">
-          {/* Company Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Company Name
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                name="company"
-                value={formData.company || ""}
-                onChange={onChange}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              />
-            ) : (
-              <p className="text-gray-800 font-medium">
-                {profile.company || "Not provided"}
-              </p>
-            )}
-          </div>
-
           {/* Bio */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -300,6 +273,7 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
                 value={formData.bio || ""}
                 onChange={onChange}
                 rows={4}
+                placeholder="Tell customers about yourself and your moving services..."
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
               />
             ) : (
@@ -321,7 +295,7 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
                   className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                 />
                 <label className="text-sm text-gray-700">
-                  We provide moving helpers
+                  I provide moving helpers
                 </label>
               </>
             ) : (
@@ -443,6 +417,7 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
                 name="address"
                 value={formData.address || ""}
                 onChange={onChange}
+                placeholder="123 Main Street"
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
             ) : (
@@ -463,6 +438,7 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
                 name="city"
                 value={formData.city || ""}
                 onChange={onChange}
+                placeholder="Johannesburg"
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
             ) : (
@@ -481,6 +457,7 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
                 name="region"
                 value={formData.region || ""}
                 onChange={onChange}
+                placeholder="Gauteng"
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
             ) : (
@@ -501,6 +478,7 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
                 name="postalCode"
                 value={formData.postalCode || ""}
                 onChange={onChange}
+                placeholder="2000"
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
             ) : (
@@ -521,6 +499,7 @@ function ProfileDetails({ profile, formData, isEditing, onChange }: any) {
                 name="country"
                 value={formData.country || ""}
                 onChange={onChange}
+                placeholder="South Africa"
                 className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
             ) : (
@@ -561,7 +540,7 @@ function ProfileTips() {
         </li>
         <li className="flex items-start gap-2">
           <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <span>Add detailed descriptions to attract more customers</span>
+          <span>Add a detailed bio to attract more customers</span>
         </li>
         <li className="flex items-start gap-2">
           <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
