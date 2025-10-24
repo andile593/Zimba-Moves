@@ -13,7 +13,6 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  TrendingUp,
   Navigation
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";

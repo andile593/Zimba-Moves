@@ -1,7 +1,7 @@
 import api from "./axios";
 import type { Booking, CreateBookingInput } from "../types";
 
-export const getBookings = () => api.get<Booking[]>('./bookings');
+export const getBookings = () => api.get<Booking[]>('/bookings');
 export const getBookingById = (id: string) => api.get<Booking>(`/bookings/${id}`);
 export const createBooking = (booking: CreateBookingInput) => api.post<Booking>("/bookings", booking);
 

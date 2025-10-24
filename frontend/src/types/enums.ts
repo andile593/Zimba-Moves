@@ -29,7 +29,7 @@ export type QuoteStatus =
   | "REJECTED"
   | "EXPIRED";
 
-export type FileType = "IMAGE" | "DOCUMENT";
+export type FileType = "IMAGE" | "DOCUMENT" | "IN_PROGRESS" ;
 
 export type FileCategory =
   | "BRANDING"
