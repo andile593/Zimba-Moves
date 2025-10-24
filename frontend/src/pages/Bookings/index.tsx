@@ -34,7 +34,6 @@ export default function BookingHistory() {
             <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-2xl animate-pulse">
               <Package className="w-10 h-10 text-white" />
             </div>
-            <Loader2 className="w-8 h-8 animate-spin text-green-600 absolute -bottom-2 -right-2" />
           </div>
           <p className="text-gray-700 font-medium">Loading your bookings...</p>
           <p className="text-gray-500 text-sm mt-1">Please wait a moment</p>
@@ -70,9 +69,6 @@ export default function BookingHistory() {
           <div className="relative mb-8">
             <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-green-600 rounded-3xl flex items-center justify-center mx-auto shadow-2xl">
               <Package className="w-12 h-12 text-white" />
-            </div>
-            <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-lg">✨</span>
             </div>
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-3">No Bookings Yet</h2>
