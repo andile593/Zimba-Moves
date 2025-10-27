@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { Loader2, AlertCircle } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  Clock,
+  XCircle,
+  AlertOctagon,
+} from "lucide-react";
 import ProviderDashboard from "./Dashboard";
 
 export default function ProviderPage() {
@@ -17,10 +23,10 @@ export default function ProviderPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-green-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading your dashboard...</p>
+          <Loader2 className="w-16 h-16 animate-spin text-green-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading your dashboard...</p>
         </div>
       </div>
     );
@@ -28,20 +34,20 @@ export default function ProviderPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-            <AlertCircle className="w-8 h-8 text-green-600" />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center">
+          <div className="w-20 h-20 bg-green-100 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-sm">
+            <AlertCircle className="w-10 h-10 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">
             Login Required
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-8 text-lg">
             Please log in to access your provider dashboard
           </p>
           <button
             onClick={() => navigate("/login?redirect=/provider")}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition"
+            className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-semibold py-4 rounded-xl transition-all shadow-lg hover:shadow-xl"
           >
             Go to Login
           </button>
@@ -52,21 +58,24 @@ export default function ProviderPage() {
 
   if (showUnauthorized) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-            <AlertCircle className="w-8 h-8 text-red-600" />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center">
+          <div className="w-20 h-20 bg-red-100 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-sm">
+            <AlertCircle className="w-10 h-10 text-red-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">
             Access Denied
           </h2>
-          <p className="text-gray-600 mb-6">
-            Only users with a Provider role can access this page. Your current
-            role is: <strong>{user.role}</strong>
+          <p className="text-gray-600 mb-2 text-lg">
+            Only users with a Provider role can access this page.
+          </p>
+          <p className="text-sm text-gray-500 mb-8">
+            Your current role is:{" "}
+            <strong className="text-gray-700">{user.role}</strong>
           </p>
           <button
             onClick={() => navigate("/")}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition"
+            className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-semibold py-4 rounded-xl transition-all shadow-lg hover:shadow-xl"
           >
             Back to Home
           </button>
@@ -78,21 +87,26 @@ export default function ProviderPage() {
   // Check provider status from user object
   if (user.providerStatus === "PENDING") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-          <div className="w-16 h-16 bg-yellow-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-            <AlertCircle className="w-8 h-8 text-yellow-600" />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center">
+          <div className="w-20 h-20 bg-yellow-100 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-sm">
+            <Clock className="w-10 h-10 text-yellow-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">
             Application Pending
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-8 text-lg">
             Your provider application is currently under review. We'll notify
             you once it's approved.
           </p>
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4 mb-8">
+            <p className="text-yellow-800 text-sm font-medium">
+              ⏱️ Review typically takes 1-2 business days
+            </p>
+          </div>
           <button
             onClick={() => navigate("/")}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition"
+            className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-semibold py-4 rounded-xl transition-all shadow-lg hover:shadow-xl"
           >
             Back to Home
           </button>
@@ -103,30 +117,33 @@ export default function ProviderPage() {
 
   if (user.providerStatus === "REJECTED") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-            <AlertCircle className="w-8 h-8 text-red-600" />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center">
+          <div className="w-20 h-20 bg-red-100 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-sm">
+            <XCircle className="w-10 h-10 text-red-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">
             Application Rejected
           </h2>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-600 mb-4 text-lg">
             Unfortunately, your provider application was not approved.
           </p>
-          <p className="text-sm text-gray-600 mb-6">
-            You can contact our support team for more information.
-          </p>
-          <div className="flex gap-3">
+          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-8">
+            <p className="text-red-800 text-sm font-medium">
+              💬 You can contact our support team for more information or to
+              reapply.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={() => navigate("/")}
-              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 rounded-lg transition"
+              className="flex-1 bg-white border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 text-gray-700 font-semibold py-4 rounded-xl transition-all"
             >
               Back to Home
             </button>
             <button
               onClick={() => navigate("/contact")}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition"
+              className="flex-1 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-semibold py-4 rounded-xl transition-all shadow-lg hover:shadow-xl"
             >
               Contact Support
             </button>
@@ -138,21 +155,27 @@ export default function ProviderPage() {
 
   if (user.providerStatus === "SUSPENDED") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-          <div className="w-16 h-16 bg-orange-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-            <AlertCircle className="w-8 h-8 text-orange-600" />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center">
+          <div className="w-20 h-20 bg-orange-100 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-sm">
+            <AlertOctagon className="w-10 h-10 text-orange-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">
             Account Suspended
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-8 text-lg">
             Your provider account has been temporarily suspended. Please contact
             support for more information.
           </p>
+          <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4 mb-8">
+            <p className="text-orange-800 text-sm font-medium">
+              ⚠️ This suspension may be due to policy violations or pending
+              verification.
+            </p>
+          </div>
           <button
             onClick={() => navigate("/contact")}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition"
+            className="w-full bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white font-semibold py-4 rounded-xl transition-all shadow-lg hover:shadow-xl"
           >
             Contact Support
           </button>
@@ -161,7 +184,6 @@ export default function ProviderPage() {
     );
   }
 
-  // Provider approved - show dashboard
-  // Pass user object with providerId to dashboard
-  return <ProviderDashboard provider={{ id: user.providerId, ...user }} />;
+  // Provider approved - show dashboard with proper data structure
+  return <ProviderDashboard provider={{ ...user, id: user.providerId }} />;
 }

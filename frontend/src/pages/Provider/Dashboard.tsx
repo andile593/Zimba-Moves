@@ -14,21 +14,14 @@ import {
   TrendingUp,
   Clock,
   Star,
-  MapPin,
-  Calendar
+  Calendar,
+  CheckCircle2,
+  ArrowUpRight,
 } from "lucide-react";
-import { useState, useEffect } from "react";
-
-// Mock auth hook - replace with your actual implementation
-const useAuth = () => ({
-  logout: () => {
-    localStorage.removeItem("token");
-    window.location.href = "/login";
-  }
-});
-
-// API base URL - adjust as needed
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+import { useState } from "react";
+import { useAuth } from "../../hooks/useAuth";
+import { useProviderBookings } from "@/hooks/useBooking";
+import type { Booking } from "@/types/booking";
 
 interface ProviderDashboardProps {
   provider: any;
@@ -48,67 +41,11 @@ export default function ProviderDashboard({
   const { pathname } = useLocation();
   const { logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [vehicles, setVehicles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const token = localStorage.getItem("token");
-        
-        if (!token) {
-          throw new Error("No authentication token found");
-        }
+  // Get providerId from provider prop
+  const providerId = provider.id || provider.providerId;
 
-        const headers = { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        };
-
-        // Fetch bookings
-        const bookingsRes = await fetch(`${API_URL}/bookings`, { headers });
-        if (!bookingsRes.ok) {
-          throw new Error(`Failed to fetch bookings: ${bookingsRes.status}`);
-        }
-        const bookingsData = await bookingsRes.json();
-        setBookings(Array.isArray(bookingsData) ? bookingsData : []);
-
-        // Fetch vehicles if provider ID exists
-        if (provider?.id) {
-          const vehiclesRes = await fetch(
-            `${API_URL}/providers/${provider.id}/vehicles`,
-            { headers }
-          );
-          if (!vehiclesRes.ok) {
-            throw new Error(`Failed to fetch vehicles: ${vehiclesRes.status}`);
-          }
-          const vehiclesData = await vehiclesRes.json();
-          setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
-        }
-      } catch (err) {
-        console.error("Error fetching dashboard data:", err);
-        setError(err instanceof Error ? err.message : "Failed to load dashboard data");
-        setBookings([]);
-        setVehicles([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (provider?.id) {
-      fetchDashboardData();
-    }
-  }, [provider?.id]);
-
-  const pendingBookingsCount = bookings.filter(b => b.status === 'PENDING').length;
-
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const providerId = user.providerId;
-
+  // Fetch real bookings data
   const { data: bookingsData, isLoading: bookingsLoading } =
     useProviderBookings(providerId);
 
@@ -127,8 +64,8 @@ export default function ProviderDashboard({
       to: "/provider/bookings",
       icon: Package,
       label: "Bookings",
-      badge: pendingBookingsCount > 0 ? pendingBookingsCount.toString() : undefined,
-      match: ["/provider/bookings"]
+      match: ["/provider/bookings"],
+      badge: pendingCount > 0 ? pendingCount.toString() : undefined,
     },
     {
       to: "/provider/vehicles",
@@ -150,26 +87,12 @@ export default function ProviderDashboard({
     },
   ];
 
-  // Improved active detection to handle nested routes (was exact only)
   const isActive = (item: MenuItem) => {
-    return item.match.some(
-      (m) => pathname === m || pathname.startsWith(m + "/")
-    );
+    return item.match.includes(pathname);
   };
 
   const isOverview =
     pathname === "/provider" || pathname === "/provider/overview";
-
-  // Update bookings menu item with real pending count
-  const updatedMenuItems = menuItems.map((item) => {
-    if (item.to === "/provider/bookings" && pendingCount > 0) {
-      return { ...item, badge: pendingCount.toString() };
-    }
-    return item;
-  });
-
-  const totalEarnings = calculateTotalEarnings(bookings);
-  const paidBookingsCount = bookings.filter(b => b.paymentStatus === 'PAID').length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -178,30 +101,26 @@ export default function ProviderDashboard({
         <div className="px-4 py-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center text-white font-bold shadow-md">
-                {provider?.user?.firstName?.[0]?.toUpperCase() || provider?.user?.email?.[0]?.toUpperCase() || "P"}
+              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-green-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
+                {provider.user?.firstName?.[0]?.toUpperCase() || "P"}
               </div>
-              <div className="min-w-0">
+              <div>
                 <h1 className="font-bold text-base text-gray-800 truncate max-w-[180px]">
-                  {provider?.user?.firstName} {provider?.user?.lastName}
+                  {provider.user?.firstName} {provider.user?.lastName}
                 </h1>
                 <p className="text-xs text-gray-500">Provider Dashboard</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                className="p-2 hover:bg-gray-100 rounded-lg transition relative"
-                aria-label="Notifications"
-              >
+              <button className="p-2 hover:bg-gray-100 rounded-lg transition relative">
                 <Bell className="w-5 h-5 text-gray-600" />
-                {pendingBookingsCount > 0 && (
+                {pendingCount > 0 && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                 )}
               </button>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition"
-                aria-label="Open menu"
               >
                 {mobileMenuOpen ? (
                   <X className="w-5 h-5 text-gray-600" />
@@ -214,25 +133,29 @@ export default function ProviderDashboard({
 
           {/* Quick Stats - Mobile */}
           {isOverview && !bookingsLoading && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3 border border-green-200">
                 <p className="text-xs text-green-700 mb-1 font-medium">
                   Earnings
                 </p>
                 <p className="text-lg font-bold text-green-800">
-                  {loading ? "..." : `R${totalEarnings.toFixed(0)}`}
+                  R{provider.earnings?.toFixed(0) || "0"}
                 </p>
               </div>
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
-                <p className="text-xs text-blue-700 mb-1">Bookings</p>
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 border border-blue-200">
+                <p className="text-xs text-blue-700 mb-1 font-medium">
+                  Bookings
+                </p>
                 <p className="text-lg font-bold text-blue-800">
-                  {loading ? "..." : bookings.length}
+                  {bookingsData?.length || 0}
                 </p>
               </div>
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
-                <p className="text-xs text-purple-700 mb-1">Vehicles</p>
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3 border border-purple-200">
+                <p className="text-xs text-purple-700 mb-1 font-medium">
+                  Rating
+                </p>
                 <p className="text-lg font-bold text-purple-800">
-                  {loading ? "..." : vehicles.length}
+                  {provider.rating || "4.8"}★
                 </p>
               </div>
             </div>
@@ -246,16 +169,16 @@ export default function ProviderDashboard({
           {/* Sidebar Header */}
           <div className="p-6 border-b">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                {provider?.user?.firstName?.[0]?.toUpperCase() || provider?.user?.email?.[0]?.toUpperCase() || "P"}
+              <div className="w-14 h-14 bg-gradient-to-br from-green-600 to-green-500 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                {provider.user?.firstName?.[0]?.toUpperCase() || "P"}
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="font-bold text-gray-800 truncate text-lg">
-                  {provider?.user?.firstName} {provider?.user?.lastName}
+                  {provider.user?.firstName} {provider.user?.lastName}
                 </h2>
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                   <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
-                  Provider Account
+                  {provider.rating || "4.8"} Rating
                 </p>
               </div>
             </div>
@@ -267,17 +190,17 @@ export default function ProviderDashboard({
                 Total Earnings
               </p>
               <p className="text-3xl font-bold mb-1">
-                {loading ? "..." : `R${totalEarnings.toFixed(2)}`}
+                R{provider.earnings?.toFixed(2) || "0.00"}
               </p>
               <p className="text-xs text-green-100">
-                {paidBookingsCount} paid {paidBookingsCount === 1 ? 'booking' : 'bookings'}
+                {bookingsData?.length || 0} completed bookings
               </p>
             </div>
           </div>
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-            {updatedMenuItems.map((item) => {
+            {menuItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item);
 
@@ -294,7 +217,7 @@ export default function ProviderDashboard({
                   <Icon
                     className={`w-5 h-5 ${active ? "text-green-600" : ""}`}
                   />
-                  <span className="flex-1 truncate">{item.label}</span>
+                  <span className="flex-1">{item.label}</span>
                   {item.badge && (
                     <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-medium">
                       {item.badge}
@@ -334,16 +257,16 @@ export default function ProviderDashboard({
               className="lg:hidden fixed inset-0 bg-black/50 z-30 backdrop-blur-sm"
               onClick={() => setMobileMenuOpen(false)}
             />
-            <aside className="lg:hidden fixed left-0 top-0 bottom-0 w-11/12 max-w-xs bg-white z-40 shadow-2xl flex flex-col safe-area-inset">
+            <aside className="lg:hidden fixed left-0 top-0 bottom-0 w-72 bg-white z-40 shadow-2xl flex flex-col">
               {/* Mobile Menu Header */}
               <div className="p-6 border-b">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
-                    {provider?.user?.firstName?.[0]?.toUpperCase() || provider?.user?.email?.[0]?.toUpperCase() || "P"}
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
+                    {provider.user?.firstName?.[0]?.toUpperCase() || "P"}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h2 className="font-bold text-gray-800 truncate">
-                      {provider?.user?.firstName} {provider?.user?.lastName}
+                      {provider.user?.firstName} {provider.user?.lastName}
                     </h2>
                     <p className="text-xs text-gray-500">Provider Account</p>
                   </div>
@@ -353,14 +276,14 @@ export default function ProviderDashboard({
                 <div className="bg-gradient-to-br from-green-600 to-green-500 rounded-2xl p-4 text-white shadow-lg">
                   <p className="text-xs text-green-100 mb-1">Total Earnings</p>
                   <p className="text-2xl font-bold">
-                    {loading ? "..." : `R${totalEarnings.toFixed(2)}`}
+                    R{provider.earnings?.toFixed(2) || "0.00"}
                   </p>
                 </div>
               </div>
 
               {/* Mobile Navigation */}
               <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-                {updatedMenuItems.map((item) => {
+                {menuItems.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item);
 
@@ -375,8 +298,8 @@ export default function ProviderDashboard({
                           : "text-gray-600 hover:bg-gray-50"
                       }`}
                     >
-                      <Icon className="w-5 h-5 flex-shrink-0" />
-                      <span className="flex-1 truncate">{item.label}</span>
+                      <Icon className="w-5 h-5" />
+                      <span className="flex-1">{item.label}</span>
                       {item.badge && (
                         <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
                           {item.badge}
@@ -414,14 +337,12 @@ export default function ProviderDashboard({
         )}
 
         {/* Main Content */}
-        <main className="flex-1 min-h-screen overflow-hidden">
+        <main className="flex-1 min-h-screen">
           {isOverview ? (
-            <ProviderOverview 
-              provider={provider} 
-              bookings={bookings}
-              vehicles={vehicles}
-              loading={loading}
-              error={error}
+            <ProviderOverview
+              provider={provider}
+              bookingsData={bookingsData}
+              bookingsLoading={bookingsLoading}
             />
           ) : (
             <Outlet />
@@ -432,7 +353,7 @@ export default function ProviderDashboard({
       {/* Mobile Bottom Navigation */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-20">
         <div className="grid grid-cols-5 gap-1 p-2">
-          {updatedMenuItems.map((item) => {
+          {menuItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item);
 
@@ -446,7 +367,7 @@ export default function ProviderDashboard({
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                <Icon className="w-5 h-5 flex-shrink-0" />
+                <Icon className="w-5 h-5" />
                 <span className="text-[10px] font-medium truncate w-full text-center">
                   {item.label}
                 </span>
@@ -468,139 +389,96 @@ export default function ProviderDashboard({
   );
 }
 
-// Helper Functions
-function calculateTotalEarnings(bookings: any[]) {
-  return bookings
-    .filter(booking => booking.paymentStatus === 'PAID')
-    .reduce((total, booking) => total + (booking.pricing?.total || 0), 0);
-}
-
-function calculateMonthlyEarnings(bookings: any[]) {
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-  
-  return bookings
-    .filter(booking => {
-      const bookingDate = new Date(booking.dateTime);
-      return booking.paymentStatus === 'PAID' &&
-             bookingDate.getMonth() === currentMonth &&
-             bookingDate.getFullYear() === currentYear;
-    })
-    .reduce((total, booking) => total + (booking.pricing?.total || 0), 0);
-}
-
-function getStatusColor(status: string) {
-  const colors: Record<string, string> = {
-    'PENDING': 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    'CONFIRMED': 'bg-blue-100 text-blue-700 border-blue-200',
-    'IN_PROGRESS': 'bg-purple-100 text-purple-700 border-purple-200',
-    'COMPLETED': 'bg-green-100 text-green-700 border-green-200',
-    'CANCELLED': 'bg-red-100 text-red-700 border-red-200',
-  };
-  return colors[status] || 'bg-gray-100 text-gray-700 border-gray-200';
-}
-
-function getPaymentStatusColor(status: string) {
-  const colors: Record<string, string> = {
-    'PAID': 'text-green-600',
-    'PENDING': 'text-yellow-600',
-    'FAILED': 'text-red-600',
-  };
-  return colors[status] || 'text-gray-600';
-}
-
-// Overview Component
-function ProviderOverview({ provider, bookings, vehicles, loading, error }: { 
-  provider: any; 
-  bookings: any[];
-  vehicles: any[];
-  loading: boolean;
-  error: string | null;
+// Overview Component with Real Data
+function ProviderOverview({
+  provider,
+  bookingsData,
+  bookingsLoading,
+}: {
+  provider: any;
+  bookingsData?: Booking[];
+  bookingsLoading: boolean;
 }) {
-  const activeBookings = bookings.filter(b => 
-    ['PENDING', 'CONFIRMED', 'IN_PROGRESS'].includes(b.status)
-  ).length;
-  
-  const monthlyEarnings = calculateMonthlyEarnings(bookings);
-  const totalEarnings = calculateTotalEarnings(bookings);
-  const paidBookingsCount = bookings.filter(b => b.paymentStatus === 'PAID').length;
+  // Calculate real stats from bookings data
+  const stats = {
+    totalBookings: bookingsData?.length || 0,
+    activeBookings:
+      bookingsData?.filter(
+        (b: Booking) => b.status === "CONFIRMED" || b.status === "PENDING"
+      ).length || 0,
+    completedBookings:
+      bookingsData?.filter((b: Booking) => b.status === "COMPLETED").length ||
+      0,
+    totalRevenue:
+      bookingsData?.reduce(
+        (sum: number, b: Booking) => sum + (b.pricing?.total || 0),
+        0
+      ) || 0,
+    thisMonthRevenue:
+      bookingsData
+        ?.filter((b: Booking) => {
+          const bookingDate = new Date(b.createdAt || b.dateTime);
+          const now = new Date();
+          return (
+            bookingDate.getMonth() === now.getMonth() &&
+            bookingDate.getFullYear() === now.getFullYear()
+          );
+        })
+        .reduce(
+          (sum: number, b: Booking) => sum + (b.pricing?.total || 0),
+          0
+        ) || 0,
+  };
 
-  return (
-    <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
-      {/* Welcome Section */}
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">
-          Welcome back, {provider?.user?.firstName || 'Provider'}!
-        </h1>
-        <p className="text-sm sm:text-base text-gray-600">
-          Here's what's happening with your business today
-        </p>
-      </div>
+  // Get recent bookings (last 3)
+  const recentBookings =
+    bookingsData
+      ?.sort((a: Booking, b: Booking) => {
+        const dateA = new Date(a.createdAt || a.dateTime || 0);
+        const dateB = new Date(b.createdAt || b.dateTime || 0);
+        return dateB.getTime() - dateA.getTime();
+      })
+      .slice(0, 3) || [];
 
-      {/* Error Message */}
-      {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-red-700 text-sm">{error}</p>
-        </div>
-      )}
+  // Get upcoming confirmed bookings
+  const upcomingBookings =
+    bookingsData
+      ?.filter(
+        (b: Booking) =>
+          b.status === "CONFIRMED" && new Date(b.dateTime || 0) > new Date()
+      )
+      .sort((a: Booking, b: Booking) => {
+        const dateA = new Date(a.dateTime || 0);
+        const dateB = new Date(b.dateTime || 0);
+        return dateA.getTime() - dateB.getTime();
+      })
+      .slice(0, 3) || [];
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <StatCard
-          icon={Package}
-          label="Active Bookings"
-          value={loading ? "..." : activeBookings.toString()}
-          change={`${bookings.length} total`}
-          gradient="from-blue-500 to-blue-600"
-        />
-        <StatCard
-          icon={Truck}
-          label="Vehicles"
-          value={loading ? "..." : vehicles.length.toString()}
-          change={vehicles.length === 1 ? "1 vehicle" : `${vehicles.length} vehicles`}
-          gradient="from-purple-500 to-purple-600"
-        />
-        <StatCard
-          icon={DollarSign}
-          label="This Month"
-          value={loading ? "..." : `R${monthlyEarnings.toFixed(0)}`}
-          change={`${bookings.filter(b => {
-            const bookingDate = new Date(b.dateTime);
-            const now = new Date();
-            return bookingDate.getMonth() === now.getMonth() && 
-                   bookingDate.getFullYear() === now.getFullYear();
-          }).length} bookings`}
-          positive={monthlyEarnings > 0}
-          gradient="from-green-500 to-green-600"
-        />
-        <StatCard
-          icon={BarChart3}
-          label="Total Earned"
-          value={loading ? "..." : `R${totalEarnings.toFixed(0)}`}
-          change={`${paidBookingsCount} paid`}
-          positive={paidBookingsCount > 0}
-          gradient="from-yellow-500 to-yellow-600"
-        />
+  if (bookingsLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh]">
+        <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-600 border-t-transparent"></div>
+        <p className="mt-4 text-gray-600 font-medium">Loading dashboard...</p>
       </div>
     );
   }
 
-      {/* Quick Actions */}
-      <div className="bg-white rounded-2xl shadow-sm border p-4 sm:p-6 mb-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4">
-          Quick Actions
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <QuickActionButton
-            to="/provider/vehicles"
-            icon={Truck}
-            label="Add Vehicle"
-            description="Register new vehicle"
-            color="green"
-          />
-          <QuickActionButton
-            to="/provider/bookings"
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-3 bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent">
+            Welcome back!
+          </h1>
+          <p className="text-lg text-gray-600">
+            Here's what's happening with your business today
+          </p>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+          <StatCard
             icon={Package}
             label="Active Bookings"
             value={stats.activeBookings}
@@ -632,11 +510,10 @@ function ProviderOverview({ provider, bookings, vehicles, loading, error }: {
           />
         </div>
 
-      {/* Recent Bookings */}
-      <div className="bg-white rounded-2xl shadow-sm border p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
-            Recent Bookings
+        {/* Quick Actions */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            Quick Actions
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <QuickActionCard
@@ -662,42 +539,121 @@ function ProviderOverview({ provider, bookings, vehicles, loading, error }: {
             />
           </div>
         </div>
-        
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Package className="w-8 h-8 text-gray-400 animate-pulse" />
+
+        {/* Two Column Layout */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Recent Activity */}
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">
+                Recent Activity
+              </h2>
+              <Clock className="w-5 h-5 text-gray-400" />
             </div>
-            <p className="text-gray-500 text-sm">Loading bookings...</p>
-          </div>
-        ) : bookings.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Package className="w-8 h-8 text-gray-400" />
-            </div>
-            <p className="text-gray-500 text-sm">No bookings yet</p>
-            <p className="text-gray-400 text-xs mt-1">
-              Your bookings will appear here
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {bookings
-              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-              .slice(0, 5)
-              .map((booking) => (
-                <BookingCard key={booking.id} booking={booking} />
-              ))}
-            {bookings.length > 5 && (
-              <Link 
-                to="/provider/bookings"
-                className="block text-center text-sm text-green-600 hover:text-green-700 font-medium pt-2"
-              >
-                View all {bookings.length} bookings →
-              </Link>
+            {recentBookings.length > 0 ? (
+              <div className="space-y-4">
+                {recentBookings.map((booking: Booking) => (
+                  <ActivityItem
+                    key={booking.id}
+                    icon={
+                      booking.status === "COMPLETED"
+                        ? CheckCircle2
+                        : booking.status === "CONFIRMED"
+                        ? CheckCircle2
+                        : Clock
+                    }
+                    title={`Booking ${
+                      booking.status === "COMPLETED"
+                        ? "Completed"
+                        : booking.status === "CONFIRMED"
+                        ? "Confirmed"
+                        : "Pending"
+                    }`}
+                    description={`${booking.pickup?.substring(
+                      0,
+                      30
+                    )}... → ${booking.dropoff?.substring(0, 30)}...`}
+                    time={new Date(
+                      booking.createdAt || booking.dateTime
+                    ).toLocaleString()}
+                    color={
+                      booking.status === "COMPLETED"
+                        ? "green"
+                        : booking.status === "CONFIRMED"
+                        ? "blue"
+                        : "yellow"
+                    }
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                  <Package className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-500 text-sm">No recent activity</p>
+              </div>
             )}
           </div>
-        )}
+
+          {/* Upcoming Schedule */}
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">
+                Upcoming Schedule
+              </h2>
+              <Calendar className="w-5 h-5 text-gray-400" />
+            </div>
+            {upcomingBookings.length > 0 ? (
+              <div className="space-y-4">
+                {upcomingBookings.map((booking: Booking) => {
+                  const bookingDate = new Date(booking.dateTime || 0);
+                  const isToday =
+                    bookingDate.toDateString() === new Date().toDateString();
+                  const isTomorrow =
+                    bookingDate.toDateString() ===
+                    new Date(Date.now() + 86400000).toDateString();
+
+                  return (
+                    <ScheduleItem
+                      key={booking.id}
+                      date={
+                        isToday
+                          ? "Today"
+                          : isTomorrow
+                          ? "Tomorrow"
+                          : bookingDate.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            })
+                      }
+                      time={bookingDate.toLocaleTimeString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      title={booking.moveType?.replace(/_/g, " ") || "Move"}
+                      location={`${booking.pickup?.substring(
+                        0,
+                        20
+                      )}... → ${booking.dropoff?.substring(0, 20)}...`}
+                      status={booking.status?.toLowerCase() || "pending"}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                  <Calendar className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-500 text-sm">No upcoming bookings</p>
+                <p className="text-gray-400 text-xs mt-1">
+                  Confirmed bookings will appear here
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -744,7 +700,7 @@ function StatCard({ icon: Icon, label, value, color, trend }: StatCardProps) {
     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer">
       <div className="flex items-start justify-between mb-4">
         <div
-          className={`w-14 h-14 bg-gradient-to-br ${colors[color].gradient} rounded-xl flex items-center justify-center shadow-lg flex-shrink-0`}
+          className={`w-14 h-14 bg-gradient-to-br ${colors[color].gradient} rounded-xl flex items-center justify-center shadow-lg`}
         >
           <Icon className="w-7 h-7 text-white" />
         </div>
@@ -757,29 +713,29 @@ function StatCard({ icon: Icon, label, value, color, trend }: StatCardProps) {
         )}
       </div>
       <p className="text-sm text-gray-600 mb-2 font-medium">{label}</p>
-      <p className="text-3xl font-bold text-gray-900 truncate">{value}</p>
+      <p className="text-3xl font-bold text-gray-900">{value}</p>
     </div>
   );
 }
 
-function QuickActionButton({ to, icon: Icon, label, description, color }: any) {
-  const colors: Record<string, string> = {
-    green: "from-green-500 to-green-600 hover:from-green-600 hover:to-green-700",
-    blue: "from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700",
-    purple: "from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700",
-  };
-
+function QuickActionCard({
+  to,
+  icon: Icon,
+  label,
+  description,
+  gradient,
+}: any) {
   return (
     <Link
       to={to}
-      className={`flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br ${colors[color]} text-white shadow-md hover:shadow-lg transition group`}
+      className={`group relative overflow-hidden bg-gradient-to-br ${gradient} rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1`}
     >
       <div className="relative z-10">
-        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform flex-shrink-0">
+        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
           <Icon className="w-6 h-6" />
         </div>
-        <h3 className="font-bold text-lg mb-1 truncate">{label}</h3>
-        <p className="text-sm text-white/80 mb-4 truncate">{description}</p>
+        <h3 className="font-bold text-lg mb-1">{label}</h3>
+        <p className="text-sm text-white/80 mb-4">{description}</p>
         <div className="flex items-center gap-2 text-sm font-semibold">
           <span>Get started</span>
           <ArrowUpRight className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
@@ -808,7 +764,7 @@ function ActivityItem({ icon: Icon, title, description, time, color }: any) {
         <Icon className="w-5 h-5" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-900 mb-1 truncate">{title}</p>
+        <p className="font-semibold text-gray-900 mb-1">{title}</p>
         <p className="text-sm text-gray-600 truncate">{description}</p>
         <p className="text-xs text-gray-400 mt-1">{time}</p>
       </div>
@@ -816,62 +772,29 @@ function ActivityItem({ icon: Icon, title, description, time, color }: any) {
   );
 }
 
-function BookingCard({ booking }: { booking: any }) {
-  const statusColor = getStatusColor(booking.status);
-  const paymentColor = getPaymentStatusColor(booking.paymentStatus);
-
+function ScheduleItem({ date, time, title, location, status }: any) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition gap-3">
+    <div className="flex items-start gap-4 p-4 rounded-xl border-2 border-gray-100 hover:border-green-200 hover:bg-green-50/30 transition-all">
+      <div className="flex flex-col items-center flex-shrink-0 w-16">
+        <span className="text-xs font-semibold text-gray-500 uppercase">
+          {date}
+        </span>
+        <span className="text-lg font-bold text-gray-900">{time}</span>
+      </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <p className="font-semibold text-gray-800">
-            {booking.customer?.firstName} {booking.customer?.lastName}
-          </p>
-          <span className={`px-2 py-0.5 text-xs rounded-full border ${statusColor}`}>
-            {booking.status}
+        <div className="flex items-center gap-2 mb-1">
+          <h4 className="font-semibold text-gray-900 truncate">{title}</h4>
+          <span
+            className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
+              status === "confirmed"
+                ? "bg-green-100 text-green-700"
+                : "bg-yellow-100 text-yellow-700"
+            }`}
+          >
+            {status}
           </span>
         </div>
-        
-        <div className="space-y-1">
-          <div className="flex items-start gap-2 text-sm text-gray-600">
-            <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="truncate">{booking.pickup?.address || 'Pickup location'}</p>
-              <p className="truncate text-gray-500">→ {booking.dropoff?.address || 'Dropoff location'}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <Calendar className="w-3 h-3" />
-            <span>
-              {new Date(booking.dateTime).toLocaleDateString('en-ZA', { 
-                day: 'numeric', 
-                month: 'short', 
-                year: 'numeric' 
-              })} at {new Date(booking.dateTime).toLocaleTimeString('en-ZA', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })}
-            </span>
-          </div>
-
-          {booking.vehicle && (
-            <p className="text-xs text-gray-500">
-              Vehicle: {booking.vehicle.make} {booking.vehicle.model}
-            </p>
-          )}
-        </div>
-      </div>
-      
-      <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-1 sm:ml-4">
-        <div className="text-right">
-          <p className="font-bold text-lg text-green-600">
-            R{booking.pricing?.total?.toFixed(2) || '0.00'}
-          </p>
-          <p className={`text-xs font-medium ${paymentColor}`}>
-            {booking.paymentStatus || 'PENDING'}
-          </p>
-        </div>
+        <p className="text-sm text-gray-600 truncate">{location}</p>
       </div>
     </div>
   );

@@ -9,7 +9,6 @@ import {
   Gauge,
   Weight,
   DollarSign,
-  Calendar,
   Palette,
   FileText,
 } from "lucide-react";
@@ -31,7 +30,6 @@ export default function Vehicles() {
     queryFn: async () => {
       const res = await api.get("/providers/me/profile");
       setProviderId(res.data.id);
-      console.log("Response Data:", res.data);
       return res.data;
     },
   });
@@ -83,36 +81,49 @@ export default function Vehicles() {
     return labels[type] || type;
   };
 
+  const getVehicleTypeColor = (type: string) => {
+    const colors: Record<string, string> = {
+      SMALL_VAN: "bg-blue-100 text-blue-700 border-blue-200",
+      MEDIUM_TRUCK: "bg-purple-100 text-purple-700 border-purple-200",
+      LARGE_TRUCK: "bg-orange-100 text-orange-700 border-orange-200",
+      OTHER: "bg-gray-100 text-gray-700 border-gray-200",
+    };
+    return colors[type] || colors.OTHER;
+  };
+
   // Show loading state while fetching provider or vehicles
   const isLoading = isLoadingProvider || isLoadingVehicles;
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-2"></div>
-            <div className="h-4 w-64 bg-gray-200 rounded animate-pulse"></div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Loading Header Skeleton */}
+          <div className="mb-8">
+            <div className="h-12 bg-gray-200 rounded-lg w-64 mb-3 animate-pulse"></div>
+            <div className="h-6 bg-gray-200 rounded-lg w-96 animate-pulse"></div>
           </div>
-          <div className="h-10 w-32 bg-gray-200 rounded animate-pulse"></div>
-        </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="h-48 bg-gray-200 animate-pulse"></div>
-              <div className="p-5 space-y-3">
-                <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
-                <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
-                <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
-                <div className="space-y-2">
-                  <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+          {/* Loading Cards Skeleton */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden"
+              >
+                <div className="h-56 bg-gray-200 animate-pulse"></div>
+                <div className="p-6 space-y-4">
+                  <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -125,7 +136,7 @@ export default function Vehicles() {
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2 bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent">
+              <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-3 bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent">
                 My Vehicles
               </h1>
               <p className="text-lg text-gray-600">
@@ -257,9 +268,6 @@ export default function Vehicles() {
                         }}
                       />
                     ) : (
-                      <Truck className="w-20 h-20 text-green-600" />
-                    )}
-                    {!primaryImage && (
                       <Truck className="w-20 h-20 text-green-600" />
                     )}
                     {vehicle.files && vehicle.files.length > 1 && (
