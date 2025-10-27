@@ -135,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user);
       return data.user;
     } catch (error) {
-      console.error(" Caught error in signup:", error);
+      console.error("💥 Caught error in signup:", error);
       throw error;
     } finally {
       setLoading(false);

@@ -27,6 +27,7 @@ export default function Login() {
 
       // Get the stored user data after successful login
       const storedUser = localStorage.getItem("user");
+      console.log(storedUser);
 
       if (storedUser) {
         const userData = JSON.parse(storedUser);

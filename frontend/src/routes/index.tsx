@@ -36,7 +36,6 @@ import ProviderProfile from "../pages/Provider/ProviderProfile";
 import AdminAnalytics from "../pages/Admin/Analytics";
 import About from "../pages/About/index";
 import AuthCallback from "../pages/Auth/AuthCallback";
-import BookingDetails from "@/pages/Provider/BookingDetails";
 
 export default function AppRoutes() {
   return (
@@ -74,7 +73,6 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoute allowedRoles={["PROVIDER"]} />}>
           <Route path="/provider/apply" element={<ProviderApplicationForm />} />
           <Route path="/provider/pending" element={<PendingApproval />} />
-          <Route path="/provider/bookings/:id" element={<BookingDetails />} />
         </Route>
 
         {/* Provider Routes - Only for APPROVED providers */}
