@@ -5,9 +5,6 @@ const webhookLogger = require('../middleware/webhookLogger');
 const { authenticate, authorize } = require('../middleware/auth');
 const { payLimiter, refundLimiter } = require('../middleware/rateLimiters');
 
-// ============================================
-// PUBLIC WEBHOOK ROUTES (NO AUTH)
-// ============================================
 
 // Paystack webhook - must use raw body
 router.post(
@@ -17,17 +14,6 @@ router.post(
   paymentController.paystackWebhook
 );
 
-// Ozow webhook - must use raw body
-router.post(
-  '/webhooks/ozow',
-  express.raw({ type: 'application/json' }),
-  webhookLogger('ozow'),
-  paymentController.ozowWebhook
-);
-
-// ============================================
-// AUTHENTICATED ROUTES
-// ============================================
 
 // Initiate payment (customer only, rate limited)
 router.post(

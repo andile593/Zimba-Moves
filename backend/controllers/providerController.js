@@ -19,10 +19,8 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-exports.createProviderApplication = async (req, res) => {
+exports.createProviderApplication = async (req, res, next) => {
   try {
-    if (req.user.role !== "PROVIDER")
-      throw new ApiError(403, "Only providers can apply");
     if (req.user.role !== "PROVIDER")
       throw new ApiError(403, "Only providers can apply");
 
@@ -80,7 +78,12 @@ exports.createProviderApplication = async (req, res) => {
     });
 
     // Send confirmation email
-    await emailService.sendApplicationSubmitted(provider);
+    try {
+      await emailService.sendApplicationSubmitted(provider);
+    } catch (emailErr) {
+      console.error("Failed to send application email:", emailErr);
+      // Don't fail the request if email fails
+    }
 
     res.status(201).json({
       message: "Application submitted successfully",
@@ -88,26 +91,20 @@ exports.createProviderApplication = async (req, res) => {
     });
   } catch (err) {
     next(err);
-    next(err);
   }
 };
 
-// Admin: Review application
-exports.reviewApplication = async (req, res) => {
+exports.reviewApplication = async (req, res, next) => {
   try {
     if (req.user.role !== "ADMIN") {
-      return res
-        .status(403)
-        .json({ error: "Only admins can review applications" });
+      throw new ApiError(403, "Only admins can review applications");
     }
 
     const { status, rejectionReason, adminNotes } = req.body;
     const providerId = req.params.id;
 
     if (!["APPROVED", "REJECTED"].includes(status))
-      throw new ApiError(400, "Your application hasn't been approved ");
-    if (!["APPROVED", "REJECTED"].includes(status))
-      throw new ApiError(400, "Your application hasn't been approved ");
+      throw new ApiError(400, "Invalid status. Must be APPROVED or REJECTED");
 
     const provider = await prisma.provider.update({
       where: { id: providerId },
@@ -131,10 +128,14 @@ exports.reviewApplication = async (req, res) => {
     });
 
     // Send email notification
-    if (status === "APPROVED") {
-      await emailService.sendApplicationApproved(provider);
-    } else {
-      await emailService.sendApplicationRejected(provider);
+    try {
+      if (status === "APPROVED") {
+        await emailService.sendApplicationApproved(provider);
+      } else {
+        await emailService.sendApplicationRejected(provider);
+      }
+    } catch (emailErr) {
+      console.error("Failed to send review email:", emailErr);
     }
 
     res.json({
@@ -143,12 +144,10 @@ exports.reviewApplication = async (req, res) => {
     });
   } catch (err) {
     next(err);
-    next(err);
   }
 };
 
-// Admin: Schedule inspection
-exports.scheduleInspection = async (req, res) => {
+exports.scheduleInspection = async (req, res, next) => {
   try {
     if (req.user.role !== "ADMIN")
       throw new ApiError(403, "Only admins can schedule inspections");
@@ -175,7 +174,11 @@ exports.scheduleInspection = async (req, res) => {
     });
 
     // Send email notification
-    await emailService.sendInspectionScheduled(provider, inspectionDate);
+    try {
+      await emailService.sendInspectionScheduled(provider, inspectionDate);
+    } catch (emailErr) {
+      console.error("Failed to send inspection email:", emailErr);
+    }
 
     res.json({
       message: "Inspection scheduled",
@@ -183,12 +186,10 @@ exports.scheduleInspection = async (req, res) => {
     });
   } catch (err) {
     next(err);
-    next(err);
   }
 };
 
-// Admin: Request additional documents
-exports.requestDocuments = async (req, res) => {
+exports.requestDocuments = async (req, res, next) => {
   try {
     if (req.user.role !== "ADMIN")
       throw new ApiError(403, "Only admins can request documents");
@@ -209,10 +210,14 @@ exports.requestDocuments = async (req, res) => {
       },
     });
 
-    if (!provider) throw new ApiError(404, "Provider does not exists");
+    if (!provider) throw new ApiError(404, "Provider does not exist");
 
     // Send email notification
-    await emailService.sendDocumentsRequired(provider, missingDocuments);
+    try {
+      await emailService.sendDocumentsRequired(provider, missingDocuments);
+    } catch (emailErr) {
+      console.error("Failed to send documents request email:", emailErr);
+    }
 
     res.json({
       message: "Document request sent",
@@ -223,11 +228,10 @@ exports.requestDocuments = async (req, res) => {
   }
 };
 
-// Get all pending applications (Admin)
-exports.getPendingApplications = async (req, res) => {
+exports.getPendingApplications = async (req, res, next) => {
   try {
     if (req.user.role !== "ADMIN")
-      throw new ApiError(403, "Only admins can view application");
+      throw new ApiError(403, "Only admins can view applications");
 
     const applications = await prisma.provider.findMany({
       where: { status: "PENDING" },
@@ -335,7 +339,7 @@ exports.getProviders = async (req, res, next) => {
   }
 };
 
-exports.createProvider = async (req, res) => {
+exports.createProvider = async (req, res, next) => {
   try {
     if (req.user.role !== "PROVIDER")
       throw new ApiError(403, "Only providers can create a profile");
@@ -408,7 +412,7 @@ exports.createProvider = async (req, res) => {
   }
 };
 
-exports.getMyProvider = async (req, res) => {
+exports.getMyProvider = async (req, res, next) => {
   try {
     const provider = await prisma.provider.findUnique({
       where: { userId: req.user.userId },
@@ -470,12 +474,10 @@ exports.getProviderById = async (req, res, next) => {
     res.json(provider);
   } catch (err) {
     next(err);
-    next(err);
   }
 };
 
-// Update provider (only the owner or ADMIN)
-exports.updateProvider = async (req, res) => {
+exports.updateProvider = async (req, res, next) => {
   try {
     const provider = await prisma.provider.findUnique({
       where: { id: req.params.id },
@@ -496,8 +498,7 @@ exports.updateProvider = async (req, res) => {
   }
 };
 
-// Delete provider (ADMIN only)
-exports.deleteProvider = async (req, res) => {
+exports.deleteProvider = async (req, res, next) => {
   try {
     if (req.user.role !== "ADMIN")
       throw new ApiError(403, "Only Admins can delete providers");
@@ -509,7 +510,7 @@ exports.deleteProvider = async (req, res) => {
   }
 };
 
-exports.searchProviders = async (req, res) => {
+exports.searchProviders = async (req, res, next) => {
   try {
     const { q, type, vehicleType, priceMin, priceMax, location } = req.query;
 
@@ -556,11 +557,10 @@ exports.searchProviders = async (req, res) => {
     res.json(filtered);
   } catch (err) {
     next(err);
-    next(err);
   }
 };
 
-exports.searchProvidersByLocation = async (req, res) => {
+exports.searchProvidersByLocation = async (req, res, next) => {
   try {
     const { city, region, lat, lng, radius = 30 } = req.query;
 
@@ -615,7 +615,7 @@ exports.searchProvidersByLocation = async (req, res) => {
   }
 };
 
-exports.uploadProviderFile = async (req, res) => {
+exports.uploadProviderFile = async (req, res, next) => {
   try {
     const providerId = req.params.id;
 
@@ -631,7 +631,7 @@ exports.uploadProviderFile = async (req, res) => {
       throw new ApiError(404, "Provider does not exist");
     }
 
-    // Check authorization - allow if user owns the provider OR is admin
+    // Check authorization
     if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId) {
       await fs.unlink(req.file.path);
       throw new ApiError(403, "You can only upload files to your own profile");
@@ -655,7 +655,6 @@ exports.uploadProviderFile = async (req, res) => {
       throw new ApiError(400, "Invalid category");
     }
 
-    // Get vehicleId from request body if provided
     const vehicleId = req.body.vehicleId || null;
 
     // If vehicleId is provided, verify it belongs to this provider
@@ -703,15 +702,14 @@ exports.uploadProviderFile = async (req, res) => {
   }
 };
 
-// Get all files for a provider
-exports.getProviderFiles = async (req, res) => {
+exports.getProviderFiles = async (req, res, next) => {
   try {
     const providerId = req.params.id;
 
     const provider = await prisma.provider.findUnique({
       where: { id: providerId },
     });
-    if (!provider) throw new ApiError(404, "Provider doesn't exists");
+    if (!provider) throw new ApiError(404, "Provider doesn't exist");
 
     // Only provider owner or admin can view files
     if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId)
@@ -728,8 +726,7 @@ exports.getProviderFiles = async (req, res) => {
   }
 };
 
-// Delete a file
-exports.deleteProviderFile = async (req, res) => {
+exports.deleteProviderFile = async (req, res, next) => {
   try {
     const { id, fileId } = req.params;
 
@@ -762,3 +759,166 @@ exports.deleteProviderFile = async (req, res) => {
     next(err);
   }
 };
+
+exports.getMyEarnings = async (req, res) => {
+  try {
+    // Ensure user is a provider
+    if (req.user.role !== 'PROVIDER') {
+      return res.status(403).json({ error: 'Only providers can access earnings' });
+    }
+
+    // Get provider profile
+    const provider = await prisma.provider.findUnique({
+      where: { userId: req.user.userId }
+    });
+
+    if (!provider) {
+      return res.status(404).json({ error: 'Provider profile not found' });
+    }
+
+    // Get all payments for this provider
+    const payments = await prisma.payment.findMany({
+      where: { 
+        providerId: provider.id,
+      },
+      include: {
+        booking: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Calculate total earnings
+    const total = payments
+      .filter(p => p.status === 'PAID')
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    // Calculate pending earnings
+    const pending = payments
+      .filter(p => p.status === 'PENDING')
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    // Calculate completed earnings
+    const completed = total; // Same as total for now
+
+    // Get this month's earnings
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    const thisMonth = payments
+      .filter(p => p.status === 'PAID' && new Date(p.createdAt) >= firstDayOfMonth)
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    // Get last month's earnings
+    const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    
+    const lastMonth = payments
+      .filter(p => {
+        const date = new Date(p.createdAt);
+        return p.status === 'PAID' && date >= firstDayOfLastMonth && date <= lastDayOfLastMonth;
+      })
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    // Calculate growth percentage
+    const growth = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : 0;
+
+    // Get recent payouts (group by week or similar logic)
+    const recentPayouts = await generateRecentPayouts(provider.id);
+
+    // Calculate next payout date (every Friday)
+    const nextPayout = getNextFriday();
+
+    res.json({
+      total,
+      pending,
+      completed,
+      thisMonth,
+      lastMonth,
+      growth,
+      nextPayout,
+      recentPayouts
+    });
+
+  } catch (err) {
+    console.error('Error fetching earnings:', err);
+    res.status(500).json({ error: 'Failed to fetch earnings', details: err.message });
+  }
+};
+
+
+
+async function generateRecentPayouts(providerId) {
+  const fourWeeksAgo = new Date();
+  fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+
+  const payments = await prisma.payment.findMany({
+    where: {
+      providerId,
+      status: 'PAID',
+      createdAt: {
+        gte: fourWeeksAgo
+      }
+    },
+    include: {
+      booking: true
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  // Group payments by week
+  const payoutMap = new Map();
+
+  payments.forEach(payment => {
+    const date = new Date(payment.createdAt);
+    const friday = getLastFriday(date);
+    const weekKey = friday.toISOString().split('T')[0];
+
+    if (!payoutMap.has(weekKey)) {
+      payoutMap.set(weekKey, {
+        id: weekKey,
+        date: weekKey,
+        amount: 0,
+        bookings: 0,
+        status: 'Completed'
+      });
+    }
+
+    const payout = payoutMap.get(weekKey);
+    payout.amount += payment.amount;
+    payout.bookings += 1;
+  });
+
+  // Convert map to array and sort by date descending
+  return Array.from(payoutMap.values())
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 10); // Return last 10 payouts
+}
+
+
+function getLastFriday(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day >= 5 ? day - 5 : day + 2; // Friday is 5
+  d.setDate(d.getDate() - diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
+ * Helper: Get next Friday date
+ */
+function getNextFriday() {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7; // Friday is 5
+  
+  const nextFriday = new Date(today);
+  nextFriday.setDate(today.getDate() + daysUntilFriday);
+  
+  return nextFriday.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+}
+

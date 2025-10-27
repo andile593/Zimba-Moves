@@ -1,46 +1,93 @@
-import {
-  Calendar,
-  MapPin,
-  Package,
-  DollarSign,
-  User,
-  Clock,
-  TrendingUp,
-  Filter,
-  Search,
-  ArrowUpRight,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
-import { useProviderBookings } from "@/hooks/useBooking";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { Booking } from "@/types/booking";
+import { 
+  Calendar, 
+  MapPin, 
+  Package, 
+  DollarSign, 
+  User, 
+  Clock, 
+  TrendingUp, 
+  Filter,
+  CheckCircle,
+  XCircle,
+  Eye,
+  Loader2,
+  AlertCircle
+} from "lucide-react";
+import { useBookings, useUpdateBooking } from "../../hooks/useBooking";
+import toast from "react-hot-toast";
 import type { BookingStatus } from "@/types/enums";
-import { JSX, useState } from "react";
+
+
+type FilterType = "ALL" | BookingStatus;
 
 export default function ProviderBookings() {
-  // Get providerId from localStorage
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const providerId = user.providerId;
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<BookingStatus | "ALL">(
-    "ALL"
-  );
+  const navigate = useNavigate();
+  const { data: bookings, isLoading, error, refetch } = useBookings();
+  const { mutate: updateBooking, isPending: isUpdating } = useUpdateBooking();
+  const [filter, setFilter] = useState<FilterType>("ALL");
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
 
-  const { data, isLoading } = useProviderBookings(providerId);
+  // Handle booking status update
+  const handleStatusUpdate = (bookingId: string, newStatus: BookingStatus) => {
+    updateBooking(
+      { id: bookingId, booking: { status: newStatus } },
+      {
+        onSuccess: () => {
+          toast.success(`Booking ${newStatus.toLowerCase()} successfully!`);
+          refetch();
+        },
+        onError: (error: any) => {
+          toast.error(error?.response?.data?.error || "Failed to update booking");
+        }
+      }
+    );
+  };
 
+  // Filter bookings
+  const filteredBookings = bookings?.filter((booking: any) => {
+    if (filter === "ALL") return true;
+    return booking.status === filter;
+  }) || [];
+
+  // Loading state
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[70vh]">
-        <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-600 border-t-transparent"></div>
-        <p className="mt-4 text-gray-600 font-medium">
-          Loading your bookings...
-        </p>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-green-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading bookings...</p>
+        </div>
       </div>
     );
   }
 
-  if (!data?.length) {
+  // Error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center max-w-md px-4">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-10 h-10 text-red-600" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-800 mb-2">Failed to Load Bookings</h3>
+          <p className="text-gray-600 mb-6">
+            {error instanceof Error ? error.message : "An error occurred while loading your bookings."}
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state
+  if (!bookings || bookings.length === 0) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="text-center max-w-lg px-6">
@@ -67,31 +114,23 @@ export default function ProviderBookings() {
 
   // Calculate stats
   const stats = {
-    total: data.length,
-    pending: data.filter((b: Booking) => b.status === "PENDING").length,
-    confirmed: data.filter((b: Booking) => b.status === "CONFIRMED").length,
-    completed: data.filter((b: Booking) => b.status === "COMPLETED").length,
-    revenue: data.reduce(
-      (sum: number, b: Booking) => sum + (b.pricing?.total || 0),
-      0
-    ),
+    total: bookings.length,
+    pending: bookings.filter((b: any) => b.status === "PENDING").length,
+    confirmed: bookings.filter((b: any) => b.status === "CONFIRMED").length,
+    completed: bookings.filter((b: any) => b.status === "COMPLETED").length,
+    revenue: bookings
+      .filter((b: any) => b.paymentStatus === "PAID")
+      .reduce((sum: number, b: any) => sum + (b.pricing?.total || 0), 0),
   };
 
-  // Filter bookings
-  const filteredData = data.filter((booking: Booking) => {
-    const matchesSearch =
-      booking.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.pickup?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.dropoff?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      `${booking.customer?.firstName} ${booking.customer?.lastName}`
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-
-    const matchesStatus =
-      statusFilter === "ALL" || booking.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
+  const filterOptions: { label: string; value: FilterType; count?: number }[] = [
+    { label: "All Bookings", value: "ALL", count: stats.total },
+    { label: "Pending", value: "PENDING", count: stats.pending },
+    { label: "Confirmed", value: "CONFIRMED", count: stats.confirmed },
+    { label: "In Progress", value: "PENDING" },
+    { label: "Completed", value: "COMPLETED", count: stats.completed },
+    { label: "Cancelled", value: "CANCELLED" },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-12">
@@ -106,90 +145,108 @@ export default function ProviderBookings() {
           </p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-          <StatCard
-            icon={Package}
-            label="Total Bookings"
-            value={stats.total}
-            color="blue"
-          />
-          <StatCard
-            icon={Clock}
-            label="Pending"
-            value={stats.pending}
-            color="yellow"
-            trend="+12%"
-          />
-          <StatCard
-            icon={TrendingUp}
-            label="Confirmed"
-            value={stats.confirmed}
-            color="green"
-            trend="+8%"
-          />
-          <StatCard
-            icon={DollarSign}
-            label="Revenue"
-            value={`R${stats.revenue.toFixed(0)}`}
-            color="purple"
-            trend="+15%"
-          />
-        </div>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        <StatCard
+          icon={Package}
+          label="Total Bookings"
+          value={stats.total}
+          color="blue"
+        />
+        <StatCard
+          icon={Clock}
+          label="Pending"
+          value={stats.pending}
+          color="yellow"
+          highlight={stats.pending > 0}
+        />
+        <StatCard
+          icon={TrendingUp}
+          label="Confirmed"
+          value={stats.confirmed}
+          color="green"
+        />
+        <StatCard
+          icon={DollarSign}
+          label="Revenue"
+          value={`R${stats.revenue.toFixed(0)}`}
+          color="purple"
+        />
+      </div>
 
-        {/* Search and Filter Bar */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by ID, location, or customer..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex gap-2">
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as BookingStatus | "ALL")
-                }
-                className="px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white min-w-[140px]"
+      {/* Bookings List */}
+      <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div className="p-4 sm:p-6 border-b bg-gray-50">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+              <Package className="w-5 h-5 text-green-600" />
+              {filter === "ALL" ? "All Bookings" : `${filter} Bookings`}
+              <span className="text-sm text-gray-500">({filteredBookings.length})</span>
+            </h2>
+            
+            {/* Filter Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowFilterMenu(!showFilterMenu)}
+                className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-white transition"
               >
-                <option value="ALL">All Status</option>
-                <option value="PENDING">Pending</option>
-                <option value="CONFIRMED">Confirmed</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
+                <Filter className="w-4 h-4" />
+                <span className="hidden sm:inline">Filter</span>
+              </button>
+              
+              {showFilterMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setShowFilterMenu(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border z-20 overflow-hidden">
+                    {filterOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setFilter(option.value);
+                          setShowFilterMenu(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center justify-between ${
+                          filter === option.value ? "bg-green-50 text-green-700 font-semibold" : ""
+                        }`}
+                      >
+                        <span>{option.label}</span>
+                        {option.count !== undefined && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            filter === option.value 
+                              ? "bg-green-200 text-green-800" 
+                              : "bg-gray-200 text-gray-600"
+                          }`}>
+                            {option.count}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Results Count */}
-        <div className="mb-4 text-sm text-gray-600">
-          Showing{" "}
-          <span className="font-semibold text-gray-900">
-            {filteredData.length}
-          </span>{" "}
-          of <span className="font-semibold text-gray-900">{data.length}</span>{" "}
-          bookings
-        </div>
-
-        {/* Bookings List */}
-        <div className="space-y-4">
-          {filteredData.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-sm border p-12 text-center">
-              <Filter className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg">
-                No bookings match your search criteria
-              </p>
+        {/* Bookings */}
+        <div className="divide-y">
+          {filteredBookings.length === 0 ? (
+            <div className="p-12 text-center">
+              <Filter className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">No {filter.toLowerCase()} bookings found</p>
             </div>
           ) : (
-            filteredData.map((booking: Booking) => (
-              <BookingCard key={booking.id} booking={booking} />
+            filteredBookings.map((booking: any) => (
+              <BookingCard
+                key={booking.id}
+                booking={booking}
+                onStatusUpdate={handleStatusUpdate}
+                onViewDetails={() => navigate(`/provider/bookings/${booking.id}`)}
+                isUpdating={isUpdating}
+              />
             ))
           )}
         </div>
@@ -205,51 +262,23 @@ interface StatCardProps {
   label: string;
   value: string | number;
   color: StatCardColor;
-  trend?: string;
+  highlight?: boolean;
 }
 
-function StatCard({ icon: Icon, label, value, color, trend }: StatCardProps) {
-  const colors: Record<
-    StatCardColor,
-    { gradient: string; bg: string; text: string }
-  > = {
-    blue: {
-      gradient: "from-blue-500 to-blue-600",
-      bg: "bg-blue-50",
-      text: "text-blue-600",
-    },
-    yellow: {
-      gradient: "from-yellow-500 to-yellow-600",
-      bg: "bg-yellow-50",
-      text: "text-yellow-600",
-    },
-    green: {
-      gradient: "from-green-500 to-green-600",
-      bg: "bg-green-50",
-      text: "text-green-600",
-    },
-    purple: {
-      gradient: "from-purple-500 to-purple-600",
-      bg: "bg-purple-50",
-      text: "text-purple-600",
-    },
+function StatCard({ icon: Icon, label, value, color, highlight }: StatCardProps) {
+  const colors: Record<StatCardColor, string> = {
+    blue: "from-blue-500 to-blue-600",
+    yellow: "from-yellow-500 to-yellow-600",
+    green: "from-green-500 to-green-600",
+    purple: "from-purple-500 to-purple-600",
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer">
-      <div className="flex items-start justify-between mb-4">
-        <div
-          className={`w-14 h-14 bg-gradient-to-br ${colors[color].gradient} rounded-xl flex items-center justify-center shadow-lg`}
-        >
-          <Icon className="w-7 h-7 text-white" />
-        </div>
-        {trend && (
-          <span
-            className={`text-xs font-semibold px-2 py-1 rounded-full ${colors[color].bg} ${colors[color].text}`}
-          >
-            {trend}
-          </span>
-        )}
+    <div className={`bg-white rounded-xl shadow-sm border p-4 hover:shadow-md transition ${
+      highlight ? "ring-2 ring-yellow-400 ring-offset-2" : ""
+    }`}>
+      <div className={`w-10 h-10 bg-gradient-to-br ${colors[color]} rounded-lg flex items-center justify-center mb-3 shadow-sm`}>
+        <Icon className="w-5 h-5 text-white" />
       </div>
       <p className="text-sm text-gray-600 mb-2 font-medium">{label}</p>
       <p className="text-3xl font-bold text-gray-900">{value}</p>
@@ -258,44 +287,37 @@ function StatCard({ icon: Icon, label, value, color, trend }: StatCardProps) {
 }
 
 interface BookingCardProps {
-  booking: Booking;
+  booking: any;
+  onStatusUpdate: (bookingId: string, status: BookingStatus) => void;
+  onViewDetails: () => void;
+  isUpdating: boolean;
 }
 
-function BookingCard({ booking }: BookingCardProps) {
-  const navigate = useNavigate();
-
-  const getStatusConfig = (status?: BookingStatus) => {
-    if (!status)
-      return {
-        color: "bg-gray-100 text-gray-800 border-gray-200",
-        icon: <Clock className="w-4 h-4" />,
-      };
-
-    const configs: Record<BookingStatus, { color: string; icon: JSX.Element }> =
-      {
-        PENDING: {
-          color: "bg-yellow-100 text-yellow-800 border-yellow-300",
-          icon: <Clock className="w-4 h-4" />,
-        },
-        CONFIRMED: {
-          color: "bg-green-100 text-green-800 border-green-300",
-          icon: <CheckCircle2 className="w-4 h-4" />,
-        },
-        COMPLETED: {
-          color: "bg-blue-100 text-blue-800 border-blue-300",
-          icon: <CheckCircle2 className="w-4 h-4" />,
-        },
-        CANCELLED: {
-          color: "bg-red-100 text-red-800 border-red-300",
-          icon: <XCircle className="w-4 h-4" />,
-        },
-      };
-    return (
-      configs[status] || {
-        color: "bg-gray-100 text-gray-800 border-gray-200",
-        icon: <Clock className="w-4 h-4" />,
-      }
-    );
+function BookingCard({ booking, onStatusUpdate, onViewDetails, isUpdating }: BookingCardProps) {
+  const getStatusConfig = (status: string) => {
+    const configs: Record<string, any> = {
+      PENDING: {
+        class: "bg-yellow-100 text-yellow-800 border-yellow-200",
+        icon: Clock,
+      },
+      CONFIRMED: {
+        class: "bg-green-100 text-green-800 border-green-200",
+        icon: CheckCircle,
+      },
+      IN_PROGRESS: {
+        class: "bg-blue-100 text-blue-800 border-blue-200",
+        icon: TrendingUp,
+      },
+      COMPLETED: {
+        class: "bg-gray-100 text-gray-800 border-gray-200",
+        icon: CheckCircle,
+      },
+      CANCELLED: {
+        class: "bg-red-100 text-red-800 border-red-200",
+        icon: XCircle,
+      },
+    };
+    return configs[status] || configs.PENDING;
   };
 
   const getPaymentBadge = (status?: string) => {
@@ -314,22 +336,21 @@ function BookingCard({ booking }: BookingCardProps) {
   };
 
   const statusConfig = getStatusConfig(booking.status);
+  const StatusIcon = statusConfig.icon;
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1">
-      <div className="p-6">
+    <div className="p-4 sm:p-6 hover:bg-gray-50 transition">
+      <div className="flex flex-col gap-4">
         {/* Header Row */}
         <div className="flex items-start justify-between gap-4 mb-6">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-3">
-              <span
-                className={`px-3 py-1.5 text-xs font-bold rounded-xl border-2 inline-flex items-center gap-2 ${statusConfig.color}`}
-              >
-                {statusConfig.icon}
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <span className={`px-2 py-1 text-xs font-medium rounded-full border ${statusConfig.class} flex items-center gap-1`}>
+                <StatusIcon className="w-3 h-3" />
                 {booking.status}
               </span>
-              <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded-lg">
-                #{booking.id?.slice(0, 8)}
+              <span className="text-xs text-gray-500 font-mono">
+                #{booking.id?.slice(0, 8).toUpperCase()}
               </span>
             </div>
             <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
@@ -338,114 +359,105 @@ function BookingCard({ booking }: BookingCardProps) {
             </h3>
           </div>
           <div className="text-right">
-            <p className="text-3xl font-bold text-gray-900 mb-2">
-              R{booking.pricing?.total || 0}
+            <p className="text-lg sm:text-xl font-bold text-gray-800">
+              R{booking.pricing?.total?.toFixed(2) || "0.00"}
             </p>
             {getPaymentBadge(booking.paymentStatus)}
           </div>
         </div>
 
         {/* Route Information */}
-        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 mb-6 border border-gray-200">
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                <MapPin className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-600 font-semibold mb-1 uppercase tracking-wide">
-                  Pickup
-                </p>
-                <p className="text-sm font-medium text-gray-900 line-clamp-1">
-                  {booking.pickup}
-                </p>
-              </div>
+        <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-3 space-y-2 border">
+          <div className="flex items-start gap-2">
+            <div className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <MapPin className="w-3.5 h-3.5 text-green-600" />
             </div>
-            <div className="border-l-2 border-dashed border-gray-300 ml-4 h-4"></div>
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                <MapPin className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-600 font-semibold mb-1 uppercase tracking-wide">
-                  Dropoff
-                </p>
-                <p className="text-sm font-medium text-gray-900 line-clamp-1">
-                  {booking.dropoff}
-                </p>
-              </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-gray-600 mb-1 font-semibold">PICKUP</p>
+              <p className="text-sm font-medium text-gray-800 line-clamp-2">
+                {booking.pickup}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <MapPin className="w-3.5 h-3.5 text-blue-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-gray-600 mb-1 font-semibold">DROPOFF</p>
+              <p className="text-sm font-medium text-gray-800 line-clamp-2">
+                {booking.dropoff}
+              </p>
             </div>
           </div>
         </div>
 
         {/* Additional Details */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
-            <Calendar className="w-5 h-5 text-blue-600 mb-2" />
-            <p className="text-xs text-blue-700 font-medium mb-1">Date</p>
-            <p className="text-sm font-bold text-blue-900">
-              {booking.dateTime
-                ? new Date(booking.dateTime).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })
-                : booking.createdAt
-                ? new Date(booking.createdAt).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })
-                : "N/A"}
-            </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
+            <Calendar className="w-4 h-4 text-gray-400" />
+            <div>
+              <p className="text-xs text-gray-600">Date</p>
+              <p className="text-sm font-medium text-gray-800">
+                {new Date(booking.dateTime || booking.createdAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </p>
+            </div>
           </div>
-          <div className="bg-purple-50 rounded-xl p-3 border border-purple-100">
-            <User className="w-5 h-5 text-purple-600 mb-2" />
-            <p className="text-xs text-purple-700 font-medium mb-1">Customer</p>
-            <p className="text-sm font-bold text-purple-900 truncate">
-              {booking.customer?.firstName && booking.customer?.lastName
-                ? `${booking.customer.firstName.charAt(0)}. ${
-                    booking.customer.lastName
-                  }`
-                : "N/A"}
-            </p>
+          <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
+            <User className="w-4 h-4 text-gray-400" />
+            <div>
+              <p className="text-xs text-gray-600">Customer</p>
+              <p className="text-sm font-medium text-gray-800">
+                {booking.customer?.firstName || "N/A"}
+              </p>
+            </div>
           </div>
-          <div className="bg-orange-50 rounded-xl p-3 border border-orange-100">
-            <Package className="w-5 h-5 text-orange-600 mb-2" />
-            <p className="text-xs text-orange-700 font-medium mb-1">Helpers</p>
-            <p className="text-sm font-bold text-orange-900">
-              {booking.helpersRequired || 0}
-            </p>
+          <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
+            <Package className="w-4 h-4 text-gray-400" />
+            <div>
+              <p className="text-xs text-gray-600">Helpers</p>
+              <p className="text-sm font-medium text-gray-800">
+                {booking.helpersRequired || 0}
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-3">
+        <div className="flex gap-2 pt-3 border-t">
           <button
-            onClick={() => navigate(`/provider/bookings/${booking.id}`)}
-            className="flex-1 px-5 py-3 text-sm font-semibold text-green-600 bg-green-50 border-2 border-green-200 rounded-xl hover:bg-green-100 hover:border-green-300 transition-all inline-flex items-center justify-center gap-2 group"
+            onClick={onViewDetails}
+            className="flex-1 px-4 py-2 text-sm font-medium text-green-600 border border-green-600 rounded-lg hover:bg-green-50 transition flex items-center justify-center gap-2"
           >
+            <Eye className="w-4 h-4" />
             View Details
             <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           </button>
           {booking.status === "PENDING" && (
             <button
-              onClick={() => navigate(`/provider/bookings/${booking.id}`)}
-              className="flex-1 px-5 py-3 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-green-500 rounded-xl hover:from-green-700 hover:to-green-600 transition-all shadow-lg hover:shadow-xl inline-flex items-center justify-center gap-2"
+              onClick={() => onStatusUpdate(booking.id, "CONFIRMED")}
+              disabled={isUpdating}
+              className="flex-1 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              <CheckCircle2 className="w-4 h-4" />
+              {isUpdating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <CheckCircle className="w-4 h-4" />
+              )}
               Accept
             </button>
           )}
           {booking.status === "CONFIRMED" && (
-            <div className="flex-1 px-5 py-3 text-sm font-semibold text-center text-green-700 bg-green-100 rounded-xl border-2 border-green-200 inline-flex items-center justify-center gap-2">
-              <CheckCircle2 className="w-4 h-4" />
-              Confirmed
-            </div>
-          )}
-          {booking.status === "CANCELLED" && (
-            <div className="flex-1 px-5 py-3 text-sm font-semibold text-center text-red-700 bg-red-100 rounded-xl border-2 border-red-200 inline-flex items-center justify-center gap-2">
-              <XCircle className="w-4 h-4" />
-              Cancelled
-            </div>
+            <button
+              onClick={() => onStatusUpdate(booking.id, "PENDING")}
+              disabled={isUpdating}
+              className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Start Move
+            </button>
           )}
         </div>
       </div>

@@ -88,6 +88,7 @@ export default function FeaturedProviders() {
     },
     staleTime: 5 * 60 * 1000,
   });
+  
 
   const calculateDistance = (
     lat1: number,
@@ -165,22 +166,23 @@ export default function FeaturedProviders() {
   })();
 
   const getVehicleImageUrl = (imagePath: string | undefined) => {
-    if (!imagePath) return null;
+  if (!imagePath) return null;
 
-    let cleanPath = imagePath.replace(/\\/g, "/");
+  // Clean up the path - remove backslashes and normalize
+  let cleanPath = imagePath.replace(/\\/g, "/");
 
-    if (cleanPath.startsWith("uploads/")) {
-      cleanPath = cleanPath.substring("uploads/".length);
-    }
-
-    const baseUrl =
-      import.meta.env.VITE_API_URL || "https://9lwj8t-5173.csb.app";
-    const encodedPath = cleanPath
-      .split("/")
-      .map((segment) => encodeURIComponent(segment))
-      .join("/");
-    return `${baseUrl}/uploads/${encodedPath}`;
-  };
+  // If the path already includes 'uploads/', don't add it again
+  // The database stores paths like "uploads/other/filename.png"
+  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:4000";
+  
+  // If path starts with 'uploads/', use it as-is
+  if (cleanPath.startsWith("uploads/")) {
+    return `${baseUrl}/${cleanPath}`;
+  }
+  
+  // Otherwise, assume it needs 'uploads/' prefix
+  return `${baseUrl}/uploads/${cleanPath}`;
+};
 
   if (isLoading) {
     return (
@@ -326,16 +328,16 @@ export default function FeaturedProviders() {
                   </div>
 
                   <div className="p-4">
-                    <h3 className="font-bold text-gray-800 mb-2 group-hover:text-green-600 transition truncate">
+                    <h3 className="font-bold text-green-600 mb-2 group-hover:text-green-600 transition truncate">
                       {`${provider.user?.firstName || ""} ${
                         provider.user?.lastName || ""
                       }`.trim() || "Provider"}
                     </h3>
 
                     {provider.user && (
-                      <div className="mb-3 pb-3 border-b border-gray-100">
+                      <div className=" flex gap-2 items-center mb-3 pb-3 border-b border-gray-100">
                         {provider.user.phone && (
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2">
                             <Phone className="w-3.5 h-3.5 text-gray-400" />
                             <span className="text-xs text-gray-600">
                               {provider.user.phone}

@@ -60,33 +60,51 @@ export default function Earnings() {
     );
   }
 
-  // Calculate earnings from real bookings data
-  const completedBookings =
-    bookingsData?.filter((b: Booking) => b.status === "COMPLETED") || [];
-  const pendingBookings =
-    bookingsData?.filter(
-      (b: Booking) => b.status === "CONFIRMED" || b.status === "PENDING"
-    ) || [];
+  // Handle case where no data is returned
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-600">No earnings data available</p>
+      </div>
+    );
+  }
 
-  const totalEarnings = completedBookings.reduce(
-    (sum: number, b: Booking) => sum + (b.pricing?.total || 0),
-    0
-  );
+  // Use data from API
+  const earningsData = {
+    total: data.total || 0,
+    pending: data.pending || 0,
+    completed: data.completed || 0,
+    thisMonth: data.thisMonth || 0,
+    lastMonth: data.lastMonth || 0,
+    growth: data.growth || 0,
+  };
+
+  const recentPayouts = data.recentPayouts || [];
+  const nextPayout = data.nextPayout || "TBD";
 
   const pendingEarnings = pendingBookings.reduce(
     (sum: number, b: Booking) => sum + (b.pricing?.total || 0),
     0
   );
 
-  // Calculate this month's earnings
-  const now = new Date();
-  const thisMonthBookings = completedBookings.filter((b: Booking) => {
-    const bookingDate = new Date(b.createdAt || b.dateTime);
-    return (
-      bookingDate.getMonth() === now.getMonth() &&
-      bookingDate.getFullYear() === now.getFullYear()
-    );
-  });
+      {/* Total Earnings Card */}
+      <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-2xl shadow-lg p-6 sm:p-8 mb-6 text-white">
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <p className="text-green-100 text-sm mb-2 flex items-center gap-2">
+              <DollarSign className="w-4 h-4" />
+              Total Earnings
+            </p>
+            <h2 className="text-4xl sm:text-5xl font-bold mb-2">
+              R{earningsData.total.toFixed(2)}
+            </h2>
+            <div className="flex items-center gap-2 text-green-100">
+              <TrendingUp className="w-4 h-4" />
+              <span className="text-sm">
+                {earningsData.growth >= 0 ? '+' : ''}{earningsData.growth.toFixed(1)}% from last month
+              </span>
+            </div>
+          </div>
 
   const thisMonthEarnings = thisMonthBookings.reduce(
     (sum: number, b: Booking) => sum + (b.pricing?.total || 0),
@@ -232,37 +250,30 @@ export default function Earnings() {
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-          <StatCard
-            icon={Clock}
-            title="Pending Earnings"
-            value={`R${pendingEarnings.toFixed(2)}`}
-            description={`${pendingBookings.length} bookings`}
-            color="yellow"
-          />
-          <StatCard
-            icon={CheckCircle}
-            title="Completed"
-            value={`R${totalEarnings.toFixed(2)}`}
-            description={`${completedBookings.length} bookings`}
-            color="green"
-          />
-          <StatCard
-            icon={Package}
-            title="Avg Per Booking"
-            value={`R${avgBookingValue.toFixed(2)}`}
-            description="Average earnings"
-            color="blue"
-          />
-          <StatCard
-            icon={TrendingUp}
-            title="Total Bookings"
-            value={bookingsData?.length || 0}
-            description="All time"
-            color="purple"
-          />
-        </div>
+      {/* Stats Grid */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <StatCard
+          icon={Clock}
+          title="Pending Payouts"
+          value={`R${earningsData.pending.toFixed(2)}`}
+          description="Awaiting processing"
+          color="yellow"
+        />
+        <StatCard
+          icon={CheckCircle}
+          title="Completed Payouts"
+          value={`R${earningsData.completed.toFixed(2)}`}
+          description="Successfully paid"
+          color="green"
+        />
+        <StatCard
+          icon={Calendar}
+          title="Next Payout"
+          value={nextPayout}
+          description="Estimated date"
+          color="blue"
+        />
+      </div>
 
         {/* Recent Payouts */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
@@ -278,119 +289,105 @@ export default function Earnings() {
             </div>
           </div>
 
-          {recentPayouts.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <DollarSign className="w-8 h-8 text-gray-400" />
-              </div>
-              <p className="text-gray-500 text-sm">No payment history yet</p>
-              <p className="text-gray-400 text-xs mt-1">
-                Complete bookings to see your earnings here
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Desktop Table */}
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Period
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Bookings
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Amount
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Status
-                      </th>
+        {recentPayouts.length > 0 ? (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Bookings
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {recentPayouts.map((payout: any) => (
+                    <tr key={payout.id} className="hover:bg-gray-50 transition">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm font-medium text-gray-800">
+                            {new Date(payout.date).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-gray-600">
+                          {payout.bookings} bookings
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-lg font-bold text-gray-800">
+                          R{payout.amount.toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full ${
+                          payout.status === 'Completed' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          <CheckCircle className="w-3 h-3" />
+                          {payout.status}
+                        </span>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {recentPayouts.map((payout) => (
-                      <tr
-                        key={payout.id}
-                        className="hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                              <Calendar className="w-5 h-5 text-blue-600" />
-                            </div>
-                            <span className="text-sm font-semibold text-gray-900">
-                              {new Date(payout.date).toLocaleDateString(
-                                "en-US",
-                                {
-                                  month: "long",
-                                  year: "numeric",
-                                }
-                              )}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <Package className="w-4 h-4 text-gray-400" />
-                            <span className="text-sm font-medium text-gray-700">
-                              {payout.bookings} bookings
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-lg font-bold text-gray-900">
-                            R{payout.amount.toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full border border-green-200">
-                            <CheckCircle className="w-3 h-3" />
-                            {payout.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-              {/* Mobile Cards */}
-              <div className="sm:hidden divide-y divide-gray-100">
-                {recentPayouts.map((payout) => (
-                  <div
-                    key={payout.id}
-                    className="p-4 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-2xl font-bold text-gray-900">
-                        R{payout.amount.toFixed(2)}
-                      </span>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full border border-green-200">
-                        <CheckCircle className="w-3 h-3" />
-                        {payout.status}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Calendar className="w-4 h-4" />
-                        {new Date(payout.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </div>
-                      <div className="flex items-center gap-1 text-gray-600">
-                        <Package className="w-4 h-4" />
-                        <span>{payout.bookings} bookings</span>
-                      </div>
-                    </div>
+            {/* Mobile Cards */}
+            <div className="sm:hidden divide-y">
+              {recentPayouts.map((payout: any) => (
+                <div key={payout.id} className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-2xl font-bold text-gray-800">
+                      R{payout.amount.toFixed(2)}
+                    </span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
+                      payout.status === 'Completed' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      <CheckCircle className="w-3 h-3" />
+                      {payout.status}
+                    </span>
                   </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      {new Date(payout.date).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </div>
+                    <span>{payout.bookings} bookings</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="p-8 text-center text-gray-500">
+            No payout history available yet
+          </div>
+        )}
+      </div>
 
         {/* Info Card */}
         <div className="mt-8 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-2xl p-6 shadow-sm">

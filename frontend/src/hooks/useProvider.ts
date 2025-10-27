@@ -19,10 +19,11 @@ export function useProviders() {
   });
 }
 
-export const useProvider = (id: string) => {
+export const useProvider = (id?: string) => {
   return useQuery<Provider>({
     queryKey: ["provider", id],
     queryFn: async () => {
+      if (!id) throw new Error("Provider ID required");
       const res = await getProviderById(id);
       return res.data;
     },

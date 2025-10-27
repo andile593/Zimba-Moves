@@ -1,7 +1,7 @@
 import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Logo from "../../assets/Logo.svg";
-import { Menu, X } from "lucide-react";
+import { Menu, X, MessageCircle } from "lucide-react";
 import { AuthContext } from "../../context/AuthContext";
 
 type ButtonConfig = {
@@ -9,7 +9,8 @@ type ButtonConfig = {
   to?: string;
   anchor?: string;
   onClick?: () => void;
-  type: "primary" | "secondary";
+  type: "primary" | "secondary" | "whatsapp";
+  icon?: React.ReactNode;
 };
 
 type NavLink = {
@@ -48,6 +49,26 @@ export default function Navbar() {
     } else {
       navigate(to);
     }
+    if (isOpen) toggleMenu();
+  };
+
+  const sendWhatsAppMessage = () => {
+    // ZimbaMoves business phone number (replace with actual number)
+    const phoneNumber = "27732499844"; // Format: country code + number (no + or spaces)
+    
+    const message = `Hi ZimbaMoves! 
+
+I would like to request a quote for moving services.
+
+Could you please contact me as soon as you get this message? I'd love to discuss my moving requirements.
+
+Thank you!`;
+
+    const encodedMessage = encodeURIComponent(message);
+    const url = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
+    
+    window.open(url, "_blank");
+    
     if (isOpen) toggleMenu();
   };
 
@@ -96,7 +117,11 @@ export default function Navbar() {
 
   const authButtons: ButtonConfig[] = isAuthenticated
     ? [
-        { label: "Get Quote", to: "/quote-request", type: "primary" },
+        { 
+          label: "Get Quote", 
+          onClick: sendWhatsAppMessage, 
+          type: "whatsapp",
+        },
         { label: "Logout", onClick: () => logout?.(), type: "secondary" },
       ]
     : [
@@ -106,10 +131,17 @@ export default function Navbar() {
 
   const renderButton = (btn: ButtonConfig) => {
     const baseClasses =
-      "px-5 py-2 rounded-md transition-all w-auto text-center";
-    const primary = "bg-green-600 text-white hover:bg-green-700";
+      "px-5 py-2 rounded-md transition-all w-auto text-center flex items-center justify-center gap-2";
+    const primary = "bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg";
     const secondary =
       "border border-green-600 text-green-600 hover:bg-green-50";
+    const whatsapp = "bg-[#00a63e] text-white hover:bg-[#20BA5A] shadow-md hover:shadow-lg";
+
+    const getButtonStyle = () => {
+      if (btn.type === "whatsapp") return whatsapp;
+      if (btn.type === "primary") return primary;
+      return secondary;
+    };
 
     if (btn.onClick) {
       return (
@@ -119,10 +151,9 @@ export default function Navbar() {
             btn.onClick?.();
             if (isOpen) toggleMenu();
           }}
-          className={`${baseClasses} ${
-            btn.type === "primary" ? primary : secondary
-          }`}
+          className={`${baseClasses} ${getButtonStyle()}`}
         >
+          {btn.icon}
           {btn.label}
         </button>
       );
@@ -132,10 +163,9 @@ export default function Navbar() {
       <button
         key={btn.label}
         onClick={() => handleNavClick(btn.to!, btn.anchor)}
-        className={`${baseClasses} ${
-          btn.type === "primary" ? primary : secondary
-        }`}
+        className={`${baseClasses} ${getButtonStyle()}`}
       >
+        {btn.icon}
         {btn.label}
       </button>
     );

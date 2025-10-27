@@ -50,6 +50,8 @@ router.delete(
   providerController.deleteProvider
 );
 
+router.get('/me/earnings', authenticate, providerController.getMyEarnings);
+
 // File upload routes
 router.post(
   "/:id/files",

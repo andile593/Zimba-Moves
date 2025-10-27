@@ -7,19 +7,27 @@ const refundQueue = require('../queues/refundQueue');
 
 /* helper: log event */
 async function logEvent({ paymentId, type, gateway, gatewayRef = null, payload }) {
-  return prisma.paymentEvent.create({
-    data: { paymentId, type, gateway, gatewayRef, payload }
-  });
+  try {
+    return await prisma.paymentEvent.create({
+      data: { paymentId, type, gateway, gatewayRef, payload }
+    });
+  } catch (error) {
+    // If it's a duplicate constraint error (P2002), just return null or existing record
+    if (error.code === 'P2002') {
+      console.log('Duplicate event log attempt prevented:', { gateway, gatewayRef });
+      return null;
+    }
+    throw error;
+  }
 }
 
 
 /**
- * Initiate a payment (Paystack or Ozow)
+ * Initiate a payment (Paystack only)
  */
 exports.initiatePayment = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
-    const { gateway } = req.query; // ?gateway=paystack | ozow
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
@@ -40,64 +48,54 @@ exports.initiatePayment = async (req, res, next) => {
       });
     }
 
-    // Gateway-specific logic
-    if (gateway === 'paystack') {
-      const paystackRes = await axios.post(
-        'https://api.paystack.co/transaction/initialize',
-        {
-          email: booking.customer.email,
-          amount: payment.amount * 100, // Paystack expects kobo
-          reference: payment.id,
-          metadata: { bookingId: booking.id }
-        },
-        {
-          headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET}` }
+    // Construct the callback URL with booking ID
+    const callbackUrl = `${process.env.FRONTEND_URL}/payment-success?reference=${payment.id}&bookingId=${bookingId}`;
+    
+    const paystackRes = await axios.post(
+      'https://api.paystack.co/transaction/initialize',
+      {
+        email: booking.customer.email,
+        amount: payment.amount * 100, // Paystack expects kobo
+        reference: payment.id,
+        callback_url: callbackUrl,
+        metadata: { 
+          bookingId: booking.id,
+          customerId: booking.customerId
         }
-      );
+      },
+      {
+        headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET}` }
+      }
+    );
 
-      // Store the Paystack reference for later verification
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { gatewayReference: paystackRes.data.data.reference }
-      });
+    // Store the Paystack reference for later verification
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { gatewayReference: paystackRes.data.data.reference }
+    });
 
-      return res.json({
-        provider: 'paystack',
-        authorizationUrl: paystackRes.data.data.authorization_url,
-        reference: payment.id
-      });
-    }
+    // Log the initiation event
+    await logEvent({
+      paymentId: payment.id,
+      type: 'PAYMENT_INITIATED',
+      gateway: 'PAYSTACK',
+      gatewayRef: paystackRes.data.data.reference,
+      payload: paystackRes.data.data
+    });
 
-    if (gateway === 'ozow') {
-      const payload = {
-        siteCode: process.env.OZOW_SITE_CODE,
-        countryCode: 'ZA',
-        currencyCode: 'ZAR',
-        amount: payment.amount.toFixed(2),
-        transactionReference: payment.id,
-        bankReference: `BOOK-${booking.id.slice(0, 6)}`,
-        cancelUrl: process.env.OZOW_CANCEL_URL,
-        errorUrl: process.env.OZOW_ERROR_URL,
-        successUrl: process.env.OZOW_SUCCESS_URL,
-        notifyUrl: `${process.env.API_URL}/payments/ozow-webhook`
-      };
-
-      // Generate Ozow hash
-      const concatStr = `${payload.siteCode}${payload.countryCode}${payload.currencyCode}${payload.amount}${payload.transactionReference}${payload.bankReference}${payload.cancelUrl}${payload.errorUrl}${payload.successUrl}${payload.notifyUrl}${process.env.OZOW_PRIVATE_KEY}`;
-      const hash = crypto.createHash('sha512').update(concatStr).digest('hex').toUpperCase();
-
-      return res.json({
-        provider: 'ozow',
-        redirectUrl: `https://pay.ozow.com/?${new URLSearchParams({ ...payload, hash }).toString()}`
-      });
-    }
-
-    return res.status(400).json({ error: 'Unsupported gateway' });
+    return res.json({
+      provider: 'paystack',
+      authorizationUrl: paystackRes.data.data.authorization_url,
+      reference: payment.id
+    });
   } catch (err) {
     next(err);
   }
 };
 
+/**
+ * Initiate a refund
+ */
 exports.initiateRefund = async (req, res, next) => {
   try {
     const { paymentId } = req.params;
@@ -145,14 +143,12 @@ exports.initiateRefund = async (req, res, next) => {
     });
 
     // Log event
-    await prisma.paymentEvent.create({
-      data: {
-        paymentId: payment.id,
-        type: 'REFUND_REQUEST',
-        gateway: 'PAYSTACK',
-        gatewayRef: refundData.reference,
-        payload: refundData
-      }
+    await logEvent({
+      paymentId: payment.id,
+      type: 'REFUND_REQUEST',
+      gateway: 'PAYSTACK',
+      gatewayRef: refundData.reference,
+      payload: refundData
     });
 
     // Enqueue polling job
@@ -200,6 +196,15 @@ exports.paystackWebhook = async (req, res, next) => {
       
       const customer = await prisma.user.findUnique({ where: { id: booking.customerId } });
 
+      // Log the webhook event
+      await logEvent({
+        paymentId: payment.id,
+        type: 'WEBHOOK_SUCCESS',
+        gateway: 'PAYSTACK',
+        gatewayRef: event.data.reference,
+        payload: event.data
+      });
+
       notifications.notifyPaymentSuccess({ payment, booking, customer });
     }
 
@@ -211,75 +216,16 @@ exports.paystackWebhook = async (req, res, next) => {
 
 
 /**
- * Ozow Webhook
- */
-exports.ozowWebhook = async (req, res, next) => {
-  try {
-    const rawBody = req.body.toString('utf8');
-    const event = JSON.parse(rawBody);
-
-    const {
-      transactionReference,
-      status,
-      siteCode,
-      amount,
-      currencyCode,
-      bankReference
-    } = event;
-
-    // Rebuild the string for verification
-    const concatStr = `${siteCode}${transactionReference}${amount}${currencyCode}${bankReference}${process.env.OZOW_PRIVATE_KEY}`;
-    const hash = crypto.createHash('sha512').update(concatStr).digest('hex').toUpperCase();
-
-    if (hash !== event.hash) {
-      return res.status(400).json({ error: 'Invalid Ozow signature' });
-    }
-
-    if (status === 'Completed') {
-      await prisma.payment.update({
-        where: { id: transactionReference },
-        data: { status: 'PAID' }
-      });
-
-      const payment = await prisma.payment.findUnique({ where: { id: transactionReference } });
-
-      await prisma.booking.update({
-        where: { id: payment.bookingId },
-        data: { paymentStatus: 'PAID' }
-      });
-    }
-
-    if (status === 'Failed') {
-      await prisma.payment.update({
-        where: { id: transactionReference },
-        data: { status: 'FAILED' }
-      });
-    }
-
-    await prisma.paymentEvent.create({
-      data: {
-        paymentId: transactionReference,
-        type: 'WEBHOOK',
-        gateway: 'OZOW',
-        payload: event
-      }
-    });
-
-    res.sendStatus(200);
-  } catch (err) {
-    next(err);
-  }
-};
-
-
-/**
- * Verify Payment - FIXED to handle both reference types
+ * Verify Payment
  */
 exports.verifyPayment = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const payment = await prisma.payment.findUnique({ where: { id } });
+    const payment = await prisma.payment.findUnique({ 
+      where: { id },
+      include: { booking: true }
+    });
     if (!payment) return res.status(404).json({ error: 'Payment not found' });
 
     // Use gatewayReference if available, otherwise fall back to payment.id
@@ -309,20 +255,21 @@ exports.verifyPayment = async (req, res, next) => {
       data: { paymentStatus: status },
     });
 
-    await prisma.paymentEvent.create({
-      data: {
-        paymentId: id,
-        type: 'VERIFICATION',
-        gateway: 'PAYSTACK',
-        payload: data
-      }
+    // Log verification event
+    await logEvent({
+      paymentId: id,
+      type: 'VERIFICATION',
+      gateway: 'PAYSTACK',
+      gatewayRef: data.reference,
+      payload: data
     });
 
     res.json({ 
       status, 
       amount: data.amount / 100, 
       reference: data.reference,
-      paidAt: data.paid_at
+      paidAt: data.paid_at,
+      bookingId: payment.bookingId
     });
   } catch (err) {
     console.error('Payment verification error:', err.response?.data || err.message);
@@ -331,6 +278,9 @@ exports.verifyPayment = async (req, res, next) => {
 };
 
 
+/**
+ * Check refund status
+ */
 exports.checkRefundStatus = async (req, res, next) => {
   try {
     const { paymentId } = req.params;

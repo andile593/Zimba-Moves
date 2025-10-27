@@ -11,6 +11,7 @@ import Contact from "../pages/Contact/Contact";
 import QuoteRequest from "../pages/QuoteRequest";
 import Checkout from "../pages/Checkout";
 import PaymentStatusPage from "../pages/PaymentStatus";
+import PaymentSuccess from "../pages/Payment/PaymentSuccess";
 import BookingHistory from "../pages/Bookings";
 import BookingDetail from "../pages/Bookings/BookingDetail";
 import ComplaintForm from "../pages/Complaint";
@@ -60,6 +61,7 @@ export default function AppRoutes() {
           <Route path="/quote-request" element={<QuoteRequest />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/payment-status" element={<PaymentStatusPage />} />
+          <Route path="/payment-success" element={<PaymentSuccess />} />
         </Route>
 
         {/* Customer Protected Routes */}
