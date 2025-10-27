@@ -13,7 +13,6 @@ import type {
   DeleteBookingInput,
 } from "../services/bookingApi";
 
-
 export function useBookings() {
   return useQuery<Booking[]>({
     queryKey: ["bookings"],
@@ -35,6 +34,20 @@ export function useBooking(id: string) {
   });
 }
 
+// New hook for fetching bookings by provider
+export function useProviderBookings(providerId: string) {
+  return useQuery<Booking[]>({
+    queryKey: ["bookings", "provider", providerId],
+    queryFn: async () => {
+      const res = await getBookings();
+      // Filter bookings where the providerId matches
+      return res.data.filter(
+        (booking: Booking) => booking.providerId === providerId
+      );
+    },
+    enabled: !!providerId,
+  });
+}
 
 export function useCreateBooking() {
   const queryClient = useQueryClient();
@@ -73,10 +86,16 @@ export function useUpdateBooking() {
         "bookings",
       ]);
 
+      // Update in all bookings list
       queryClient.setQueryData(["bookings"], (old: Booking[] | undefined) =>
         old
           ? old.map((b) => (b.id === id ? { ...b, ...booking } : b))
           : undefined
+      );
+
+      // Update in specific booking query
+      queryClient.setQueryData(["booking", id], (old: Booking | undefined) =>
+        old ? { ...old, ...booking } : undefined
       );
 
       return { previousBookings };
@@ -87,6 +106,7 @@ export function useUpdateBooking() {
       toast.success("Booking updated!");
       queryClient.setQueryData(["booking", id], updatedBooking);
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["bookings", "provider"] });
     },
 
     onError: (err, _, context: any) => {
@@ -112,7 +132,6 @@ export function useDeleteBooking() {
       const previousBookings = queryClient.getQueryData<Booking[]>([
         "bookings",
       ]);
-
 
       queryClient.setQueryData(["bookings"], (old: Booking[] | undefined) =>
         old ? old.filter((b) => b.id !== id) : []

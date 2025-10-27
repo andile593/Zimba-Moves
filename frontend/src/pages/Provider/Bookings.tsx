@@ -89,18 +89,22 @@ export default function ProviderBookings() {
   // Empty state
   if (!bookings || bookings.length === 0) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center max-w-md px-4">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Package className="w-10 h-10 text-green-600" />
+      <div className="min-h-[70vh] flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="text-center max-w-lg px-6">
+          <div className="w-24 h-24 bg-gradient-to-br from-green-100 to-green-200 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <Package className="w-12 h-12 text-green-600" />
           </div>
-          <h3 className="text-xl font-bold text-gray-800 mb-2">No Bookings Yet</h3>
-          <p className="text-gray-600 mb-6">
-            Your bookings will appear here once customers start booking your services.
+          <h3 className="text-3xl font-bold text-gray-900 mb-3">
+            No Bookings Yet
+          </h3>
+          <p className="text-gray-600 mb-8 text-lg">
+            Your bookings will appear here once customers start booking your
+            services.
           </p>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="text-sm text-green-800">
-              💡 <strong>Tip:</strong> Make sure your vehicles are added and your profile is complete to attract more customers!
+          <div className="bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-200 rounded-2xl p-6 shadow-sm">
+            <p className="text-green-900 font-medium">
+              💡 <strong>Pro Tip:</strong> Make sure your vehicles are added and
+              your profile is complete to attract more customers!
             </p>
           </div>
         </div>
@@ -129,16 +133,17 @@ export default function ProviderBookings() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
-          My Bookings
-        </h1>
-        <p className="text-sm sm:text-base text-gray-600">
-          Manage and track all your booking requests
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-3 bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent">
+            My Bookings
+          </h1>
+          <p className="text-lg text-gray-600">
+            Manage and track all your booking requests
+          </p>
+        </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
@@ -275,8 +280,8 @@ function StatCard({ icon: Icon, label, value, color, highlight }: StatCardProps)
       <div className={`w-10 h-10 bg-gradient-to-br ${colors[color]} rounded-lg flex items-center justify-center mb-3 shadow-sm`}>
         <Icon className="w-5 h-5 text-white" />
       </div>
-      <p className="text-xs text-gray-600 mb-1">{label}</p>
-      <p className="text-xl sm:text-2xl font-bold text-gray-800">{value}</p>
+      <p className="text-sm text-gray-600 mb-2 font-medium">{label}</p>
+      <p className="text-3xl font-bold text-gray-900">{value}</p>
     </div>
   );
 }
@@ -315,8 +320,19 @@ function BookingCard({ booking, onStatusUpdate, onViewDetails, isUpdating }: Boo
     return configs[status] || configs.PENDING;
   };
 
-  const getPaymentColor = (status: string) => {
-    return status === "PAID" ? "text-green-600" : "text-yellow-600";
+  const getPaymentBadge = (status?: string) => {
+    if (status === "PAID") {
+      return (
+        <span className="text-xs font-semibold px-3 py-1 bg-green-100 text-green-700 rounded-full border border-green-200">
+          PAID
+        </span>
+      );
+    }
+    return (
+      <span className="text-xs font-semibold px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full border border-yellow-200">
+        {status || "PENDING"}
+      </span>
+    );
   };
 
   const statusConfig = getStatusConfig(booking.status);
@@ -326,7 +342,7 @@ function BookingCard({ booking, onStatusUpdate, onViewDetails, isUpdating }: Boo
     <div className="p-4 sm:p-6 hover:bg-gray-50 transition">
       <div className="flex flex-col gap-4">
         {/* Header Row */}
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-4 mb-6">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className={`px-2 py-1 text-xs font-medium rounded-full border ${statusConfig.class} flex items-center gap-1`}>
@@ -337,18 +353,16 @@ function BookingCard({ booking, onStatusUpdate, onViewDetails, isUpdating }: Boo
                 #{booking.id?.slice(0, 8).toUpperCase()}
               </span>
             </div>
-            <h3 className="font-semibold text-gray-800 text-sm sm:text-base flex items-center gap-2">
-              <Package className="w-4 h-4 text-green-600 flex-shrink-0" />
-              {booking.moveType?.replace(/_/g, " ")}
+            <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+              <Package className="w-5 h-5 text-green-600 flex-shrink-0" />
+              {booking.moveType?.replace(/_/g, " ") || "N/A"}
             </h3>
           </div>
           <div className="text-right">
             <p className="text-lg sm:text-xl font-bold text-gray-800">
               R{booking.pricing?.total?.toFixed(2) || "0.00"}
             </p>
-            <span className={`text-xs font-medium ${getPaymentColor(booking.paymentStatus)}`}>
-              {booking.paymentStatus}
-            </span>
+            {getPaymentBadge(booking.paymentStatus)}
           </div>
         </div>
 
@@ -420,6 +434,7 @@ function BookingCard({ booking, onStatusUpdate, onViewDetails, isUpdating }: Boo
           >
             <Eye className="w-4 h-4" />
             View Details
+            <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           </button>
           {booking.status === "PENDING" && (
             <button
