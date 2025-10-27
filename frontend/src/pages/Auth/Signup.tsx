@@ -180,7 +180,6 @@ export default function Signup() {
             method: "POST",
             headers: {
               Authorization: `Bearer ${token}`,
-              // Don't set Content-Type - let browser set it with boundary
             },
             body: formData,
           }
