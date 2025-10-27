@@ -193,8 +193,6 @@ exports.forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
 
-
-
     if (!email) {
       throw new ApiError(
         400,
@@ -204,13 +202,10 @@ exports.forgotPassword = async (req, res, next) => {
       );
     }
 
-    console.log("email", email);
-
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     });
 
-    console.log("user", user);
     if (!user) {
       return res
         .status(200)

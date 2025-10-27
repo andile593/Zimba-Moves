@@ -39,17 +39,15 @@ export function useInitiatePayment() {
     onSuccess: (response) => {
       toast.dismiss();
       const paymentData = response.data;
-      toast.success("Redirecting to Paystack...");
+      toast.success("Redirecting to payment gateway...");
       queryClient.invalidateQueries({ queryKey: ["payments"] });
-      
-      // Redirect to Paystack authorization URL
       if (paymentData.authorizationUrl) {
         window.location.href = paymentData.authorizationUrl;
       }
     },
     onError: (err: any) => {
       toast.dismiss();
-      toast.error(err?.response?.data?.error || "Payment initiation failed.");
+      toast.error("Payment initiation failed.");
       console.error(err);
     },
   });
@@ -66,11 +64,10 @@ export function useVerifyPayment() {
       toast.success("Payment verified!");
       queryClient.setQueryData(["payment", id], verifiedPayment);
       queryClient.invalidateQueries({ queryKey: ["payments"] });
-      queryClient.invalidateQueries({ queryKey: ["bookings"] });
     },
     onError: (err: any) => {
       toast.dismiss();
-      toast.error(err?.response?.data?.error || "Verification failed.");
+      toast.error("Verification failed.");
       console.error(err);
     },
   });
@@ -86,11 +83,10 @@ export function useRequestRefund() {
       toast.success("Refund initiated successfully!");
       queryClient.setQueryData(["payment", id], response.data);
       queryClient.invalidateQueries({ queryKey: ["payments"] });
-      queryClient.invalidateQueries({ queryKey: ["bookings"] });
     },
     onError: (err: any) => {
       toast.dismiss();
-      toast.error(err?.response?.data?.error || "Refund failed to initiate.");
+      toast.error("Refund failed to initiate.");
       console.error(err);
     },
   });
@@ -109,7 +105,7 @@ export function useDeletePayment() {
     },
     onError: (err: any) => {
       toast.dismiss();
-      toast.error(err?.response?.data?.error || "Failed to delete payment record.");
+      toast.error("Failed to delete payment record.");
       console.error(err);
     },
   });

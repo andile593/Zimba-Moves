@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { Calendar, MapPin, Truck, Users, CreditCard, CheckCircle, Clock } from "lucide-react";
@@ -15,11 +15,8 @@ export default function Checkout() {
 
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"paystack" | "ozow">("paystack");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const calendarRef = useRef<HTMLDivElement>(null);
-  const bookingInProgress = useRef(false);
 
   useEffect(() => {
     if (!user) {
@@ -35,66 +32,36 @@ export default function Checkout() {
     }
   }, [user, quoteData, navigate]);
 
-  // Close calendar when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
-        setShowCalendar(false);
-      }
-    };
-
-    if (showCalendar) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showCalendar]);
-
   // Combined mutation: Create booking + Initiate payment
   const bookingMutation = useMutation({
     mutationFn: async (bookingData: any) => {
-      // Prevent duplicate submissions
-      if (bookingInProgress.current) {
-        throw new Error("Booking already in progress");
-      }
-
-      bookingInProgress.current = true;
-
-      try {
-        // Step 1: Create the booking
-        const bookingRes = await api.post("/bookings", bookingData);
-        const booking = bookingRes.data;
-        
-        // Step 2: Initiate payment for this booking (Paystack only)
-        const paymentRes = await api.post(
-          `/payments/${booking.id}/pay?gateway=paystack`
-        );
-        
-        return { booking, paymentData: paymentRes.data };
-      } finally {
-        // Reset flag after 3 seconds to allow retry if something goes wrong
-        setTimeout(() => {
-          bookingInProgress.current = false;
-        }, 3000);
-      }
+      // Step 1: Create the booking
+      const bookingRes = await api.post("/bookings", bookingData);
+      const booking = bookingRes.data;
+      
+      // Step 2: Initiate payment for this booking
+      const paymentRes = await api.post(
+        `/payments/${booking.id}/pay?gateway=${paymentMethod}`
+      );
+      
+      return { booking, paymentData: paymentRes.data };
     },
     onSuccess: ({ booking, paymentData }) => {
       toast.success("Booking created! Redirecting to payment...");
       
-      // Redirect to Paystack payment
+      // Redirect based on payment gateway
       if (paymentData.provider === 'paystack' && paymentData.authorizationUrl) {
+        // Paystack will redirect back to /payment-status with reference
         window.location.href = paymentData.authorizationUrl;
+      } else if (paymentData.provider === 'ozow' && paymentData.redirectUrl) {
+        window.location.href = paymentData.redirectUrl;
       } else {
         // Fallback: go to booking detail page
         navigate(`/bookings/${booking.id}`);
-        bookingInProgress.current = false;
       }
     },
     onError: (err: any) => {
-      bookingInProgress.current = false;
-      const errorMsg = err.response?.data?.error || err.response?.data?.details || err.message || "Failed to create booking";
+      const errorMsg = err.response?.data?.error || err.response?.data?.details || "Failed to create booking";
       toast.error(errorMsg);
       console.error("Booking/Payment Error:", err.response?.data);
     },
@@ -102,11 +69,6 @@ export default function Checkout() {
 
   const handleCheckout = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (bookingInProgress.current) {
-      toast.error("Please wait, booking is being processed...");
-      return;
-    }
 
     if (!agreedToTerms) {
       toast.error("Please agree to the terms and conditions");
@@ -137,7 +99,7 @@ export default function Checkout() {
         distanceCost: (quoteData.estimatedDistance || 0) * (quoteData.provider?.vehicles?.find((v: any) => v.id === quoteData.vehicleId)?.perKmRate || 0),
         helpersCost: (quoteData.helpersNeeded || 0) * 150,
         moveType: quoteData.moveType,
-        paymentMethod: "paystack"
+        paymentMethod: paymentMethod
       },
     };
 
@@ -151,61 +113,7 @@ export default function Checkout() {
   // Set minimum date to tomorrow
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow;
-
-  // Calendar functions
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-    
-    return { daysInMonth, startingDayOfWeek };
-  };
-
-  const handleDateSelect = (day: number) => {
-    const selected = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    if (selected >= minDate) {
-      setSelectedDate(selected.toISOString().split('T')[0]);
-      setShowCalendar(false);
-    }
-  };
-
-  const formatDisplayDate = (dateStr: string) => {
-    if (!dateStr) return "Select date";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
-  };
-
-  const isDateDisabled = (day: number) => {
-    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    return date < minDate;
-  };
-
-  const isToday = (day: number) => {
-    const today = new Date();
-    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    return date.toDateString() === today.toDateString();
-  };
-
-  const isSelectedDate = (day: number) => {
-    if (!selectedDate) return false;
-    const selected = new Date(selectedDate);
-    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    return date.toDateString() === selected.toDateString();
-  };
-
-  const goToPreviousMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
-  };
-
-  const goToNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
-  };
-
-  const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentMonth);
+  const minDate = tomorrow.toISOString().split('T')[0];
 
   // Generate time slots (30-minute intervals from 7 AM to 6 PM)
   const timeSlots = [];
@@ -277,104 +185,21 @@ export default function Checkout() {
 
               <form onSubmit={handleCheckout}>
                 <div className="grid md:grid-cols-2 gap-4 mb-6">
-                  {/* Date Picker with Calendar Popup */}
+                  {/* Date Picker */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Date <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none z-10" />
-                      <button
-                        type="button"
-                        onClick={() => setShowCalendar(!showCalendar)}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-700 text-left bg-white hover:bg-gray-50 transition"
-                      >
-                        {formatDisplayDate(selectedDate)}
-                      </button>
-
-                      {/* Calendar Popup */}
-                      {showCalendar && (
-                        <div
-                          ref={calendarRef}
-                          className="absolute z-50 mt-2 bg-white border border-gray-300 rounded-lg shadow-xl p-4 w-80"
-                        >
-                          {/* Calendar Header */}
-                          <div className="flex items-center justify-between mb-4">
-                            <button
-                              type="button"
-                              onClick={goToPreviousMonth}
-                              className="p-2 hover:bg-gray-100 rounded-lg transition"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                              </svg>
-                            </button>
-                            <div className="font-semibold text-gray-800">
-                              {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={goToNextMonth}
-                              className="p-2 hover:bg-gray-100 rounded-lg transition"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                            </button>
-                          </div>
-
-                          {/* Weekday Headers */}
-                          <div className="grid grid-cols-7 gap-1 mb-2">
-                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                              <div key={day} className="text-center text-xs font-semibold text-gray-600 py-2">
-                                {day}
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Calendar Days */}
-                          <div className="grid grid-cols-7 gap-1">
-                            {Array.from({ length: startingDayOfWeek }).map((_, i) => (
-                              <div key={`empty-${i}`} className="aspect-square" />
-                            ))}
-                            {Array.from({ length: daysInMonth }).map((_, i) => {
-                              const day = i + 1;
-                              const disabled = isDateDisabled(day);
-                              const selected = isSelectedDate(day);
-                              const today = isToday(day);
-
-                              return (
-                                <button
-                                  key={day}
-                                  type="button"
-                                  onClick={() => !disabled && handleDateSelect(day)}
-                                  disabled={disabled}
-                                  className={`aspect-square flex items-center justify-center rounded-lg text-sm font-medium transition ${
-                                    disabled
-                                      ? 'text-gray-300 cursor-not-allowed'
-                                      : selected
-                                      ? 'bg-green-600 text-white hover:bg-green-700'
-                                      : today
-                                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                      : 'text-gray-700 hover:bg-gray-100'
-                                  }`}
-                                >
-                                  {day}
-                                </button>
-                              );
-                            })}
-                          </div>
-
-                          {/* Close button */}
-                          <button
-                            type="button"
-                            onClick={() => setShowCalendar(false)}
-                            className="mt-4 w-full py-2 text-sm text-gray-600 hover:text-gray-800 font-medium"
-                          >
-                            Close
-                          </button>
-                        </div>
-                      )}
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        min={minDate}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-700"
+                        required
+                      />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
                       Minimum 24 hours in advance
@@ -408,18 +233,44 @@ export default function Checkout() {
                   </div>
                 </div>
 
-                {/* Payment Method - Paystack Only */}
+                {/* Payment Method */}
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-3">
                     Payment Gateway
                   </label>
 
-                  <div className="border-2 border-green-600 bg-green-50 rounded-lg p-4">
-                    <div className="flex items-center gap-3">
-                      <CreditCard className="w-6 h-6 text-green-600" />
-                      <div>
-                        <p className="font-semibold text-gray-800">Paystack</p>
-                        <p className="text-sm text-gray-600">Card, Bank Transfer, USSD</p>
+                  <div className="space-y-3">
+                    <div
+                      onClick={() => setPaymentMethod("paystack")}
+                      className={`border-2 rounded-lg p-4 cursor-pointer transition ${
+                        paymentMethod === "paystack"
+                          ? "border-green-600 bg-green-50"
+                          : "border-gray-200 hover:border-green-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <CreditCard className="w-6 h-6 text-green-600" />
+                        <div>
+                          <p className="font-semibold text-gray-800">Paystack</p>
+                          <p className="text-sm text-gray-600">Card, Bank Transfer, USSD</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => setPaymentMethod("ozow")}
+                      className={`border-2 rounded-lg p-4 cursor-pointer transition ${
+                        paymentMethod === "ozow"
+                          ? "border-green-600 bg-green-50"
+                          : "border-gray-200 hover:border-green-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <CreditCard className="w-6 h-6 text-green-600" />
+                        <div>
+                          <p className="font-semibold text-gray-800">Ozow</p>
+                          <p className="text-sm text-gray-600">Instant EFT Payment</p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -446,10 +297,10 @@ export default function Checkout() {
 
                 <button
                   type="submit"
-                  disabled={bookingMutation.isPending || !agreedToTerms || bookingInProgress.current}
+                  disabled={bookingMutation.isPending || !agreedToTerms}
                   className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {bookingMutation.isPending || bookingInProgress.current ? (
+                  {bookingMutation.isPending ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                       Processing...
@@ -465,7 +316,7 @@ export default function Checkout() {
             </div>
           </div>
 
-          {/* Order Summary */}
+          {/* Order Summary - (same as before, no changes needed) */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
               <h2 className="text-xl font-bold text-gray-800 mb-4">Order Summary</h2>

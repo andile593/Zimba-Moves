@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -6,6 +7,8 @@ import {
   Star,
   Truck,
   CheckCircle,
+  Loader2,
+  AlertCircle,
   Clock,
   Shield,
   Award,
@@ -15,17 +18,20 @@ import {
   Phone,
   Mail,
 } from "lucide-react";
-import { useProvider } from "@/hooks/useProvider";
-import LoadingScreen from "@/components/LoadingScreen/Loading";
-import ErrorScreen from "@/components/ErrorScreen";
+import { getProviderById } from "../../services/providerApi";
 
 export default function EnhancedProviderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
 
-  const { data: provider, isLoading, isError } = useProvider(id);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["provider", id],
+    queryFn: () => getProviderById(id!),
+    enabled: !!id,
+  });
 
+  const provider = data?.data;
   const user = provider?.user;
 
   const getVehicleImageUrl = (imagePath: string | undefined) => {
@@ -49,12 +55,39 @@ export default function EnhancedProviderDetail() {
     return fullUrl;
   };
 
- if (isLoading) {
-    return <LoadingScreen />;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-green-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading provider details...</p>
+        </div>
+      </div>
+    );
   }
 
- if (isError || !provider) {
-    return <ErrorScreen navigate={navigate} />;
+  if (isError || !provider) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+            <AlertCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            Provider Not Found
+          </h2>
+          <p className="text-gray-600 mb-6">
+            The provider you're looking for doesn't exist or has been removed.
+          </p>
+          <button
+            onClick={() => navigate("/search")}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition"
+          >
+            Back to Search
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const rating = 4.8;
@@ -377,7 +410,8 @@ export default function EnhancedProviderDetail() {
                       Selected Vehicle
                     </p>
                     <p className="font-bold text-lg text-gray-800 mb-2">
-                      {selectedVehicleData.make} {selectedVehicleData.model}
+                      {selectedVehicleData.type?.replace(/_/g, " ") ||
+                        "Vehicle"}
                     </p>
                     <div className="flex items-baseline justify-center gap-1">
                       <span className="text-3xl font-bold text-green-700">
@@ -560,7 +594,7 @@ function VehicleCard({
             </div>
             <div className="flex-1">
               <h4 className="font-bold text-gray-800 text-lg mb-1">
-                {getVehicleTypeLabel(vehicle.make)} {getVehicleTypeLabel(vehicle.model)}
+                {getVehicleTypeLabel(vehicle.type)}
               </h4>
               <p className="text-sm text-gray-600">Plate: {vehicle.plate}</p>
             </div>

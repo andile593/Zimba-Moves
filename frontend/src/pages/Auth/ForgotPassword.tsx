@@ -30,7 +30,7 @@ export default function ForgotPassword() {
       }
 
       toast.success("Password reset link sent! Check your email.");
-       navigate("/login");
+      navigate("/login");
     } catch (err: any) {
       toast.error(err.message || "Something went wrong");
     } finally {

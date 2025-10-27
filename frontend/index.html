@@ -2,33 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- <link rel="icon" type="image/svg+xml" href="/vite.svg" /> -->
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ZimbaMoves</title>
-
-
-    <!-- Google Maps JavaScript API with Places Library -->
-  <script type="module">
-    // Load Google Maps API with Places library
-    (function() {
-      const script = document.createElement('script');
-      // Replace YOUR_API_KEY with your actual Google Maps API key
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&libraries=places&callback=initMap`;
-      script.async = true;
-      script.defer = true;
-      
-      // Initialize callback
-      window.initMap = function() {
-        console.log('Google Maps API loaded successfully');
-      };
-      
-      script.onerror = function() {
-        console.error('Failed to load Google Maps API');
-      };
-      
-      document.head.appendChild(script);
-    })();
-  </script>
+    <title>frontend</title>
   </head>
   <body>
     <div id="root"></div>
