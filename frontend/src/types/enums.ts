@@ -29,7 +29,7 @@ export type QuoteStatus =
   | "REJECTED"
   | "EXPIRED";
 
-export type FileType = "IMAGE" | "DOCUMENT" | "IN_PROGRESS" ;
+export type FileType = "IMAGE" | "DOCUMENT" | "IN_PROGRESS";
 
 export type FileCategory =
   | "BRANDING"
@@ -43,4 +43,4 @@ export type FileCategory =
 
 export type FileStatus = "PENDING" | "APPROVED" | "REJECTED";
 
-export type ProviderStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type ProviderStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";

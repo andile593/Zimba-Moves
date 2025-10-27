@@ -37,6 +37,7 @@ import AdminAnalytics from "../pages/Admin/Analytics";
 import About from "../pages/About/index";
 import AuthCallback from "../pages/Auth/AuthCallback";
 import BookingDetails from "@/pages/Provider/BookingDetails";
+import ProviderOverview from "@/pages/Provider/ProviderOverview";
 
 export default function AppRoutes() {
   return (
@@ -74,7 +75,6 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoute allowedRoles={["PROVIDER"]} />}>
           <Route path="/provider/apply" element={<ProviderApplicationForm />} />
           <Route path="/provider/pending" element={<PendingApproval />} />
-          <Route path="/provider/bookings/:id" element={<BookingDetails />} />
         </Route>
 
         {/* Provider Routes - Only for APPROVED providers */}
@@ -86,8 +86,10 @@ export default function AppRoutes() {
             </ProtectedProviderRoute>
           }
         >
-          <Route index element={<Navigate to="bookings" replace />} />
+          {/* Changed: Now shows overview instead of redirecting to bookings */}
+          <Route index element={<ProviderOverview />} />
           <Route path="bookings" element={<ProviderBookings />} />
+          <Route path="bookings/:id" element={<BookingDetails />} />
           <Route path="vehicles" element={<Vehicles />} />
           <Route path="earnings" element={<Earnings />} />
           <Route path="profile" element={<ProviderProfile />} />

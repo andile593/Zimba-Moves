@@ -1,40 +1,27 @@
-import { useQuery } from "@tanstack/react-query";
 import {
   DollarSign,
   TrendingUp,
   Clock,
   CheckCircle,
   Calendar,
-  ArrowUpRight,
   Download,
-  Package,
   AlertCircle,
   TrendingDown,
 } from "lucide-react";
-import api from "../../services/axios";
 import { useProviderBookings } from "@/hooks/useBooking";
 import type { Booking } from "@/types/booking";
 
 export default function Earnings() {
-  // Get provider data
-  const { data: providerData, isLoading: providerLoading } = useQuery({
-    queryKey: ["myProvider"],
-    queryFn: async () => {
-      const res = await api.get("/providers/me/profile");
-      return res.data;
-    },
-  });
-
-  const providerId = providerData?.id;
+  // Get providerId from localStorage
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const providerId = user.providerId;
 
   // Fetch bookings for earnings calculation
   const { data: bookingsData, isLoading: bookingsLoading } =
     useProviderBookings(providerId);
 
   // Show loader while fetching data
-  const isLoading = providerLoading || bookingsLoading;
-
-  if (isLoading) {
+  if (bookingsLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -61,50 +48,51 @@ export default function Earnings() {
   }
 
   // Handle case where no data is returned
-  if (!data) {
+  if (!bookingsData || bookingsData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-gray-600">No earnings data available</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-3 bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent">
+              Earnings Overview
+            </h1>
+            <p className="text-lg text-gray-600">
+              Track your income and payment history
+            </p>
+          </div>
+          <div className="flex flex-col items-center justify-center bg-white rounded-2xl shadow-lg p-12 text-center">
+            <DollarSign className="w-16 h-16 text-gray-300 mb-4" />
+            <h3 className="text-xl font-bold text-gray-800 mb-2">
+              No Earnings Yet
+            </h3>
+            <p className="text-gray-600">
+              Your earnings will appear here once you complete bookings
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Use data from API
-  const earningsData = {
-    total: data.total || 0,
-    pending: data.pending || 0,
-    completed: data.completed || 0,
-    thisMonth: data.thisMonth || 0,
-    lastMonth: data.lastMonth || 0,
-    growth: data.growth || 0,
-  };
+  // Calculate earnings from bookings data
+  const completedBookings = bookingsData.filter(
+    (b: Booking) => b.status === "COMPLETED" && b.paymentStatus === "PAID"
+  );
 
-  const recentPayouts = data.recentPayouts || [];
-  const nextPayout = data.nextPayout || "TBD";
-
-  const pendingEarnings = pendingBookings.reduce(
+  const totalEarnings = completedBookings.reduce(
     (sum: number, b: Booking) => sum + (b.pricing?.total || 0),
     0
   );
 
-      {/* Total Earnings Card */}
-      <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-2xl shadow-lg p-6 sm:p-8 mb-6 text-white">
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <p className="text-green-100 text-sm mb-2 flex items-center gap-2">
-              <DollarSign className="w-4 h-4" />
-              Total Earnings
-            </p>
-            <h2 className="text-4xl sm:text-5xl font-bold mb-2">
-              R{earningsData.total.toFixed(2)}
-            </h2>
-            <div className="flex items-center gap-2 text-green-100">
-              <TrendingUp className="w-4 h-4" />
-              <span className="text-sm">
-                {earningsData.growth >= 0 ? '+' : ''}{earningsData.growth.toFixed(1)}% from last month
-              </span>
-            </div>
-          </div>
+  // Calculate this month's earnings
+  const now = new Date();
+  const thisMonthBookings = completedBookings.filter((b: Booking) => {
+    const bookingDate = new Date(b.createdAt || b.dateTime);
+    return (
+      bookingDate.getMonth() === now.getMonth() &&
+      bookingDate.getFullYear() === now.getFullYear()
+    );
+  });
 
   const thisMonthEarnings = thisMonthBookings.reduce(
     (sum: number, b: Booking) => sum + (b.pricing?.total || 0),
@@ -133,6 +121,18 @@ export default function Earnings() {
       : thisMonthEarnings > 0
       ? 100
       : 0;
+
+  // Calculate pending earnings
+  const pendingBookings = bookingsData.filter(
+    (b: Booking) =>
+      (b.status === "PENDING" || b.status === "CONFIRMED") &&
+      b.paymentStatus !== "PAID"
+  );
+
+  const pendingEarnings = pendingBookings.reduce(
+    (sum: number, b: Booking) => sum + (b.pricing?.total || 0),
+    0
+  );
 
   // Group completed bookings by month for recent payouts
   const bookingsByMonth = completedBookings.reduce(
@@ -170,9 +170,13 @@ export default function Earnings() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 6);
 
-  // Calculate average booking value
-  const avgBookingValue =
-    completedBookings.length > 0 ? totalEarnings / completedBookings.length : 0;
+  // Next payout date (example: end of current month)
+  const nextPayoutDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const nextPayout = nextPayoutDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-12">
@@ -250,30 +254,30 @@ export default function Earnings() {
           </div>
         </div>
 
-      {/* Stats Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        <StatCard
-          icon={Clock}
-          title="Pending Payouts"
-          value={`R${earningsData.pending.toFixed(2)}`}
-          description="Awaiting processing"
-          color="yellow"
-        />
-        <StatCard
-          icon={CheckCircle}
-          title="Completed Payouts"
-          value={`R${earningsData.completed.toFixed(2)}`}
-          description="Successfully paid"
-          color="green"
-        />
-        <StatCard
-          icon={Calendar}
-          title="Next Payout"
-          value={nextPayout}
-          description="Estimated date"
-          color="blue"
-        />
-      </div>
+        {/* Stats Grid */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <StatCard
+            icon={Clock}
+            title="Pending Earnings"
+            value={`R${pendingEarnings.toFixed(2)}`}
+            description={`${pendingBookings.length} pending bookings`}
+            color="yellow"
+          />
+          <StatCard
+            icon={CheckCircle}
+            title="Completed Bookings"
+            value={completedBookings.length}
+            description="Successfully paid"
+            color="green"
+          />
+          <StatCard
+            icon={Calendar}
+            title="Next Payout"
+            value={nextPayout}
+            description="Estimated date"
+            color="blue"
+          />
+        </div>
 
         {/* Recent Payouts */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
@@ -289,105 +293,103 @@ export default function Earnings() {
             </div>
           </div>
 
-        {recentPayouts.length > 0 ? (
-          <>
-            {/* Desktop Table */}
-            <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                      Bookings
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {recentPayouts.map((payout: any) => (
-                    <tr key={payout.id} className="hover:bg-gray-50 transition">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm font-medium text-gray-800">
-                            {new Date(payout.date).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-600">
-                          {payout.bookings} bookings
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-lg font-bold text-gray-800">
-                          R{payout.amount.toFixed(2)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full ${
-                          payout.status === 'Completed' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          <CheckCircle className="w-3 h-3" />
-                          {payout.status}
-                        </span>
-                      </td>
+          {recentPayouts.length > 0 ? (
+            <>
+              {/* Desktop Table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                        Bookings
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                        Amount
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">
+                        Status
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y">
+                    {recentPayouts.map((payout: any) => (
+                      <tr
+                        key={payout.id}
+                        className="hover:bg-gray-50 transition"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm font-medium text-gray-800">
+                              {new Date(payout.date).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                }
+                              )}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-gray-600">
+                            {payout.bookings} bookings
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-lg font-bold text-gray-800">
+                            R{payout.amount.toFixed(2)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                            <CheckCircle className="w-3 h-3" />
+                            {payout.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-            {/* Mobile Cards */}
-            <div className="sm:hidden divide-y">
-              {recentPayouts.map((payout: any) => (
-                <div key={payout.id} className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-2xl font-bold text-gray-800">
-                      R{payout.amount.toFixed(2)}
-                    </span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
-                      payout.status === 'Completed' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      <CheckCircle className="w-3 h-3" />
-                      {payout.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      {new Date(payout.date).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
+              {/* Mobile Cards */}
+              <div className="sm:hidden divide-y">
+                {recentPayouts.map((payout: any) => (
+                  <div key={payout.id} className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-2xl font-bold text-gray-800">
+                        R{payout.amount.toFixed(2)}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                        <CheckCircle className="w-3 h-3" />
+                        {payout.status}
+                      </span>
                     </div>
-                    <span>{payout.bookings} bookings</span>
+                    <div className="flex items-center justify-between text-sm text-gray-600">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        {new Date(payout.date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </div>
+                      <span>{payout.bookings} bookings</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="p-8 text-center text-gray-500">
+              No payout history available yet
             </div>
-          </>
-        ) : (
-          <div className="p-8 text-center text-gray-500">
-            No payout history available yet
-          </div>
-        )}
-      </div>
+          )}
+        </div>
 
         {/* Info Card */}
         <div className="mt-8 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-2xl p-6 shadow-sm">
@@ -399,13 +401,14 @@ export default function Earnings() {
             <li className="flex items-start gap-3">
               <span className="text-blue-600 mt-1 text-lg">•</span>
               <span className="flex-1">
-                Earnings are calculated from completed bookings only
+                Earnings are calculated from completed and paid bookings only
               </span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-blue-600 mt-1 text-lg">•</span>
               <span className="flex-1">
-                Pending earnings include confirmed and pending bookings
+                Pending earnings include confirmed and pending bookings awaiting
+                completion
               </span>
             </li>
             <li className="flex items-start gap-3">
