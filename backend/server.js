@@ -1,4 +1,5 @@
 require("dotenv").config();
+require("./jobs/cron");
 const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
@@ -76,6 +77,7 @@ app.use("/bookings", authenticate, require("./routes/booking"));
 app.use("/complaints", authenticate, require("./routes/complaint"));
 app.use("/admin", authenticate, require("./routes/admin"));
 app.use("/payments", authenticate, require("./routes/payments"));
+app.use("/providers", require("./routes/paymentCards"));
 
 app.use(errorHandler);
 

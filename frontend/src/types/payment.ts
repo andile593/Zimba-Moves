@@ -17,3 +17,13 @@ export type CreatePaymentInput = {
   amount: number;
   providerId?: string;
 };
+
+export interface PaymentCard {
+  id: string;
+  accountNumber: string;
+  accountName: string;
+  bankCode: string;
+  bankName: string;
+  isDefault: boolean;
+  recipientCode: string;
+}

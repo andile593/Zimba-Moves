@@ -157,6 +157,69 @@ exports.getBookingById = async (req, res) => {
   }
 };
 
+async function processProviderPayout(booking) {
+  try {
+    // Get provider with payment cards
+    const provider = await prisma.provider.findUnique({
+      where: { id: booking.providerId },
+      include: {
+        paymentCards: {
+          where: { isDefault: true },
+        },
+      },
+    });
+
+    if (!provider?.paymentCards?.[0]?.recipientCode) {
+      console.log("No default payment card for provider:", booking.providerId);
+      return;
+    }
+
+    const defaultCard = provider.paymentCards[0];
+    const amount = booking.pricing?.total || 0;
+
+    // Take platform fee (e.g., 10%)
+    const platformFeePercent = 0.1;
+    const platformFee = amount * platformFeePercent;
+    const providerAmount = amount - platformFee;
+
+    // Initiate transfer via Paystack
+    const transferResponse = await axios.post(
+      "https://api.paystack.co/transfer",
+      {
+        source: "balance",
+        amount: Math.round(providerAmount * 100), // Convert to cents
+        recipient: defaultCard.recipientCode,
+        reason: `Payout for booking ${booking.id}`,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log("Payout initiated:", transferResponse.data.data);
+
+    // Update provider earnings
+    await prisma.provider.update({
+      where: { id: booking.providerId },
+      data: {
+        earnings: {
+          increment: providerAmount,
+        },
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Payout processing error:",
+      error.response?.data || error.message
+    );
+    // Don't throw - we don't want to block booking completion if payout fails
+  }
+}
+
+// Update the updateBooking function to trigger payout when booking is completed:
 exports.updateBooking = async (req, res) => {
   try {
     const booking = await prisma.booking.findUnique({
@@ -168,7 +231,7 @@ exports.updateBooking = async (req, res) => {
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    // Authorization checks
+    // Authorization checks...
     if (
       req.user.role === "CUSTOMER" &&
       booking.customerId !== req.user.userId
@@ -185,7 +248,6 @@ exports.updateBooking = async (req, res) => {
         return res.status(403).json({ error: "Forbidden: not your booking" });
       }
 
-      // Providers can only update status field
       const allowedFields = ["status"];
       const updateData = {};
 
@@ -225,6 +287,11 @@ exports.updateBooking = async (req, res) => {
             booking: updatedBooking,
             customer,
           });
+        } else if (updateData.status === "COMPLETED") {
+          // NEW: Trigger automatic payout when booking is completed
+          if (updatedBooking.paymentStatus === "PAID") {
+            await processProviderPayout(updatedBooking);
+          }
         }
       }
 

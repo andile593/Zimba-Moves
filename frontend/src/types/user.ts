@@ -3,11 +3,11 @@ import type { Booking } from "./booking";
 import type { Complaint } from "./complaint";
 import type { Quote } from "./quote";
 import type { File } from "./file";
-import type { ProviderStatus } from "./enums";
+import type { ProviderStatus, Role } from "./enums";
 
 export interface User {
   id: string;
-  role: string;
+  role: Role;
   email: string;
   phone: string;
   password?: string;

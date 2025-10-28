@@ -428,6 +428,9 @@ exports.getMyProvider = async (req, res, next) => {
         },
         vehicles: {},
         files: true,
+        paymentCards: {
+          orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+        },
       },
     });
 
@@ -477,6 +480,8 @@ exports.getProviderById = async (req, res, next) => {
   }
 };
 
+// backend/controllers/providerController.js
+
 exports.updateProvider = async (req, res, next) => {
   try {
     const provider = await prisma.provider.findUnique({
@@ -488,10 +493,66 @@ exports.updateProvider = async (req, res, next) => {
     if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId)
       throw new ApiError(403, "Forbidden: Can't edit this profile");
 
+    // Filter out undefined values and prepare update data
+    const updateData = {};
+    const allowedFields = [
+      "bio",
+      "includeHelpers",
+      "latitude",
+      "longitude",
+      "address",
+      "city",
+      "region",
+      "country",
+      "postalCode",
+      "bankName",
+      "accountHolder",
+      "accountNumber",
+      "idNumber",
+    ];
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        // Convert string booleans to actual booleans
+        if (field === "includeHelpers") {
+          updateData[field] =
+            req.body[field] === true || req.body[field] === "true";
+        }
+        // Convert numeric strings to numbers for lat/lng
+        else if (field === "latitude" || field === "longitude") {
+          const value = parseFloat(req.body[field]);
+          if (!isNaN(value)) {
+            updateData[field] = value;
+          }
+        }
+        // Handle regular fields - allow empty strings to clear fields
+        else {
+          updateData[field] = req.body[field];
+        }
+      }
+    }
+
     const updatedProvider = await prisma.provider.update({
       where: { id: req.params.id },
-      data: req.body,
+      data: updateData,
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+        vehicles: {},
+        files: true,
+        paymentCards: {
+          orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+        },
+      },
     });
+
     res.json(updatedProvider);
   } catch (err) {
     next(err);
@@ -763,38 +824,40 @@ exports.deleteProviderFile = async (req, res, next) => {
 exports.getMyEarnings = async (req, res) => {
   try {
     // Ensure user is a provider
-    if (req.user.role !== 'PROVIDER') {
-      return res.status(403).json({ error: 'Only providers can access earnings' });
+    if (req.user.role !== "PROVIDER") {
+      return res
+        .status(403)
+        .json({ error: "Only providers can access earnings" });
     }
 
     // Get provider profile
     const provider = await prisma.provider.findUnique({
-      where: { userId: req.user.userId }
+      where: { userId: req.user.userId },
     });
 
     if (!provider) {
-      return res.status(404).json({ error: 'Provider profile not found' });
+      return res.status(404).json({ error: "Provider profile not found" });
     }
 
     // Get all payments for this provider
     const payments = await prisma.payment.findMany({
-      where: { 
+      where: {
         providerId: provider.id,
       },
       include: {
-        booking: true
+        booking: true,
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: "desc" },
     });
 
     // Calculate total earnings
     const total = payments
-      .filter(p => p.status === 'PAID')
+      .filter((p) => p.status === "PAID")
       .reduce((sum, p) => sum + p.amount, 0);
 
     // Calculate pending earnings
     const pending = payments
-      .filter(p => p.status === 'PENDING')
+      .filter((p) => p.status === "PENDING")
       .reduce((sum, p) => sum + p.amount, 0);
 
     // Calculate completed earnings
@@ -803,24 +866,35 @@ exports.getMyEarnings = async (req, res) => {
     // Get this month's earnings
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
+
     const thisMonth = payments
-      .filter(p => p.status === 'PAID' && new Date(p.createdAt) >= firstDayOfMonth)
+      .filter(
+        (p) => p.status === "PAID" && new Date(p.createdAt) >= firstDayOfMonth
+      )
       .reduce((sum, p) => sum + p.amount, 0);
 
     // Get last month's earnings
-    const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const firstDayOfLastMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() - 1,
+      1
+    );
     const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-    
+
     const lastMonth = payments
-      .filter(p => {
+      .filter((p) => {
         const date = new Date(p.createdAt);
-        return p.status === 'PAID' && date >= firstDayOfLastMonth && date <= lastDayOfLastMonth;
+        return (
+          p.status === "PAID" &&
+          date >= firstDayOfLastMonth &&
+          date <= lastDayOfLastMonth
+        );
       })
       .reduce((sum, p) => sum + p.amount, 0);
 
     // Calculate growth percentage
-    const growth = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : 0;
+    const growth =
+      lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : 0;
 
     // Get recent payouts (group by week or similar logic)
     const recentPayouts = await generateRecentPayouts(provider.id);
@@ -836,16 +910,15 @@ exports.getMyEarnings = async (req, res) => {
       lastMonth,
       growth,
       nextPayout,
-      recentPayouts
+      recentPayouts,
     });
-
   } catch (err) {
-    console.error('Error fetching earnings:', err);
-    res.status(500).json({ error: 'Failed to fetch earnings', details: err.message });
+    console.error("Error fetching earnings:", err);
+    res
+      .status(500)
+      .json({ error: "Failed to fetch earnings", details: err.message });
   }
 };
-
-
 
 async function generateRecentPayouts(providerId) {
   const fourWeeksAgo = new Date();
@@ -854,24 +927,24 @@ async function generateRecentPayouts(providerId) {
   const payments = await prisma.payment.findMany({
     where: {
       providerId,
-      status: 'PAID',
+      status: "PAID",
       createdAt: {
-        gte: fourWeeksAgo
-      }
+        gte: fourWeeksAgo,
+      },
     },
     include: {
-      booking: true
+      booking: true,
     },
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: "desc" },
   });
 
   // Group payments by week
   const payoutMap = new Map();
 
-  payments.forEach(payment => {
+  payments.forEach((payment) => {
     const date = new Date(payment.createdAt);
     const friday = getLastFriday(date);
-    const weekKey = friday.toISOString().split('T')[0];
+    const weekKey = friday.toISOString().split("T")[0];
 
     if (!payoutMap.has(weekKey)) {
       payoutMap.set(weekKey, {
@@ -879,7 +952,7 @@ async function generateRecentPayouts(providerId) {
         date: weekKey,
         amount: 0,
         bookings: 0,
-        status: 'Completed'
+        status: "Completed",
       });
     }
 
@@ -893,7 +966,6 @@ async function generateRecentPayouts(providerId) {
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 10); // Return last 10 payouts
 }
-
 
 function getLastFriday(date) {
   const d = new Date(date);
@@ -911,14 +983,13 @@ function getNextFriday() {
   const today = new Date();
   const dayOfWeek = today.getDay();
   const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7; // Friday is 5
-  
+
   const nextFriday = new Date(today);
   nextFriday.setDate(today.getDate() + daysUntilFriday);
-  
-  return nextFriday.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
+
+  return nextFriday.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 }
-

@@ -50,7 +50,7 @@ router.delete(
   providerController.deleteProvider
 );
 
-router.get('/me/earnings', authenticate, providerController.getMyEarnings);
+router.get("/me/earnings", authenticate, providerController.getMyEarnings);
 
 // File upload routes
 router.post(
@@ -65,5 +65,7 @@ router.delete(
   authenticate,
   providerController.deleteProviderFile
 );
+
+router.use("/:id/payment-cards", require("./paymentCards"));
 
 module.exports = router;

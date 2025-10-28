@@ -3,29 +3,29 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id            String          @id @default(uuid())
-  role          Role
-  email         String          @unique
-  phone         String          @unique
-  password      String
-  firstName     String
-  lastName      String
-  status        UserStatus      @default(ACTIVE)
-  googleId      String?         @unique
-  profilePicture  String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  Bookings      Booking[]
-  Complaints    Complaint[]
-  Provider      Provider?
-  Quote         Quote[]
-  PasswordReset PasswordReset[]
+  id             String          @id @default(uuid())
+  role           Role
+  email          String          @unique
+  phone          String          @unique
+  password       String
+  firstName      String
+  lastName       String
+  status         UserStatus      @default(ACTIVE)
+  googleId       String?         @unique
+  profilePicture String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  Bookings       Booking[]
+  Complaints     Complaint[]
+  Provider       Provider?
+  Quote          Quote[]
+  PasswordReset  PasswordReset[]
 }
 
 model Provider {
@@ -57,6 +57,47 @@ model Provider {
   user            User           @relation(fields: [userId], references: [id])
   vehicles        Vehicle[]
   Quote           Quote[]
+  paymentCards    PaymentCard[]
+  payouts         Payout[]
+}
+
+model PaymentCard {
+  id            String   @id @default(uuid())
+  providerId    String
+  accountNumber String
+  accountName   String
+  bankCode      String
+  bankName      String
+  recipientCode String? // Paystack recipient code for transfers
+  isDefault     Boolean  @default(false)
+  isVerified    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  Payout   Payout[]
+
+  @@index([providerId])
+  @@index([isDefault])
+}
+
+model Payout {
+  id            String       @id @default(uuid())
+  providerId    String
+  paymentCardId String
+  amount        Float
+  status        PayoutStatus @default(PENDING)
+  transferCode  String?
+  reference     String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  provider    Provider    @relation(fields: [providerId], references: [id])
+  paymentCard PaymentCard @relation(fields: [paymentCardId], references: [id])
+
+  @@index([providerId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Vehicle {
@@ -326,4 +367,11 @@ enum QuoteStatus {
   ACCEPTED
   REJECTED
   EXPIRED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }

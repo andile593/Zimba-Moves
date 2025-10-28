@@ -191,8 +191,22 @@ export default function BookingDetails() {
                     Booking Confirmed
                   </p>
                   <p className="text-sm text-green-700">
-                    You have accepted this booking. Please ensure you're
-                    prepared for the scheduled date.
+                    You have accepted this booking. Once you've completed the
+                    move, mark it as complete below.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          {isCompleted && (
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-blue-800">Move Completed</p>
+                  <p className="text-sm text-blue-700">
+                    This booking has been successfully completed. Payment
+                    processing is in progress.
                   </p>
                 </div>
               </div>
@@ -501,6 +515,26 @@ export default function BookingDetails() {
                     {isProcessing ? "Processing..." : "Reject Booking"}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {isConfirmed && (
+              <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-6">
+                <h3 className="font-bold text-gray-900 mb-4 text-lg">
+                  Complete Move
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Once you've successfully completed the move and delivered all
+                  items, mark this booking as complete.
+                </p>
+                <button
+                  onClick={() => handleStatusUpdate("COMPLETED")}
+                  disabled={isProcessing}
+                  className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold rounded-2xl hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                >
+                  <CheckCircle className="w-5 h-5" />
+                  {isProcessing ? "Processing..." : "Mark as Complete"}
+                </button>
               </div>
             )}
           </div>
