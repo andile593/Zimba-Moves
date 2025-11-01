@@ -1,3 +1,5 @@
+// frontend/src/pages/Provider/Vehicles.tsx - Updated with getVehicleImageUrl
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -15,6 +17,7 @@ import {
 import toast from "react-hot-toast";
 import VehicleForm from "../../components/VehicleForm/VehicleForm";
 import { getVehiclesByProvider } from "../../services/vehicleApi";
+import { getVehicleImageUrl } from "../../utils/imageUtils";
 import api from "../../services/axios";
 import type { Vehicle } from "../../types/vehicle";
 
@@ -245,7 +248,9 @@ export default function Vehicles() {
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {vehicles.map((vehicle) => {
-              const primaryImage = vehicle.files?.[0]?.url || null;
+              // Use the utility function to get the image URL
+              const imageUrl = getVehicleImageUrl(vehicle);
+              const hasMultipleImages = vehicle.files && vehicle.files.length > 1;
 
               return (
                 <div
@@ -254,12 +259,9 @@ export default function Vehicles() {
                 >
                   {/* Vehicle Image */}
                   <div className="h-56 bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center relative overflow-hidden">
-                    {primaryImage ? (
+                    {imageUrl ? (
                       <img
-                        src={`${
-                          import.meta.env.VITE_API_URL ||
-                          window.location.origin.replace("5173", "4000")
-                        }/${primaryImage.replace(/\\/g, "/")}`}
+                        src={imageUrl}
                         alt={`${vehicle.make} ${vehicle.model}`}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
@@ -270,9 +272,9 @@ export default function Vehicles() {
                     ) : (
                       <Truck className="w-20 h-20 text-green-600" />
                     )}
-                    {vehicle.files && vehicle.files.length > 1 && (
+                    {hasMultipleImages && (
                       <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full font-semibold">
-                        +{vehicle.files.length - 1} photos
+                        +{vehicle.files!.length - 1} photos
                       </div>
                     )}
                   </div>

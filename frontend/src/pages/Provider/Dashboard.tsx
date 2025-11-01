@@ -114,7 +114,7 @@ export default function ProviderDashboard({
             <div className="flex items-center gap-2">
               <button className="p-2 hover:bg-gray-100 rounded-lg transition relative">
                 <Bell className="w-5 h-5 text-gray-600" />
-                {pendingCount > 0 && (
+                {!bookingsLoading && pendingCount > 0 && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                 )}
               </button>
@@ -132,32 +132,42 @@ export default function ProviderDashboard({
           </div>
 
           {/* Quick Stats - Mobile */}
-          {isOverview && !bookingsLoading && (
+          {isOverview && (
             <div className="grid grid-cols-3 gap-2">
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3 border border-green-200">
-                <p className="text-xs text-green-700 mb-1 font-medium">
-                  Earnings
-                </p>
-                <p className="text-lg font-bold text-green-800">
-                  R{provider.earnings?.toFixed(0) || "0"}
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 border border-blue-200">
-                <p className="text-xs text-blue-700 mb-1 font-medium">
-                  Bookings
-                </p>
-                <p className="text-lg font-bold text-blue-800">
-                  {bookingsData?.length || 0}
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3 border border-purple-200">
-                <p className="text-xs text-purple-700 mb-1 font-medium">
-                  Rating
-                </p>
-                <p className="text-lg font-bold text-purple-800">
-                  {provider.rating || "4.8"}★
-                </p>
-              </div>
+              {bookingsLoading ? (
+                <>
+                  <div className="bg-gray-200 rounded-xl p-3 animate-pulse h-20"></div>
+                  <div className="bg-gray-200 rounded-xl p-3 animate-pulse h-20"></div>
+                  <div className="bg-gray-200 rounded-xl p-3 animate-pulse h-20"></div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3 border border-green-200">
+                    <p className="text-xs text-green-700 mb-1 font-medium">
+                      Earnings
+                    </p>
+                    <p className="text-lg font-bold text-green-800">
+                      R{provider.earnings?.toFixed(0) || "0"}
+                    </p>
+                  </div>
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 border border-blue-200">
+                    <p className="text-xs text-blue-700 mb-1 font-medium">
+                      Bookings
+                    </p>
+                    <p className="text-lg font-bold text-blue-800">
+                      {bookingsData?.length || 0}
+                    </p>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3 border border-purple-200">
+                    <p className="text-xs text-purple-700 mb-1 font-medium">
+                      Rating
+                    </p>
+                    <p className="text-lg font-bold text-purple-800">
+                      {provider.rating || "4.8"}★
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -184,18 +194,22 @@ export default function ProviderDashboard({
             </div>
 
             {/* Earnings Card */}
-            <div className="bg-gradient-to-br from-green-600 to-green-500 rounded-2xl p-4 text-white shadow-lg">
-              <p className="text-xs text-green-100 mb-1 flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" />
-                Total Earnings
-              </p>
-              <p className="text-3xl font-bold mb-1">
-                R{provider.earnings?.toFixed(2) || "0.00"}
-              </p>
-              <p className="text-xs text-green-100">
-                {bookingsData?.length || 0} completed bookings
-              </p>
-            </div>
+            {bookingsLoading ? (
+              <div className="bg-gray-200 rounded-2xl p-4 shadow-lg animate-pulse h-28"></div>
+            ) : (
+              <div className="bg-gradient-to-br from-green-600 to-green-500 rounded-2xl p-4 text-white shadow-lg">
+                <p className="text-xs text-green-100 mb-1 flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" />
+                  Total Earnings
+                </p>
+                <p className="text-3xl font-bold mb-1">
+                  R{provider.earnings?.toFixed(2) || "0.00"}
+                </p>
+                <p className="text-xs text-green-100">
+                  {bookingsData?.length || 0} completed bookings
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Navigation */}
@@ -218,7 +232,7 @@ export default function ProviderDashboard({
                     className={`w-5 h-5 ${active ? "text-green-600" : ""}`}
                   />
                   <span className="flex-1">{item.label}</span>
-                  {item.badge && (
+                  {!bookingsLoading && item.badge && (
                     <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-medium">
                       {item.badge}
                     </span>
@@ -273,12 +287,18 @@ export default function ProviderDashboard({
                 </div>
 
                 {/* Mobile Earnings Card */}
-                <div className="bg-gradient-to-br from-green-600 to-green-500 rounded-2xl p-4 text-white shadow-lg">
-                  <p className="text-xs text-green-100 mb-1">Total Earnings</p>
-                  <p className="text-2xl font-bold">
-                    R{provider.earnings?.toFixed(2) || "0.00"}
-                  </p>
-                </div>
+                {bookingsLoading ? (
+                  <div className="bg-gray-200 rounded-2xl p-4 shadow-lg animate-pulse h-24"></div>
+                ) : (
+                  <div className="bg-gradient-to-br from-green-600 to-green-500 rounded-2xl p-4 text-white shadow-lg">
+                    <p className="text-xs text-green-100 mb-1">
+                      Total Earnings
+                    </p>
+                    <p className="text-2xl font-bold">
+                      R{provider.earnings?.toFixed(2) || "0.00"}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Mobile Navigation */}
@@ -300,7 +320,7 @@ export default function ProviderDashboard({
                     >
                       <Icon className="w-5 h-5" />
                       <span className="flex-1">{item.label}</span>
-                      {item.badge && (
+                      {!bookingsLoading && item.badge && (
                         <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
                           {item.badge}
                         </span>
@@ -371,7 +391,7 @@ export default function ProviderDashboard({
                 <span className="text-[10px] font-medium truncate w-full text-center">
                   {item.label}
                 </span>
-                {item.badge && (
+                {!bookingsLoading && item.badge && (
                   <span className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
                 )}
                 {active && (
@@ -456,9 +476,64 @@ function ProviderOverview({
 
   if (bookingsLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[70vh]">
-        <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-600 border-t-transparent"></div>
-        <p className="mt-4 text-gray-600 font-medium">Loading dashboard...</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Loading Header Skeleton */}
+          <div className="mb-8">
+            <div className="h-12 bg-gray-200 rounded-lg w-80 mb-3 animate-pulse"></div>
+            <div className="h-6 bg-gray-200 rounded-lg w-96 animate-pulse"></div>
+          </div>
+
+          {/* Loading Stats Skeleton */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 animate-pulse"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-14 h-14 bg-gray-200 rounded-xl"></div>
+                  <div className="w-16 h-6 bg-gray-200 rounded-full"></div>
+                </div>
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Loading Quick Actions Skeleton */}
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
+            <div className="h-8 bg-gray-200 rounded-lg w-48 mb-6 animate-pulse"></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="bg-gray-200 rounded-2xl p-6 h-40 animate-pulse"
+                ></div>
+              ))}
+            </div>
+          </div>
+
+          {/* Loading Two Column Layout Skeleton */}
+          <div className="grid lg:grid-cols-2 gap-6">
+            {[1, 2].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6"
+              >
+                <div className="h-6 bg-gray-200 rounded-lg w-48 mb-6 animate-pulse"></div>
+                <div className="space-y-4">
+                  {[1, 2, 3].map((j) => (
+                    <div
+                      key={j}
+                      className="h-20 bg-gray-200 rounded-xl animate-pulse"
+                    ></div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

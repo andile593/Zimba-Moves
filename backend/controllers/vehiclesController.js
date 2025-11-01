@@ -34,10 +34,6 @@ exports.addVehicle = async (req, res, next) => {
     if (existingVehicle)
       throw new ApiError(400, "A vehicle with this plate already exists");
 
-    if (baseRate !== undefined) updateData.baseRate = parseFloat(baseRate);
-    if (perKmRate !== undefined) updateData.perKmRate = parseFloat(perKmRate);
-    if (loadFee !== undefined) updateData.loadFee = parseFloat(loadFee);
-
     const vehicle = await prisma.vehicle.create({
       data: {
         providerId,
@@ -51,7 +47,7 @@ exports.addVehicle = async (req, res, next) => {
         plate: plate.toUpperCase(),
         baseRate: parseFloat(baseRate),
         perKmRate: parseFloat(perKmRate || 0),
-        loadFee: parseFloat(loadFee),
+        loadFee: parseFloat(loadFee || 150), 
       },
     });
 
@@ -62,7 +58,7 @@ exports.addVehicle = async (req, res, next) => {
 };
 
 // Update vehicle
-exports.updateVehicle = async (req, res) => {
+exports.updateVehicle = async (req, res, next) => {
   try {
     const vehicleId = req.params.id;
     const {
@@ -76,7 +72,7 @@ exports.updateVehicle = async (req, res) => {
       plate,
       baseRate,
       perKmRate,
-      loadFee,
+      loadFee, 
     } = req.body;
 
     const vehicle = await prisma.vehicle.findUnique({
@@ -119,9 +115,8 @@ exports.updateVehicle = async (req, res) => {
     if (plate !== undefined) updateData.plate = plate.toUpperCase();
     if (baseRate !== undefined) updateData.baseRate = parseFloat(baseRate);
     if (perKmRate !== undefined) updateData.perKmRate = parseFloat(perKmRate);
-    if (loadFee !== undefined) updateData.loadFee = parseFloat(loadFee);
+    if (loadFee !== undefined) updateData.loadFee = parseFloat(loadFee); 
 
-    
     const updatedVehicle = await prisma.vehicle.update({
       where: { id: vehicleId },
       data: updateData,
@@ -144,7 +139,7 @@ exports.updateVehicle = async (req, res) => {
 };
 
 // Delete vehicle
-exports.deleteVehicle = async (req, res) => {
+exports.deleteVehicle = async (req, res, next) => {
   try {
     const vehicleId = req.params.id;
 
@@ -189,7 +184,7 @@ exports.deleteVehicle = async (req, res) => {
 };
 
 // Get single vehicle by ID
-exports.getVehicleById = async (req, res) => {
+exports.getVehicleById = async (req, res, next) => {
   try {
     const vehicleId = req.params.id;
 
@@ -228,7 +223,7 @@ exports.getVehicleById = async (req, res) => {
   }
 };
 
-exports.getVehiclesByProvider = async (req, res) => {
+exports.getVehiclesByProvider = async (req, res, next) => {
   try {
     const vehicles = await prisma.vehicle.findMany({
       where: { providerId: req.params.id },

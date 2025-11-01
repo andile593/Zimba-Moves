@@ -1,36 +1,40 @@
-const MINIMUM_CHARGE = 400;
-const BASE_FEE = 250;
+function validatePricingInputs({ distance, perKmRate, baseRate, loadFee }) {
+  const errors = [];
 
-// Suggested per km rates based on vehicle type
-const SUGGESTED_RATES = {
-  SMALL_VAN: 9,      
-  MEDIUM_TRUCK: 18,  
-  LARGE_TRUCK: 25, 
-  OTHER: 12
-};
+  if (typeof distance !== 'number' || distance < 0) {
+    errors.push('Distance must be a non-negative number');
+  }
 
-const LOAD_FEE_RANGES = {
-  SMALL_VAN: 150,
-  MEDIUM_TRUCK: 200,
-  LARGE_TRUCK: 300,
-  OTHER: 150
-};
+  if (typeof perKmRate !== 'number' || perKmRate < 0) {
+    errors.push('Per km rate must be a non-negative number');
+  }
+
+  if (typeof baseRate !== 'number' || baseRate <= 0) {
+    errors.push('Base rate must be a positive number');
+  }
+
+  if (typeof loadFee !== 'number' || loadFee < 0) {
+    errors.push('Load fee must be a non-negative number');
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
 
 function calculatePrice({
   distance,
-  baseRate = BASE_FEE,
-  perKmRate,
+  baseRate = 250,
+  perKmRate = 0,
   loadFee = 150,
-  helpersCount = 0,
-  helperRate = 150,
   moveType = 'APARTMENT'
 }) {
-  const baseCost = baseRate;
+  // Calculate base costs (no helper charges)
   const distanceCost = distance * perKmRate;
-  const loadCost = loadFee;
-  const helpersCost = helpersCount * helperRate;
-
-  let subtotal = baseCost + distanceCost + loadCost + helpersCost;
+  
+  // Subtotal before complexity multiplier
+  const subtotal = baseRate + distanceCost + loadFee;
 
   // Apply move type complexity multiplier
   const complexityMultipliers = {
@@ -39,41 +43,31 @@ function calculatePrice({
     SINGLE_ITEM: 0.7,
     OTHER: 1.0,
   };
-  
+
   const multiplier = complexityMultipliers[moveType] || 1.0;
   let total = subtotal * multiplier;
 
-  // Apply minimum charge
-  if (total < MINIMUM_CHARGE) {
-    total = MINIMUM_CHARGE;
+  // Apply minimum charge of R400
+  const minimumCharge = 400;
+  const minimumApplied = total < minimumCharge;
+  
+  if (minimumApplied) {
+    total = minimumCharge;
   }
 
   return {
-    baseRate: baseCost,
-    distanceCost: Math.round(distanceCost * 100) / 100,
-    loadFee: loadCost,
-    helpersCost,
-    subtotal: Math.round(subtotal * 100) / 100,
+    baseRate,
+    distanceCost: parseFloat(distanceCost.toFixed(2)),
+    loadFee,
+    helpersCost: 0, // Always 0 - helpers included
+    subtotal: parseFloat(subtotal.toFixed(2)),
     complexityMultiplier: multiplier,
-    total: Math.round(total * 100) / 100,
-    minimumApplied: subtotal * multiplier < MINIMUM_CHARGE
-  };
-}
-
-function getSuggestedRates(vehicleType) {
-  return {
-    perKmRate: SUGGESTED_RATES[vehicleType] || SUGGESTED_RATES.OTHER,
-    loadFee: LOAD_FEE_RANGES[vehicleType] || LOAD_FEE_RANGES.OTHER,
-    baseRate: BASE_FEE,
-    minimumCharge: MINIMUM_CHARGE
+    total: parseFloat(total.toFixed(2)),
+    minimumApplied
   };
 }
 
 module.exports = {
   calculatePrice,
-  getSuggestedRates,
-  MINIMUM_CHARGE,
-  BASE_FEE,
-  SUGGESTED_RATES,
-  LOAD_FEE_RANGES
+  validatePricingInputs
 };

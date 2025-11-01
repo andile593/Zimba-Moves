@@ -133,9 +133,10 @@ export default function Checkout() {
         total: quoteData.instantEstimate,
         baseRate: quoteData.provider?.vehicles?.find((v: any) => v.id === quoteData.vehicleId)?.baseRate || 0,
         perKmRate: quoteData.provider?.vehicles?.find((v: any) => v.id === quoteData.vehicleId)?.perKmRate || 0,
+        loadFee: quoteData.provider?.vehicles?.find((v: any) => v.id === quoteData.vehicleId)?.loadFee || 0,
         distance: quoteData.estimatedDistance,
         distanceCost: (quoteData.estimatedDistance || 0) * (quoteData.provider?.vehicles?.find((v: any) => v.id === quoteData.vehicleId)?.perKmRate || 0),
-        helpersCost: (quoteData.helpersNeeded || 0) * 150,
+        helpersCost: 0, // Helpers included at no cost
         moveType: quoteData.moveType,
         paymentMethod: "paystack"
       },
@@ -265,6 +266,17 @@ export default function Checkout() {
                     </p>
                   </div>
                 </div>
+
+                {quoteData.helpersNeeded > 0 && (
+                  <div className="pt-3 border-t">
+                    <div className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
+                      <Users className="w-4 h-4 text-green-600" />
+                      <span className="text-sm text-green-700 font-medium">
+                        {quoteData.helpersNeeded} helper{quoteData.helpersNeeded > 1 ? 's' : ''} included at no extra charge
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -495,9 +507,18 @@ export default function Checkout() {
                     R{quoteData.instantEstimate.toFixed(2)}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 mb-4">
                   Final price may vary based on actual conditions
                 </p>
+                
+                {quoteData.helpersNeeded > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                    <p className="text-xs text-green-700 flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      {quoteData.helpersNeeded} helper{quoteData.helpersNeeded > 1 ? 's' : ''} included at no extra cost
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Security Badge */}

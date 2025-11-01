@@ -1,4 +1,3 @@
-// backend/controllers/quoteController.js - UPDATED with RAS Pricing Model
 
 const { PrismaClient } = require('@prisma/client');
 const axios = require('axios');
@@ -56,7 +55,6 @@ async function calculateDistance(pickup, dropoff) {
   }
 }
 
-// Create quote with RAS Logistics Pricing Model
 exports.createQuote = async (req, res) => {
   try {
     if (req.user.role !== 'CUSTOMER') {
@@ -140,9 +138,6 @@ exports.createQuote = async (req, res) => {
       distanceData = await calculateDistance(pickup, dropoff);
     }
 
-    // **RAS LOGISTICS PRICING MODEL CALCULATION**
-    // Formula: Base Fee + (Distance × Rate/km) + Load Fee + Helpers
-    // Minimum charge: R400
     
     const baseRate = parseFloat(vehicle.baseRate) || 250;
     const perKmRate = parseFloat(vehicle.perKmRate) || 0;
@@ -164,14 +159,11 @@ exports.createQuote = async (req, res) => {
       });
     }
 
-    // Calculate price using RAS Pricing Model
     const pricing = calculatePrice({
       distance: distanceData.distance,
       baseRate: baseRate,
       perKmRate: perKmRate,
       loadFee: loadFee,
-      helpersCount: helpersCount,
-      helperRate: 150,
       moveType: moveType
     });
 
@@ -181,7 +173,8 @@ exports.createQuote = async (req, res) => {
       baseRate: pricing.baseRate,
       distanceCost: pricing.distanceCost,
       loadFee: pricing.loadFee,
-      helpersCost: pricing.helpersCost,
+      helpersCost: pricing.helpersCost, 
+      helpersCount, 
       subtotal: pricing.subtotal,
       multiplier: pricing.complexityMultiplier,
       total: pricing.total,
@@ -240,12 +233,12 @@ exports.createQuote = async (req, res) => {
         baseRate: pricing.baseRate,
         distanceCost: pricing.distanceCost,
         loadFee: pricing.loadFee,
-        helpersCost: pricing.helpersCost,
+        helpersCost: 0,
         subtotal: pricing.subtotal,
         complexityMultiplier: pricing.complexityMultiplier,
         total: pricing.total,
         minimumApplied: pricing.minimumApplied,
-        formula: `R${pricing.baseRate} (base) + R${pricing.distanceCost} (${distanceData.distance}km) + R${pricing.loadFee} (load) ${helpersCount > 0 ? `+ R${pricing.helpersCost} (${helpersCount} helpers)` : ''} × ${pricing.complexityMultiplier} (${moveType}) = R${pricing.total}`
+        formula: `R${pricing.baseRate} (base) + R${pricing.distanceCost} (${distanceData.distance}km) + R${pricing.loadFee} (load) × ${pricing.complexityMultiplier} (${moveType}) = R${pricing.total}${helpersCount > 0 ? ` | ${helpersCount} helper(s) included` : ''}`
       },
       message: 'Quote created successfully using RAS Logistics Pricing Model'
     });

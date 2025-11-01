@@ -14,13 +14,14 @@ import {
   Info,
   Phone,
   Mail,
+  Calendar,
 } from "lucide-react";
 import { useProvider } from "@/hooks/useProvider";
 import LoadingScreen from "@/components/LoadingScreen/Loading";
 import ErrorScreen from "@/components/ErrorScreen";
 import { getVehicleImageUrl } from "../../utils/imageUtils";
 
-export default function EnhancedProviderDetail() {
+export default function ProviderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
@@ -29,11 +30,11 @@ export default function EnhancedProviderDetail() {
 
   const user = provider?.user;
 
- if (isLoading) {
+  if (isLoading) {
     return <LoadingScreen />;
   }
 
- if (isError || !provider) {
+  if (isError || !provider) {
     return <ErrorScreen navigate={navigate} />;
   }
 
@@ -52,7 +53,15 @@ export default function EnhancedProviderDetail() {
       : `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
         "Professional Mover";
 
-        const heroImageUrl = getVehicleImageUrl(provider.vehicles?.[0]);
+  const heroImageUrl = getVehicleImageUrl(provider.vehicles?.[0]);
+
+  const handleBookNow = () => {
+    navigate(
+      `/quote-request?providerId=${provider.id}${
+        selectedVehicle ? `&vehicleId=${selectedVehicle}` : ""
+      }`
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 sm:pb-8">
@@ -87,7 +96,7 @@ export default function EnhancedProviderDetail() {
           <div className="flex flex-col sm:flex-row items-center sm:items-center gap-6">
             {/* Provider Avatar with Vehicle Image */}
             <div className="w-35 h-24 sm:w-50 sm:h-35 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center overflow-hidden shadow-xl flex-shrink-0 border-4 border-white/30">
-             {heroImageUrl ? (
+              {heroImageUrl ? (
                 <img
                   src={heroImageUrl}
                   alt={`${provider.user?.firstName || "Provider"}'s Vehicle`}
@@ -312,7 +321,7 @@ export default function EnhancedProviderDetail() {
                       packing to make your move easier and faster.
                     </p>
                     <span className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
-                      Helpers Available - R150/helper
+                      Helpers Available - at no extra cost.
                     </span>
                   </div>
                 </div>
@@ -381,33 +390,14 @@ export default function EnhancedProviderDetail() {
                 )}
               </div>
 
-              <div className="space-y-3">
-                <button
-                  onClick={() =>
-                    navigate(
-                      `/quote-request?providerId=${provider.id}${
-                        selectedVehicle ? `&vehicleId=${selectedVehicle}` : ""
-                      }`
-                    )
-                  }
-                  className="block w-full text-center border-2 border-green-600 text-green-600 py-3 rounded-xl font-semibold hover:bg-green-50 transition"
-                >
-                  Get Free Quote
-                </button>
-
-                <button
-                  onClick={() =>
-                    navigate(
-                      `/quote-request?providerId=${provider.id}${
-                        selectedVehicle ? `&vehicleId=${selectedVehicle}` : ""
-                      }`
-                    )
-                  }
-                  className="block w-full text-center bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition shadow-lg"
-                >
-                  Book Now
-                </button>
-              </div>
+              {/* Single Book Now Button */}
+              <button
+                onClick={handleBookNow}
+                className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition shadow-lg hover:shadow-xl"
+              >
+                <Calendar className="w-5 h-5" />
+                Book Now
+              </button>
 
               <div className="mt-6 pt-6 border-t space-y-3 text-sm">
                 <div className="flex items-center gap-3 text-gray-600">
@@ -441,32 +431,15 @@ export default function EnhancedProviderDetail() {
             </p>
           </div>
         )}
-        <div className="flex gap-3">
-          <button
-            onClick={() =>
-              navigate(
-                `/quote-request?providerId=${provider.id}${
-                  selectedVehicle ? `&vehicleId=${selectedVehicle}` : ""
-                }`
-              )
-            }
-            className="flex-1 text-center border-2 border-green-600 text-green-600 py-3 rounded-xl font-semibold hover:bg-green-50 transition"
-          >
-            Get Quote
-          </button>
-          <button
-            onClick={() =>
-              navigate(
-                `/quote-request?providerId=${provider.id}${
-                  selectedVehicle ? `&vehicleId=${selectedVehicle}` : ""
-                }`
-              )
-            }
-            className="flex-1 text-center bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition shadow-lg"
-          >
-            Book Now
-          </button>
-        </div>
+        
+        {/* Single Book Now Button for Mobile */}
+        <button
+          onClick={handleBookNow}
+          className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition shadow-lg active:scale-95"
+        >
+          <Calendar className="w-5 h-5" />
+          Book Now
+        </button>
       </div>
     </div>
   );
@@ -499,8 +472,14 @@ function VehicleCard({
     return type?.replace(/_/g, " ") || "Vehicle";
   };
 
-  const vehicleImage = vehicle.files?.[0]?.url;
-  const imageUrl = getVehicleImageUrl(vehicleImage);
+  const imageUrl = getVehicleImageUrl(vehicle);
+
+  const handleBookVehicle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(
+      `/quote-request?providerId=${providerId}&vehicleId=${vehicle.id}`
+    );
+  };
 
   return (
     <div
@@ -542,7 +521,7 @@ function VehicleCard({
             </div>
             <div className="flex-1">
               <h4 className="font-bold text-gray-800 text-lg mb-1">
-                {getVehicleTypeLabel(vehicle.make)} {getVehicleTypeLabel(vehicle.model)}
+                {vehicle.make} {vehicle.model}
               </h4>
               <p className="text-sm text-gray-600">Plate: {vehicle.plate}</p>
             </div>
@@ -584,30 +563,14 @@ function VehicleCard({
           </div>
         </div>
 
-        <div className="flex gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(
-                `/quote-request?providerId=${providerId}&vehicleId=${vehicle.id}`
-              );
-            }}
-            className="flex-1 text-center border border-green-600 text-green-600 rounded-lg py-2.5 text-sm font-medium hover:bg-green-50 transition"
-          >
-            Get Quote
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(
-                `/checkout?providerId=${providerId}&vehicleId=${vehicle.id}`
-              );
-            }}
-            className="flex-1 text-center bg-green-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-green-700 transition"
-          >
-            Book Now
-          </button>
-        </div>
+        {/* Single Book Now Button */}
+        <button
+          onClick={handleBookVehicle}
+          className="w-full flex items-center justify-center gap-2 bg-green-600 text-white rounded-lg py-3 text-sm font-semibold hover:bg-green-700 transition shadow-md hover:shadow-lg"
+        >
+          <Calendar className="w-4 h-4" />
+          Book This Vehicle
+        </button>
       </div>
     </div>
   );

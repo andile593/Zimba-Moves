@@ -91,7 +91,7 @@ export default function QuoteRequest() {
     return () => clearTimeout(debounceTimer);
   }, [pickup, dropoff]);
 
-  // Calculate instant estimate
+  // Calculate instant estimate (no helper charges)
   useEffect(() => {
     if (!selectedVehicleId || !distanceResult || distanceResult.status !== 'OK' || !provider?.vehicles) {
       setInstantEstimate(null);
@@ -101,9 +101,11 @@ export default function QuoteRequest() {
     const vehicle = provider.vehicles.find((v: any) => v.id === selectedVehicleId);
     if (!vehicle) return;
 
+    // Base calculation without helper charges
     let estimate = Number(vehicle.baseRate) || 0;
     estimate += distanceResult.distance * (Number(vehicle.perKmRate) || 0);
-    estimate += helpersNeeded * 150;
+    estimate += Number(vehicle.loadFee) || 0;
+    // No helper charges - they're included
 
     const complexityMultipliers = {
       APARTMENT: 1.0,
@@ -113,8 +115,14 @@ export default function QuoteRequest() {
     };
     estimate *= complexityMultipliers[moveType];
 
+    // Apply minimum charge
+    const minimumCharge = 400;
+    if (estimate < minimumCharge) {
+      estimate = minimumCharge;
+    }
+
     setInstantEstimate(Math.round(estimate * 100) / 100);
-  }, [selectedVehicleId, distanceResult, helpersNeeded, moveType, provider]);
+  }, [selectedVehicleId, distanceResult, moveType, provider]);
 
   if (!providerId) {
     return <MissingProvider navigate={navigate} />;
@@ -339,8 +347,8 @@ export default function QuoteRequest() {
                       </button>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-600 mt-2 bg-blue-50 px-3 py-2 rounded-lg">
-                    💡 R150 per helper • {provider?.includeHelpers ? "Provided by company" : "You arrange"}
+                  <p className="text-xs text-gray-600 mt-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+                    💡 Helpers included with provider at no extra cost
                   </p>
                 </div>
               </div>
@@ -440,10 +448,17 @@ export default function QuoteRequest() {
                       </span>
                     </div>
 
+                    <div className="flex justify-between py-2 border-b-2 border-gray-100">
+                      <span className="text-gray-600 font-medium">Load Fee</span>
+                      <span className="font-bold text-gray-800">
+                        R{provider?.vehicles?.find((v: any) => v.id === selectedVehicleId)?.loadFee || 0}
+                      </span>
+                    </div>
+
                     {helpersNeeded > 0 && (
                       <div className="flex justify-between py-2 border-b-2 border-gray-100">
                         <span className="text-gray-600 font-medium">Helpers ({helpersNeeded})</span>
-                        <span className="font-bold text-gray-800">R{helpersNeeded * 150}</span>
+                        <span className="font-bold text-green-600">Included</span>
                       </div>
                     )}
 
@@ -459,7 +474,7 @@ export default function QuoteRequest() {
                     <div className="flex gap-2">
                       <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                       <p className="text-xs text-blue-800 leading-relaxed">
-                        This quote is valid for 14 days. Final pricing may vary based on actual route and conditions.
+                        This quote is valid for 14 days. Final pricing may vary based on actual route and conditions. Helpers are included at no extra charge.
                       </p>
                     </div>
                   </div>
@@ -546,7 +561,3 @@ export default function QuoteRequest() {
     </div>
   );
 }
-
-
-
-
