@@ -57,12 +57,17 @@ export function useInitiatePayment() {
 
 export function useVerifyPayment() {
   const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: verifyPayment,
+    mutationFn: async ({ id }: { id: string }) => {
+      const response = await verifyPayment({ id });
+      return response.data; // ✅ return only the data object
+    },
     onMutate: () => toast.loading("Verifying payment..."),
-    onSuccess: (response, { id }) => {
+    onSuccess: (verifiedPayment, { id }) => {
       toast.dismiss();
-      const verifiedPayment = response.data;
+      console.log("✅ verifiedPayment:", verifiedPayment);
+
       toast.success("Payment verified!");
       queryClient.setQueryData(["payment", id], verifiedPayment);
       queryClient.invalidateQueries({ queryKey: ["payments"] });
@@ -75,6 +80,7 @@ export function useVerifyPayment() {
     },
   });
 }
+
 
 export function useRequestRefund() {
   const queryClient = useQueryClient();

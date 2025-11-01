@@ -18,6 +18,7 @@ import {
 import { useProvider } from "@/hooks/useProvider";
 import LoadingScreen from "@/components/LoadingScreen/Loading";
 import ErrorScreen from "@/components/ErrorScreen";
+import { getVehicleImageUrl } from "../../utils/imageUtils";
 
 export default function EnhancedProviderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -27,27 +28,6 @@ export default function EnhancedProviderDetail() {
   const { data: provider, isLoading, isError } = useProvider(id);
 
   const user = provider?.user;
-
-  const getVehicleImageUrl = (imagePath: string | undefined) => {
-    if (!imagePath) return null;
-
-    let cleanPath = imagePath.replace(/\\/g, "/");
-
-    if (cleanPath.startsWith("uploads/")) {
-      cleanPath = cleanPath.substring("uploads/".length);
-    }
-
-    const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:4000";
-
-    // URL encode the path to handle spaces and special characters
-    const encodedPath = cleanPath
-      .split("/")
-      .map((segment) => encodeURIComponent(segment))
-      .join("/");
-    const fullUrl = `${baseUrl}/uploads/${encodedPath}`;
-
-    return fullUrl;
-  };
 
  if (isLoading) {
     return <LoadingScreen />;
@@ -72,9 +52,7 @@ export default function EnhancedProviderDetail() {
       : `${user?.firstName || ""} ${user?.lastName || ""}`.trim() ||
         "Professional Mover";
 
-  // Get the primary vehicle image
-  const vehicleImage = provider.vehicles?.[0]?.files?.[0]?.url;
-  const imageUrl = getVehicleImageUrl(vehicleImage);
+        const heroImageUrl = getVehicleImageUrl(provider.vehicles?.[0]);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 sm:pb-8">
@@ -109,17 +87,21 @@ export default function EnhancedProviderDetail() {
           <div className="flex flex-col sm:flex-row items-center sm:items-center gap-6">
             {/* Provider Avatar with Vehicle Image */}
             <div className="w-35 h-24 sm:w-50 sm:h-35 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center overflow-hidden shadow-xl flex-shrink-0 border-4 border-white/30">
-              {imageUrl ? (
+             {heroImageUrl ? (
                 <img
-                  src={imageUrl}
+                  src={heroImageUrl}
                   alt={`${provider.user?.firstName || "Provider"}'s Vehicle`}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    console.error("Image load error for:", imageUrl);
+                    console.error("Hero image failed to load:", heroImageUrl);
                     (e.target as HTMLImageElement).style.display = "none";
                   }}
                 />
-              ) : null}
+              ) : (
+                <div className="w-16 h-16 bg-white/30 rounded-full flex items-center justify-center">
+                  <Truck className="w-10 h-10 text-white" />
+                </div>
+              )}
             </div>
 
             {/* Provider Info */}

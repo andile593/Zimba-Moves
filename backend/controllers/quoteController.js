@@ -1,6 +1,9 @@
+// backend/controllers/quoteController.js - UPDATED with RAS Pricing Model
+
 const { PrismaClient } = require('@prisma/client');
 const axios = require('axios');
 const prisma = new PrismaClient();
+const { calculatePrice, validatePricingInputs } = require('../utils/pricingCalculator');
 
 // Function for distance calculation using Google Maps API
 async function calculateDistance(pickup, dropoff) {
@@ -9,7 +12,6 @@ async function calculateDistance(pickup, dropoff) {
     
     if (!apiKey) {
       console.warn('GOOGLE_MAPS_API_KEY not configured, using fallback calculation');
-      // Fallback to random distance if API key not configured
       return {
         distance: Math.floor(Math.random() * 20) + 1,
         duration: Math.floor(Math.random() * 60) + 10,
@@ -35,8 +37,8 @@ async function calculateDistance(pickup, dropoff) {
       const element = data.rows[0].elements[0];
       
       return {
-        distance: parseFloat((element.distance.value / 1000).toFixed(2)), // km
-        duration: Math.round(element.duration.value / 60), // minutes
+        distance: parseFloat((element.distance.value / 1000).toFixed(2)),
+        duration: Math.round(element.duration.value / 60),
         distanceText: element.distance.text,
         durationText: element.duration.text
       };
@@ -45,7 +47,6 @@ async function calculateDistance(pickup, dropoff) {
     throw new Error('Unable to calculate distance from Google Maps');
   } catch (error) {
     console.error('Distance calculation error:', error.message);
-    // Fallback to estimated distance
     return {
       distance: Math.floor(Math.random() * 20) + 1,
       duration: Math.floor(Math.random() * 60) + 10,
@@ -55,7 +56,7 @@ async function calculateDistance(pickup, dropoff) {
   }
 }
 
-// Create quote (CUSTOMER only, checks vehicle availability)
+// Create quote with RAS Logistics Pricing Model
 exports.createQuote = async (req, res) => {
   try {
     if (req.user.role !== 'CUSTOMER') {
@@ -76,14 +77,12 @@ exports.createQuote = async (req, res) => {
       durationText
     } = req.body;
 
-    // Validate required fields
     if (!providerId || !vehicleId || !pickup || !dropoff || !moveType || !dateTime) {
       return res.status(400).json({ 
         error: 'Missing required fields: providerId, vehicleId, pickup, dropoff, moveType, dateTime' 
       });
     }
 
-    // Ensure provider & vehicle exist
     const provider = await prisma.provider.findUnique({ 
       where: { id: providerId },
       include: { user: true }
@@ -105,14 +104,13 @@ exports.createQuote = async (req, res) => {
 
     const requestedDate = new Date(dateTime);
 
-    // Validate date is in the future
     if (requestedDate < new Date()) {
       return res.status(400).json({ 
         error: 'Booking date must be in the future' 
       });
     }
 
-    // Check vehicle availability (no overlapping bookings)
+    // Check vehicle availability
     const overlappingBooking = await prisma.booking.findFirst({
       where: {
         vehicleId,
@@ -132,7 +130,6 @@ exports.createQuote = async (req, res) => {
     // Calculate or use provided distance
     let distanceData;
     if (estimatedDistance && estimatedDistance > 0) {
-      // Use distance provided from frontend (already calculated)
       distanceData = {
         distance: parseFloat(estimatedDistance),
         duration: estimatedDuration || 0,
@@ -140,34 +137,58 @@ exports.createQuote = async (req, res) => {
         durationText: durationText || 'Estimated'
       };
     } else {
-      // Calculate distance server-side
       distanceData = await calculateDistance(pickup, dropoff);
     }
 
-    // Pricing calculation based on vehicle rates
-    const baseRate = parseFloat(vehicle.baseRate) || 0;
+    // **RAS LOGISTICS PRICING MODEL CALCULATION**
+    // Formula: Base Fee + (Distance × Rate/km) + Load Fee + Helpers
+    // Minimum charge: R400
+    
+    const baseRate = parseFloat(vehicle.baseRate) || 250;
     const perKmRate = parseFloat(vehicle.perKmRate) || 0;
-    const helperRate = 150; // R150 per helper as per frontend
-    const helpers = parseInt(helpersNeeded) || 0;
+    const loadFee = parseFloat(vehicle.loadFee) || 150;
+    const helpersCount = parseInt(helpersNeeded) || 0;
+    
+    // Validate pricing inputs
+    const validation = validatePricingInputs({
+      distance: distanceData.distance,
+      perKmRate,
+      baseRate,
+      loadFee
+    });
 
-    // Calculate base cost
-    let instantEstimate = baseRate + (distanceData.distance * perKmRate) + (helpers * helperRate);
+    if (!validation.valid) {
+      return res.status(400).json({ 
+        error: 'Invalid pricing parameters',
+        details: validation.errors 
+      });
+    }
 
-    // Apply move type complexity multiplier
-    const complexityMultipliers = {
-      APARTMENT: 1.0,
-      OFFICE: 1.3,
-      SINGLE_ITEM: 0.7,
-      OTHER: 1.0,
-    };
+    // Calculate price using RAS Pricing Model
+    const pricing = calculatePrice({
+      distance: distanceData.distance,
+      baseRate: baseRate,
+      perKmRate: perKmRate,
+      loadFee: loadFee,
+      helpersCount: helpersCount,
+      helperRate: 150,
+      moveType: moveType
+    });
 
-    const multiplier = complexityMultipliers[moveType] || 1.0;
-    instantEstimate = instantEstimate * multiplier;
+    // Log pricing breakdown for debugging
+    console.log('RAS Pricing Breakdown:', {
+      vehicleId,
+      baseRate: pricing.baseRate,
+      distanceCost: pricing.distanceCost,
+      loadFee: pricing.loadFee,
+      helpersCost: pricing.helpersCost,
+      subtotal: pricing.subtotal,
+      multiplier: pricing.complexityMultiplier,
+      total: pricing.total,
+      minimumApplied: pricing.minimumApplied
+    });
 
-    // Round to 2 decimal places
-    instantEstimate = Math.round(instantEstimate * 100) / 100;
-
-    // Create the quote
+    // Create the quote with detailed pricing
     const quote = await prisma.quote.create({
       data: {
         customerId: req.user.userId,
@@ -176,8 +197,8 @@ exports.createQuote = async (req, res) => {
         pickup,
         dropoff,
         moveType,
-        helpersRequired: helpers,
-        instantEstimate,
+        helpersRequired: helpersCount,
+        instantEstimate: pricing.total,
         status: 'DRAFT',
         dateTime: requestedDate,
         distance: distanceData.distance,
@@ -212,9 +233,21 @@ exports.createQuote = async (req, res) => {
       }
     });
 
+    // Include pricing breakdown in response
     res.status(201).json({
       ...quote,
-      message: 'Quote created successfully'
+      pricingBreakdown: {
+        baseRate: pricing.baseRate,
+        distanceCost: pricing.distanceCost,
+        loadFee: pricing.loadFee,
+        helpersCost: pricing.helpersCost,
+        subtotal: pricing.subtotal,
+        complexityMultiplier: pricing.complexityMultiplier,
+        total: pricing.total,
+        minimumApplied: pricing.minimumApplied,
+        formula: `R${pricing.baseRate} (base) + R${pricing.distanceCost} (${distanceData.distance}km) + R${pricing.loadFee} (load) ${helpersCount > 0 ? `+ R${pricing.helpersCost} (${helpersCount} helpers)` : ''} × ${pricing.complexityMultiplier} (${moveType}) = R${pricing.total}`
+      },
+      message: 'Quote created successfully using RAS Logistics Pricing Model'
     });
   } catch (err) {
     console.error('Create quote error:', err);
@@ -230,11 +263,9 @@ exports.getQuotes = async (req, res) => {
   try {
     let whereClause = {};
 
-    // CUSTOMER: see only their own quotes
     if (req.user.role === 'CUSTOMER') {
       whereClause.customerId = req.user.userId;
     }
-    // PROVIDER: see quotes related to them
     else if (req.user.role === 'PROVIDER') {
       const provider = await prisma.provider.findUnique({
         where: { userId: req.user.userId }
@@ -246,7 +277,6 @@ exports.getQuotes = async (req, res) => {
       
       whereClause.providerId = provider.id;
     }
-    // ADMIN: see all quotes (no filter)
 
     const quotes = await prisma.quote.findMany({
       where: whereClause,
@@ -290,7 +320,7 @@ exports.getQuotes = async (req, res) => {
   }
 };
 
-// Get quote by ID (CUSTOMER → own, PROVIDER → theirs, ADMIN → any)
+// Get quote by ID
 exports.getQuoteById = async (req, res) => {
   try {
     const quote = await prisma.quote.findUnique({
@@ -341,8 +371,6 @@ exports.getQuoteById = async (req, res) => {
       }
     }
 
-    // ADMIN can access any quote
-
     res.json(quote);
   } catch (err) {
     console.error('Get quote by ID error:', err);
@@ -353,7 +381,7 @@ exports.getQuoteById = async (req, res) => {
   }
 };
 
-// Update quote status (for providers and admins)
+// Update quote status
 exports.updateQuoteStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -375,7 +403,6 @@ exports.updateQuoteStatus = async (req, res) => {
       return res.status(404).json({ error: 'Quote not found' });
     }
 
-    // Authorization check
     if (req.user.role === 'PROVIDER') {
       const provider = await prisma.provider.findUnique({
         where: { userId: req.user.userId }

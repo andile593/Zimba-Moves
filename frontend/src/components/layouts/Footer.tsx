@@ -52,12 +52,12 @@ export default function Footer() {
         {/* Brand */}
         <div>
           <Link to='/' className="text-xl font-bold text-gray-900">
-            Zimba<span className="text-green-600">Moves</span>
+            Detravellers<span className="text-green-600"> RSA</span>
           </Link>
           <p className="italic text-sm mt-1 text-gray-500">Moving Made Simple</p>
           <p className="text-sm mt-3 text-gray-600 leading-relaxed">
-            ZimbaMoves is a marketplace connecting customers with trusted movers
-            and helpers across Zambia. Transparent quotes, verified providers,
+            Detravellers is a marketplace connecting customers with trusted movers
+            and helpers across South Africa. Transparent quotes, verified providers,
             stress-free moves.
           </p>
           <div className="flex items-center gap-3 mt-4">
@@ -119,7 +119,7 @@ export default function Footer() {
 
       {/* COPYRIGHT BAR */}
       <div className="border-t border-gray-200 py-4 text-center text-xs text-gray-500">
-        © {new Date().getFullYear()} ZimbaMoves. All Rights Reserved | Secure Payments | Verified Providers
+        © {new Date().getFullYear()} Detravellers RSA. All Rights Reserved | Secure Payments | Verified Providers
       </div>
     </footer>
   );

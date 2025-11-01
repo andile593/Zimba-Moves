@@ -734,10 +734,22 @@ exports.uploadProviderFile = async (req, res, next) => {
       ? "IMAGE"
       : "DOCUMENT";
 
-    // Save file metadata in DB
+    
+    let normalizedPath = req.file.path
+      .replace(/\\/g, '/')       .replace(/^\.\//, '')
+      .replace(/^\/+/, ''); 
+    
+   
+    if (normalizedPath.startsWith('uploads/')) {
+      normalizedPath = normalizedPath.substring('uploads/'.length);
+    }
+    
+    console.log('Original file path:', req.file.path);
+    console.log('Normalized path for DB:', normalizedPath);
+
     const file = await prisma.file.create({
       data: {
-        url: req.file.path,
+        url: normalizedPath, 
         type: fileType,
         category: category,
         providerId: providerId,
@@ -772,7 +784,6 @@ exports.getProviderFiles = async (req, res, next) => {
     });
     if (!provider) throw new ApiError(404, "Provider doesn't exist");
 
-    // Only provider owner or admin can view files
     if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId)
       throw new ApiError(403, "Forbidden");
 
@@ -805,14 +816,20 @@ exports.deleteProviderFile = async (req, res, next) => {
     if (req.user.role !== "ADMIN" && file.provider.userId !== req.user.userId)
       throw new ApiError(403, "Forbidden");
 
+    
+    const filePath = path.join(process.cwd(), 'uploads', file.url);
+    
+    console.log('Attempting to delete file at:', filePath);
+    
     // Delete file from filesystem
     try {
-      await fs.unlink(file.url);
+      await fs.unlink(filePath);
+      console.log('File deleted successfully from filesystem');
     } catch (fsErr) {
       console.error("Failed to delete file from filesystem:", fsErr);
+      
     }
 
-    // Delete from database
     await prisma.file.delete({ where: { id: fileId } });
 
     res.json({ message: "File deleted successfully" });

@@ -2,6 +2,7 @@ import type { VehicleType } from "./enums";
 import type { Booking } from "./booking";
 import type { Quote } from "./quote";
 
+
 export interface Vehicle {
   id?: string;
   providerId: string;
@@ -13,8 +14,10 @@ export interface Vehicle {
   capacity: number;
   weight: number;
   plate: string;
-  baseRate: number;
-  perKmRate?: number;
+  baseRate: number;          
+  perKmRate: number;          
+  loadFee?: number;          
+  minimumCharge?: number;      
   createdAt?: string;
   updatedAt?: string;
   bookings?: Booking[];
@@ -37,5 +40,7 @@ export type CreateVehicleInput = {
   weight: number;
   plate: string;
   baseRate: number;
-  perKmRate?: number;
+  perKmRate: number;
+  loadFee?: number;
+  minimumCharge?: number;
 };

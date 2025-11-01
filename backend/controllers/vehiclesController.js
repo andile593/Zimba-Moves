@@ -17,6 +17,7 @@ exports.addVehicle = async (req, res, next) => {
       plate,
       baseRate,
       perKmRate,
+      loadFee,
     } = req.body;
 
     const provider = await prisma.provider.findUnique({
@@ -33,6 +34,10 @@ exports.addVehicle = async (req, res, next) => {
     if (existingVehicle)
       throw new ApiError(400, "A vehicle with this plate already exists");
 
+    if (baseRate !== undefined) updateData.baseRate = parseFloat(baseRate);
+    if (perKmRate !== undefined) updateData.perKmRate = parseFloat(perKmRate);
+    if (loadFee !== undefined) updateData.loadFee = parseFloat(loadFee);
+
     const vehicle = await prisma.vehicle.create({
       data: {
         providerId,
@@ -46,6 +51,7 @@ exports.addVehicle = async (req, res, next) => {
         plate: plate.toUpperCase(),
         baseRate: parseFloat(baseRate),
         perKmRate: parseFloat(perKmRate || 0),
+        loadFee: parseFloat(loadFee),
       },
     });
 
@@ -70,6 +76,7 @@ exports.updateVehicle = async (req, res) => {
       plate,
       baseRate,
       perKmRate,
+      loadFee,
     } = req.body;
 
     const vehicle = await prisma.vehicle.findUnique({
@@ -112,7 +119,9 @@ exports.updateVehicle = async (req, res) => {
     if (plate !== undefined) updateData.plate = plate.toUpperCase();
     if (baseRate !== undefined) updateData.baseRate = parseFloat(baseRate);
     if (perKmRate !== undefined) updateData.perKmRate = parseFloat(perKmRate);
+    if (loadFee !== undefined) updateData.loadFee = parseFloat(loadFee);
 
+    
     const updatedVehicle = await prisma.vehicle.update({
       where: { id: vehicleId },
       data: updateData,

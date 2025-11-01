@@ -1,5 +1,5 @@
 import { useState, useContext, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Logo from "../../assets/Logo.svg";
 import { Menu, X, MessageCircle } from "lucide-react";
 import { AuthContext } from "../../context/AuthContext";
@@ -55,7 +55,7 @@ export default function Navbar() {
   const sendWhatsAppMessage = () => {
     // ZimbaMoves business phone number (replace with actual number)
     const phoneNumber = "27732499844"; // Format: country code + number (no + or spaces)
-    
+
     const message = `Hi ZimbaMoves! 
 
 I would like to request a quote for moving services.
@@ -66,9 +66,9 @@ Thank you!`;
 
     const encodedMessage = encodeURIComponent(message);
     const url = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
-    
+
     window.open(url, "_blank");
-    
+
     if (isOpen) toggleMenu();
   };
 
@@ -117,9 +117,9 @@ Thank you!`;
 
   const authButtons: ButtonConfig[] = isAuthenticated
     ? [
-        { 
-          label: "Get Quote", 
-          onClick: sendWhatsAppMessage, 
+        {
+          label: "Get Quote",
+          onClick: sendWhatsAppMessage,
           type: "whatsapp",
         },
         { label: "Logout", onClick: () => logout?.(), type: "secondary" },
@@ -132,10 +132,12 @@ Thank you!`;
   const renderButton = (btn: ButtonConfig) => {
     const baseClasses =
       "px-5 py-2 rounded-md transition-all w-auto text-center flex items-center justify-center gap-2";
-    const primary = "bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg";
+    const primary =
+      "bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg";
     const secondary =
       "border border-green-600 text-green-600 hover:bg-green-50";
-    const whatsapp = "bg-[#00a63e] text-white hover:bg-[#20BA5A] shadow-md hover:shadow-lg";
+    const whatsapp =
+      "bg-[#00a63e] text-white hover:bg-[#20BA5A] shadow-md hover:shadow-lg";
 
     const getButtonStyle = () => {
       if (btn.type === "whatsapp") return whatsapp;
@@ -174,12 +176,9 @@ Thank you!`;
   return (
     <nav className="bg-white shadow-md px-6 py-3 flex justify-between items-center sticky top-0 z-50">
       {/* Logo */}
-      <button
-        onClick={() => handleNavClick("/")}
-        className="flex items-center gap-2"
-      >
-        <img src={Logo} alt="Logo" className="h-9 w-auto" />
-      </button>
+      <Link to="/" className="ml-4 text-2xl font-bold text-gray-900">
+        Detravellars<span className="text-green-600"> RSA</span>
+      </Link>
 
       {/* Desktop NavLinks */}
       <div className="hidden md:flex items-center gap-8 text-gray-700 text-sm font-medium">

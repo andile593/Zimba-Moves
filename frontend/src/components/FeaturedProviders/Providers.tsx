@@ -1,3 +1,5 @@
+// frontend/src/components/FeaturedProviders/Providers.tsx - UPDATED
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +13,7 @@ import {
   Phone,
 } from "lucide-react";
 import { getProviders } from "../../services/providerApi";
+import { getVehicleImageUrl } from "../../utils/imageUtils";
 import type { Provider as ProviderType } from "../../types/provider";
 
 interface ProviderWithDistance extends ProviderType {
@@ -88,7 +91,6 @@ export default function FeaturedProviders() {
     },
     staleTime: 5 * 60 * 1000,
   });
-  
 
   const calculateDistance = (
     lat1: number,
@@ -114,22 +116,18 @@ export default function FeaturedProviders() {
       return [];
     }
 
-    // If no location yet, show random providers
     if (!userLocation) {
       return [...allProviders].sort(() => Math.random() - 0.5).slice(0, 6);
     }
 
-    // Filter providers that have coordinates
     const providersWithCoords = allProviders.filter(
       (provider) => provider.latitude && provider.longitude
     );
 
-    // If no providers have coordinates, show random ones
     if (providersWithCoords.length === 0) {
       return [...allProviders].sort(() => Math.random() - 0.5).slice(0, 6);
     }
 
-    // Calculate distances
     const providersWithDistance = providersWithCoords.map(
       (provider): ProviderWithDistance => {
         const distance = calculateDistance(
@@ -146,7 +144,6 @@ export default function FeaturedProviders() {
       }
     );
 
-    // Try to get providers within 30km
     const nearbyProviders = providersWithDistance
       .filter(
         (p) =>
@@ -165,25 +162,6 @@ export default function FeaturedProviders() {
       .slice(0, 6);
   })();
 
-  const getVehicleImageUrl = (imagePath: string | undefined) => {
-  if (!imagePath) return null;
-
-  // Clean up the path - remove backslashes and normalize
-  let cleanPath = imagePath.replace(/\\/g, "/");
-
-  // If the path already includes 'uploads/', don't add it again
-  // The database stores paths like "uploads/other/filename.png"
-  const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:4000";
-  
-  // If path starts with 'uploads/', use it as-is
-  if (cleanPath.startsWith("uploads/")) {
-    return `${baseUrl}/${cleanPath}`;
-  }
-  
-  // Otherwise, assume it needs 'uploads/' prefix
-  return `${baseUrl}/uploads/${cleanPath}`;
-};
-
   if (isLoading) {
     return (
       <section className="bg-white py-12 sm:py-16 px-4">
@@ -196,7 +174,6 @@ export default function FeaturedProviders() {
     );
   }
 
-  // Only hide if we have NO providers from API at all
   if (!allProviders.length) {
     return null;
   }
@@ -284,8 +261,7 @@ export default function FeaturedProviders() {
             </div>
           ) : (
             featuredProviders.map((provider) => {
-              const vehicleImage = provider.vehicles?.[0]?.files?.[0]?.url;
-              const imageUrl = getVehicleImageUrl(vehicleImage);
+              const imageUrl = getVehicleImageUrl(provider.vehicles?.[0]);
 
               return (
                 <div
@@ -302,12 +278,11 @@ export default function FeaturedProviders() {
                         }'s Vehicle`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
+                          console.error("Image failed to load:", imageUrl);
                           (e.target as HTMLImageElement).style.display = "none";
                         }}
                       />
-                    ) : null}
-
-                    {!imageUrl && (
+                    ) : (
                       <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-lg group-hover:scale-110 transition-transform">
                         <Truck className="w-8 h-8" />
                       </div>
@@ -335,7 +310,7 @@ export default function FeaturedProviders() {
                     </h3>
 
                     {provider.user && (
-                      <div className=" flex gap-2 items-center mb-3 pb-3 border-b border-gray-100">
+                      <div className="flex gap-2 items-center mb-3 pb-3 border-b border-gray-100">
                         {provider.user.phone && (
                           <div className="flex items-center gap-2">
                             <Phone className="w-3.5 h-3.5 text-gray-400" />

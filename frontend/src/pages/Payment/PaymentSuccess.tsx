@@ -7,61 +7,51 @@ import { useBooking } from "../../hooks/useBooking";
 export default function PaymentSuccess() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [verificationStatus, setVerificationStatus] = useState<"verifying" | "success" | "error">("verifying");
+  const [verificationStatus, setVerificationStatus] = useState<
+    "verifying" | "success" | "error"
+  >("verifying");
+  const [verifiedPayment, setVerifiedPayment] = useState<any>(null);
   const hasVerified = useRef(false);
-  
+
   const reference = searchParams.get("reference");
   const bookingId = searchParams.get("bookingId");
-  
+
   const { mutate: verifyPayment, isPending } = useVerifyPayment();
-  const { data: booking, refetch: refetchBooking } = useBooking(bookingId || "");
+  const { data: booking, refetch: refetchBooking } = useBooking(
+    bookingId || ""
+  );
 
   useEffect(() => {
+    console.log("🟡 useEffect triggered with reference:", reference);
+    console.log("🟡 hasVerified:", hasVerified.current);
+
     if (!reference || hasVerified.current) {
-      if (!reference) {
-        setVerificationStatus("error");
-      }
+      if (!reference) setVerificationStatus("error");
       return;
     }
 
     hasVerified.current = true;
+    console.log("🟢 Calling verifyPayment now...");
 
-    // Verify the payment
     verifyPayment(
       { id: reference },
       {
-        onSuccess: async () => {
-          console.log("Payment verified successfully");
-          setVerificationStatus("success");
-          
-          // Refetch booking in background (don't wait for it)
-          if (bookingId) {
-            refetchBooking().catch(err => {
-              console.error("Error refetching booking:", err);
-            });
-          }
-        },
-        onError: (error: any) => {
-          console.error("Payment verification error:", error);
-          
-          // If it's a 409 conflict, the payment was already verified
-          if (error?.response?.status === 409) {
-            console.log("Payment already verified, treating as success");
+        onSuccess: (verifiedPayment) => {
+          console.log("✅ onSuccess fired:", verifiedPayment);
+
+          if (verifiedPayment?.status === "PAID") {
             setVerificationStatus("success");
-            
-            // Refetch booking in background
-            if (bookingId) {
-              refetchBooking().catch(err => {
-                console.error("Error refetching booking:", err);
-              });
-            }
           } else {
             setVerificationStatus("error");
           }
         },
+        onError: (error) => {
+          console.error("❌ Verification error:", error);
+          setVerificationStatus("error");
+        },
       }
     );
-  }, [reference, verifyPayment, bookingId, refetchBooking]);
+  }, [reference, verifyPayment]);
 
   // Verifying state
   if (verificationStatus === "verifying" || isPending) {
@@ -73,8 +63,12 @@ export default function PaymentSuccess() {
               <Loader2 className="w-12 h-12 text-white animate-spin" />
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Verifying Payment</h2>
-          <p className="text-gray-600">Please wait while we confirm your payment...</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Verifying Payment
+          </h2>
+          <p className="text-gray-600">
+            Please wait while we confirm your payment...
+          </p>
         </div>
       </div>
     );
@@ -86,13 +80,26 @@ export default function PaymentSuccess() {
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-white flex items-center justify-center px-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-md border border-red-100">
           <div className="w-20 h-20 bg-gradient-to-br from-red-400 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-            <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-10 h-10 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment Verification Failed</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Payment Verification Failed
+          </h2>
           <p className="text-gray-600 mb-8">
-            We couldn't verify your payment. Please contact support if you were charged.
+            We couldn't verify your payment. Please contact support if you were
+            charged.
           </p>
           <div className="space-y-3">
             <button
@@ -126,11 +133,13 @@ export default function PaymentSuccess() {
         </div>
 
         {/* Success Message */}
-        <h2 className="text-3xl font-bold text-gray-900 mb-3">Payment Successful!</h2>
+        <h2 className="text-3xl font-bold text-gray-900 mb-3">
+          Payment Successful!
+        </h2>
         <p className="text-gray-600 mb-2">
           Your payment has been processed successfully.
         </p>
-        
+
         {booking && (
           <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-6 mb-8 border border-green-100">
             <div className="flex items-center justify-between mb-4">
@@ -156,7 +165,9 @@ export default function PaymentSuccess() {
         <div className="space-y-3">
           {bookingId && (
             <button
-              onClick={() => navigate(`/bookings/${bookingId}`, { replace: true })}
+              onClick={() =>
+                navigate(`/bookings/${bookingId}`, { replace: true })
+              }
               className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 active:from-green-800 active:to-green-900 transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
             >
               <FileText className="w-5 h-5" />
@@ -164,7 +175,7 @@ export default function PaymentSuccess() {
               <ArrowRight className="w-5 h-5" />
             </button>
           )}
-          
+
           <button
             onClick={() => navigate("/bookings", { replace: true })}
             className="w-full bg-white text-gray-700 px-6 py-4 rounded-xl font-semibold hover:bg-gray-50 transition-all border border-gray-200 flex items-center justify-center gap-2"

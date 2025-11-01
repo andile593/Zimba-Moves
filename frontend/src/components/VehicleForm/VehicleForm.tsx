@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -6,19 +7,16 @@ import {
   X, 
   Image as ImageIcon, 
   Info, 
-  Calendar,
-  Palette,
-  Hash,
-  Weight,
-  Box,
   DollarSign,
-  Route,
-  Sparkles
+  Box,
+  Sparkles,
+  AlertCircle
 } from "lucide-react";
 import FileUpload from "../FileUpload/FileUpload";
 import { uploadProviderFile } from "../../services/providerFileUploadApi";
 import api from "../../services/axios";
 import type { CreateVehicleInput, Vehicle } from "../../types/vehicle";
+import type { VehicleType } from "../../types/enums";
 
 interface VehicleFormProps {
   providerId: string;
@@ -28,6 +26,23 @@ interface VehicleFormProps {
 
 type VehiclePayload = Omit<CreateVehicleInput, "providerId">;
 
+// Suggested rates based on RAS Logistics Pricing Model
+interface RateInfo {
+  perKm: number;
+  loadFee: number;
+  label: string;
+}
+
+const SUGGESTED_RATES: Record<VehicleType, RateInfo> = {
+  SMALL_VAN: { perKm: 9, loadFee: 150, label: "R9/km (Light moves)" },
+  MEDIUM_TRUCK: { perKm: 18, loadFee: 200, label: "R18/km (Household/Office)" },
+  LARGE_TRUCK: { perKm: 25, loadFee: 300, label: "R25/km (Large moves)" },
+  OTHER: { perKm: 12, loadFee: 150, label: "R12/km (Standard)" }
+};
+
+const BASE_RATE = 250;
+const MINIMUM_CHARGE = 400;
+
 export default function VehicleForm({
   providerId,
   onClose,
@@ -36,7 +51,7 @@ export default function VehicleForm({
   const queryClient = useQueryClient();
   const isEditing = !!existingVehicle;
 
-  const [formData, setFormData] = useState<VehiclePayload>({
+  const [formData, setFormData] = useState<VehiclePayload & { loadFee: number }>({
     make: existingVehicle?.make || "",
     model: existingVehicle?.model || "",
     year: existingVehicle?.year || new Date().getFullYear(),
@@ -45,22 +60,22 @@ export default function VehicleForm({
     capacity: existingVehicle?.capacity || 1,
     weight: existingVehicle?.weight || 1,
     plate: existingVehicle?.plate || "",
-    baseRate: existingVehicle?.baseRate || 1,
-    perKmRate: existingVehicle?.perKmRate || 0,
+    baseRate: existingVehicle?.baseRate || BASE_RATE,
+    perKmRate: existingVehicle?.perKmRate || SUGGESTED_RATES.SMALL_VAN.perKm,
+    loadFee: (existingVehicle as any)?.loadFee || SUGGESTED_RATES.SMALL_VAN.loadFee,
   });
 
   const [vehicleImages, setVehicleImages] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
   const vehicleMutation = useMutation({
-    mutationFn: async (data: VehiclePayload) => {
+    mutationFn: async (data: VehiclePayload & { loadFee: number }) => {
       if (isEditing) {
         return api.put<Vehicle>(`/vehicles/${existingVehicle!.id}`, data);
       }
       return api.post<Vehicle>(`/providers/${providerId}/vehicles`, data);
     },
     onSuccess: async ({ data: vehicle }) => {
-      // Upload images after vehicle is created/updated
       if (vehicleImages.length > 0 && vehicle.id) {
         setIsUploading(true);
         try {
@@ -109,11 +124,22 @@ export default function VehicleForm({
       [name]:
         type === "checkbox"
           ? checked
-          : ["capacity", "weight", "baseRate", "perKmRate", "year"].includes(
-              name
-            )
+          : ["capacity", "weight", "baseRate", "perKmRate", "loadFee", "year"].includes(name)
           ? parseFloat(value) || 0
           : value,
+    }));
+  };
+
+  // Update rates when vehicle type changes
+  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newType = e.target.value as VehicleType;
+    const suggestedRates = SUGGESTED_RATES[newType] || SUGGESTED_RATES.OTHER;
+    
+    setFormData(prev => ({
+      ...prev,
+      type: newType,
+      perKmRate: suggestedRates.perKm,
+      loadFee: suggestedRates.loadFee
     }));
   };
 
@@ -159,6 +185,11 @@ export default function VehicleForm({
 
   const isLoading = vehicleMutation.isPending || isUploading;
 
+  // Calculate example pricing
+  const exampleDistance = 18;
+  const exampleTotal = formData.baseRate + (exampleDistance * formData.perKmRate) + formData.loadFee;
+  const finalTotal = Math.max(exampleTotal, MINIMUM_CHARGE);
+
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-2 sm:p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[92vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-300">
@@ -178,9 +209,7 @@ export default function VehicleForm({
                   <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-green-200 flex-shrink-0" />
                 </h2>
                 <p className="text-xs sm:text-sm text-green-100 mt-0.5 sm:mt-1 line-clamp-1">
-                  {isEditing
-                    ? "Update your vehicle information"
-                    : "Register a new vehicle to expand your fleet"}
+                  Logistics Pricing Model
                 </p>
               </div>
             </div>
@@ -196,8 +225,24 @@ export default function VehicleForm({
         </div>
 
         {/* Form Content - Scrollable */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">
           <div className="p-4 sm:p-6 md:p-8 space-y-6 sm:space-y-8">
+            {/* Pricing Model Info Banner */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-5">
+              <div className="flex items-start gap-3">
+                <Info className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
+                <div className="space-y-2">
+                  <h3 className="font-bold text-blue-900 text-lg">Logistics Pricing Formula</h3>
+                  <p className="text-sm text-blue-800">
+                    <strong>Total = Base Fee (R{BASE_RATE}) + (Distance × Rate/km) + Load Fee</strong>
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    Minimum charge: R{MINIMUM_CHARGE} per job
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Vehicle Identity Card */}
             <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 border-2 border-gray-200">
               <div className="flex items-center gap-2 mb-4 sm:mb-5">
@@ -212,8 +257,7 @@ export default function VehicleForm({
               <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
                 {/* Make */}
                 <div className="group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
-                    <Hash className="w-4 h-4 text-green-600" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2.5">
                     Make <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -229,8 +273,7 @@ export default function VehicleForm({
 
                 {/* Model */}
                 <div className="group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-green-600" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2.5">
                     Model <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -246,8 +289,7 @@ export default function VehicleForm({
 
                 {/* Year */}
                 <div className="group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-green-600" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2.5">
                     Year <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -265,8 +307,7 @@ export default function VehicleForm({
 
                 {/* Color */}
                 <div className="group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
-                    <Palette className="w-4 h-4 text-green-600" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2.5">
                     Color <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -283,28 +324,26 @@ export default function VehicleForm({
 
               {/* Vehicle Type - Full Width */}
               <div className="mt-4 sm:mt-5 group">
-                <label className="block text-sm font-semibold text-gray-700 mb-2 sm:mb-2.5 flex items-center gap-2">
-                  <Box className="w-4 h-4 text-green-600" />
+                <label className="block text-sm font-semibold text-gray-700 mb-2 sm:mb-2.5">
                   Vehicle Type <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="type"
                   value={formData.type}
-                  onChange={handleInputChange}
+                  onChange={handleTypeChange}
                   disabled={isLoading}
                   className="w-full px-3 sm:px-4 py-3 sm:py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all disabled:opacity-50 disabled:bg-gray-100 text-gray-700 font-medium group-hover:border-gray-400 cursor-pointer text-sm sm:text-base"
                 >
-                  <option value="SMALL_VAN">Small Van (Up to 3m³)</option>
-                  <option value="MEDIUM_TRUCK">Medium Truck (3-8m³)</option>
-                  <option value="LARGE_TRUCK">Large Truck (8m³+)</option>
-                  <option value="OTHER">Other</option>
+                  <option value="SMALL_VAN">Small Van (Up to 3m³) - {SUGGESTED_RATES.SMALL_VAN.label}</option>
+                  <option value="MEDIUM_TRUCK">Medium Truck (3-8m³) - {SUGGESTED_RATES.MEDIUM_TRUCK.label}</option>
+                  <option value="LARGE_TRUCK">Large Truck (8m³+) - {SUGGESTED_RATES.LARGE_TRUCK.label}</option>
+                  <option value="OTHER">Other - {SUGGESTED_RATES.OTHER.label}</option>
                 </select>
               </div>
 
               {/* License Plate - Full Width with Special Styling */}
               <div className="mt-4 sm:mt-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-2 sm:mb-2.5 flex items-center gap-2">
-                  <Hash className="w-4 h-4 text-green-600" />
+                <label className="block text-sm font-semibold text-gray-700 mb-2 sm:mb-2.5">
                   License Plate <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -324,6 +363,111 @@ export default function VehicleForm({
               </div>
             </div>
 
+            {/* Pricing Structure */}
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 border-2 border-green-200">
+              <div className="flex items-center gap-2 mb-4 sm:mb-5">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-gray-800">
+                  Pricing Structure
+                </h3>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-4 sm:gap-5">
+                {/* Base Rate (Call-out Fee) */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Base Fee (Call-out) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">R</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="baseRate"
+                      value={formData.baseRate}
+                      onChange={handleInputChange}
+                      disabled={isLoading}
+                      className="w-full text-gray-700 pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all disabled:opacity-50 disabled:bg-gray-100 font-semibold text-lg"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Standard: R{BASE_RATE}</p>
+                </div>
+
+                {/* Per KM Rate */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Rate per KM <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">R</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="perKmRate"
+                      value={formData.perKmRate}
+                      onChange={handleInputChange}
+                      disabled={isLoading}
+                      className="w-full text-gray-700 pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all disabled:opacity-50 disabled:bg-gray-100 font-semibold text-lg"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Suggested: R{SUGGESTED_RATES[formData.type]?.perKm || 12}
+                  </p>
+                </div>
+
+                {/* Load/Handling Fee */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Load/Handling Fee <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">R</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="loadFee"
+                      value={formData.loadFee}
+                      onChange={handleInputChange}
+                      disabled={isLoading}
+                      className="w-full pl-10 text-gray-700 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all disabled:opacity-50 disabled:bg-gray-100 font-semibold text-lg"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Range: R150-R300</p>
+                </div>
+              </div>
+
+              {/* Example Calculation */}
+              <div className="mt-4 sm:mt-5 bg-white rounded-xl p-3 sm:p-4 border-2 border-green-200">
+                <p className="text-sm font-semibold text-gray-700 mb-2">Example: {exampleDistance}km Trip</p>
+                <div className="space-y-1 text-sm text-gray-600">
+                  <div className="flex justify-between">
+                    <span>Base Fee:</span>
+                    <span className="font-semibold">R{formData.baseRate.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Distance ({exampleDistance}km × R{formData.perKmRate}):</span>
+                    <span className="font-semibold">R{(exampleDistance * formData.perKmRate).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Load Fee:</span>
+                    <span className="font-semibold">R{formData.loadFee.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t-2 border-gray-200 text-green-700 font-bold">
+                    <span>Total:</span>
+                    <span>R{finalTotal.toFixed(2)}</span>
+                  </div>
+                  {exampleTotal < MINIMUM_CHARGE && (
+                    <p className="text-xs text-orange-600 flex items-center gap-1 mt-2">
+                      <AlertCircle className="w-3 h-3" />
+                      Minimum charge of R{MINIMUM_CHARGE} applied
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Specifications Card */}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 border-2 border-blue-200">
               <div className="flex items-center gap-2 mb-4 sm:mb-5">
@@ -338,8 +482,7 @@ export default function VehicleForm({
               <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
                 {/* Capacity */}
                 <div className="group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
-                    <Box className="w-4 h-4 text-blue-600" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2.5">
                     Cargo Capacity (m³) <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -357,8 +500,7 @@ export default function VehicleForm({
 
                 {/* Weight */}
                 <div className="group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
-                    <Weight className="w-4 h-4 text-blue-600" />
+                  <label className="block text-sm font-semibold text-gray-700 mb-2.5">
                     Max Weight (kg) <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -373,75 +515,6 @@ export default function VehicleForm({
                   <p className="text-xs text-gray-500 mt-1.5 ml-1">Maximum payload capacity</p>
                 </div>
               </div>
-            </div>
-
-            {/* Pricing Card */}
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 border-2 border-green-200">
-              <div className="flex items-center gap-2 mb-4 sm:mb-5">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                </div>
-                <h3 className="text-lg sm:text-xl font-bold text-gray-800">
-                  Pricing Structure
-                </h3>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4 sm:gap-5">
-                {/* Base Rate */}
-                <div className="group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-green-600" />
-                    Base Rate (R) <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">R</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name="baseRate"
-                      value={formData.baseRate}
-                      onChange={handleInputChange}
-                      disabled={isLoading}
-                      className="w-full pl-10 pr-4 py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all disabled:opacity-50 disabled:bg-gray-100 text-gray-700 font-semibold text-lg group-hover:border-gray-400"
-                      placeholder="500.00"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1.5 ml-1">Starting price for the service</p>
-                </div>
-
-                {/* Per KM Rate */}
-                <div className="group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2.5 flex items-center gap-2">
-                    <Route className="w-4 h-4 text-green-600" />
-                    Per KM Rate (R)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">R</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name="perKmRate"
-                      value={formData.perKmRate}
-                      onChange={handleInputChange}
-                      disabled={isLoading}
-                      className="w-full pl-10 pr-4 py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all disabled:opacity-50 disabled:bg-gray-100 text-gray-700 font-semibold text-lg group-hover:border-gray-400"
-                      placeholder="12.50"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1.5 ml-1">Additional charge per kilometer</p>
-                </div>
-              </div>
-
-              {/* Pricing Example */}
-              {formData.baseRate > 0 && (
-                <div className="mt-4 sm:mt-5 bg-white rounded-xl p-3 sm:p-4 border-2 border-green-200">
-                  <p className="text-xs sm:text-sm font-semibold text-gray-700 mb-1 sm:mb-2">Example Pricing</p>
-                  <p className="text-xs text-gray-600">
-                    For a 50km trip: <span className="font-bold text-green-700">R{(formData.baseRate + ((formData.perKmRate || 0) * 50)).toFixed(2)}</span>
-                    <span className="text-gray-500"> (R{formData.baseRate} base + R{((formData.perKmRate || 0) * 50).toFixed(2)} distance)</span>
-                  </p>
-                </div>
-              )}
             </div>
 
             {/* Vehicle Images Card */}
@@ -533,6 +606,7 @@ export default function VehicleForm({
             </button>
             <button
               type="submit"
+              onClick={handleSubmit}
               disabled={isLoading}
               className="flex-1 px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed font-bold text-base sm:text-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
@@ -548,7 +622,7 @@ export default function VehicleForm({
               )}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
