@@ -2,6 +2,7 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const fs = require("fs").promises;
 const path = require("path");
+const { cloudinary } = require("../config/cloudinary");
 const emailService = require("../services/emailService");
 const ApiError = require("../utils/ApiError");
 
@@ -688,13 +689,19 @@ exports.uploadProviderFile = async (req, res, next) => {
     });
 
     if (!provider) {
-      await fs.unlink(req.file.path);
+      // Delete uploaded file from Cloudinary if provider doesn't exist
+      if (req.file.filename) {
+        await cloudinary.uploader.destroy(req.file.filename);
+      }
       throw new ApiError(404, "Provider does not exist");
     }
 
     // Check authorization
     if (req.user.role !== "ADMIN" && provider.userId !== req.user.userId) {
-      await fs.unlink(req.file.path);
+      // Delete uploaded file from Cloudinary
+      if (req.file.filename) {
+        await cloudinary.uploader.destroy(req.file.filename);
+      }
       throw new ApiError(403, "You can only upload files to your own profile");
     }
 
@@ -712,7 +719,10 @@ exports.uploadProviderFile = async (req, res, next) => {
     ];
 
     if (!validCategories.includes(category)) {
-      await fs.unlink(req.file.path);
+      // Delete uploaded file from Cloudinary
+      if (req.file.filename) {
+        await cloudinary.uploader.destroy(req.file.filename);
+      }
       throw new ApiError(400, "Invalid category");
     }
 
@@ -725,7 +735,10 @@ exports.uploadProviderFile = async (req, res, next) => {
       });
 
       if (!vehicle || vehicle.providerId !== providerId) {
-        await fs.unlink(req.file.path);
+        // Delete uploaded file from Cloudinary
+        if (req.file.filename) {
+          await cloudinary.uploader.destroy(req.file.filename);
+        }
         throw new ApiError(400, "Invalid vehicle ID");
       }
     }
@@ -734,22 +747,10 @@ exports.uploadProviderFile = async (req, res, next) => {
       ? "IMAGE"
       : "DOCUMENT";
 
-    
-    let normalizedPath = req.file.path
-      .replace(/\\/g, '/')       .replace(/^\.\//, '')
-      .replace(/^\/+/, ''); 
-    
-   
-    if (normalizedPath.startsWith('uploads/')) {
-      normalizedPath = normalizedPath.substring('uploads/'.length);
-    }
-    
-    console.log('Original file path:', req.file.path);
-    console.log('Normalized path for DB:', normalizedPath);
-
+    // Store Cloudinary URL (secure_url from Cloudinary)
     const file = await prisma.file.create({
       data: {
-        url: normalizedPath, 
+        url: req.file.path, // Cloudinary secure URL
         type: fileType,
         category: category,
         providerId: providerId,
@@ -757,6 +758,8 @@ exports.uploadProviderFile = async (req, res, next) => {
         status: "PENDING",
       },
     });
+
+    console.log('✓ File uploaded to Cloudinary:', req.file.path);
 
     res.status(201).json({
       message: "File uploaded successfully",
@@ -816,20 +819,35 @@ exports.deleteProviderFile = async (req, res, next) => {
     if (req.user.role !== "ADMIN" && file.provider.userId !== req.user.userId)
       throw new ApiError(403, "Forbidden");
 
-    
-    const filePath = path.join(process.cwd(), 'uploads', file.url);
-    
-    console.log('Attempting to delete file at:', filePath);
-    
-    // Delete file from filesystem
+    // Extract Cloudinary public_id from URL
     try {
-      await fs.unlink(filePath);
-      console.log('File deleted successfully from filesystem');
-    } catch (fsErr) {
-      console.error("Failed to delete file from filesystem:", fsErr);
+      // Cloudinary URLs look like: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/public_id.ext
+      const urlParts = file.url.split('/');
+      const uploadIndex = urlParts.indexOf('upload');
       
+      if (uploadIndex !== -1 && uploadIndex < urlParts.length - 1) {
+        // Get everything after 'upload/v123456789/'
+        const pathAfterUpload = urlParts.slice(uploadIndex + 2).join('/');
+        // Remove file extension
+        const publicId = pathAfterUpload.replace(/\.[^/.]+$/, '');
+        
+        console.log('Attempting to delete from Cloudinary:', publicId);
+        
+        // Delete from Cloudinary
+        const result = await cloudinary.uploader.destroy(publicId);
+        
+        if (result.result === 'ok') {
+          console.log('✓ File deleted from Cloudinary');
+        } else {
+          console.warn('⚠ Cloudinary deletion status:', result.result);
+        }
+      }
+    } catch (cloudinaryErr) {
+      console.error("Failed to delete from Cloudinary:", cloudinaryErr);
+      // Continue with database deletion even if Cloudinary fails
     }
 
+    // Delete from database
     await prisma.file.delete({ where: { id: fileId } });
 
     res.json({ message: "File deleted successfully" });

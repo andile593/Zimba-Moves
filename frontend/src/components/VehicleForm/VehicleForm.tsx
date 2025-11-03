@@ -1,16 +1,15 @@
-
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { 
-  Truck, 
-  X, 
-  Image as ImageIcon, 
-  Info, 
+import {
+  Truck,
+  X,
+  Image as ImageIcon,
+  Info,
   DollarSign,
   Box,
   Sparkles,
-  AlertCircle
+  AlertCircle,
 } from "lucide-react";
 import FileUpload from "../FileUpload/FileUpload";
 import { uploadProviderFile } from "../../services/providerFileUploadApi";
@@ -37,7 +36,7 @@ const SUGGESTED_RATES: Record<VehicleType, RateInfo> = {
   SMALL_VAN: { perKm: 9, loadFee: 150, label: "R9/km (Light moves)" },
   MEDIUM_TRUCK: { perKm: 18, loadFee: 200, label: "R18/km (Household/Office)" },
   LARGE_TRUCK: { perKm: 25, loadFee: 300, label: "R25/km (Large moves)" },
-  OTHER: { perKm: 12, loadFee: 150, label: "R12/km (Standard)" }
+  OTHER: { perKm: 12, loadFee: 150, label: "R12/km (Standard)" },
 };
 
 const BASE_RATE = 250;
@@ -51,7 +50,9 @@ export default function VehicleForm({
   const queryClient = useQueryClient();
   const isEditing = !!existingVehicle;
 
-  const [formData, setFormData] = useState<VehiclePayload & { loadFee: number }>({
+  const [formData, setFormData] = useState<
+    VehiclePayload & { loadFee: number }
+  >({
     make: existingVehicle?.make || "",
     model: existingVehicle?.model || "",
     year: existingVehicle?.year || new Date().getFullYear(),
@@ -62,7 +63,8 @@ export default function VehicleForm({
     plate: existingVehicle?.plate || "",
     baseRate: existingVehicle?.baseRate || BASE_RATE,
     perKmRate: existingVehicle?.perKmRate || SUGGESTED_RATES.SMALL_VAN.perKm,
-    loadFee: (existingVehicle as any)?.loadFee || SUGGESTED_RATES.SMALL_VAN.loadFee,
+    loadFee:
+      (existingVehicle as any)?.loadFee || SUGGESTED_RATES.SMALL_VAN.loadFee,
   });
 
   const [vehicleImages, setVehicleImages] = useState<File[]>([]);
@@ -75,19 +77,32 @@ export default function VehicleForm({
       }
       return api.post<Vehicle>(`/providers/${providerId}/vehicles`, data);
     },
+    // In the vehicleMutation.onSuccess callback, update this section:
     onSuccess: async ({ data: vehicle }) => {
       if (vehicleImages.length > 0 && vehicle.id) {
         setIsUploading(true);
         try {
-          await Promise.all(
-            vehicleImages.map((file) =>
-              uploadProviderFile(providerId, file, "BRANDING", vehicle.id!)
-            )
-          );
+          const uploadPromises = vehicleImages.map(async (file) => {
+            try {
+              const uploadedFile = await uploadProviderFile(
+                providerId,
+                file,
+                "BRANDING",
+                vehicle.id!
+              );
+              console.log("✓ Image uploaded:", uploadedFile.url);
+              return uploadedFile;
+            } catch (error) {
+              console.error("Failed to upload image:", error);
+              throw error;
+            }
+          });
+
+          await Promise.all(uploadPromises);
           toast.success(
             isEditing
-              ? "Vehicle updated with images!"
-              : "Vehicle added with images!"
+              ? `Vehicle updated with ${vehicleImages.length} image(s)!`
+              : `Vehicle added with ${vehicleImages.length} image(s)!`
           );
         } catch (error) {
           console.error("Image upload error:", error);
@@ -103,6 +118,7 @@ export default function VehicleForm({
       queryClient.invalidateQueries({
         queryKey: ["providerFiles", providerId],
       });
+      queryClient.invalidateQueries({ queryKey: ["provider", providerId] });
       onClose();
     },
     onError: (err: any) => {
@@ -124,7 +140,14 @@ export default function VehicleForm({
       [name]:
         type === "checkbox"
           ? checked
-          : ["capacity", "weight", "baseRate", "perKmRate", "loadFee", "year"].includes(name)
+          : [
+              "capacity",
+              "weight",
+              "baseRate",
+              "perKmRate",
+              "loadFee",
+              "year",
+            ].includes(name)
           ? parseFloat(value) || 0
           : value,
     }));
@@ -134,12 +157,12 @@ export default function VehicleForm({
   const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newType = e.target.value as VehicleType;
     const suggestedRates = SUGGESTED_RATES[newType] || SUGGESTED_RATES.OTHER;
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
       type: newType,
       perKmRate: suggestedRates.perKm,
-      loadFee: suggestedRates.loadFee
+      loadFee: suggestedRates.loadFee,
     }));
   };
 
@@ -187,7 +210,8 @@ export default function VehicleForm({
 
   // Calculate example pricing
   const exampleDistance = 18;
-  const exampleTotal = formData.baseRate + (exampleDistance * formData.perKmRate) + formData.loadFee;
+  const exampleTotal =
+    formData.baseRate + exampleDistance * formData.perKmRate + formData.loadFee;
   const finalTotal = Math.max(exampleTotal, MINIMUM_CHARGE);
 
   return (
@@ -197,7 +221,7 @@ export default function VehicleForm({
         <div className="bg-gradient-to-r from-green-600 via-green-600 to-emerald-600 text-white px-4 sm:px-6 md:px-8 py-4 sm:py-5 md:py-6 relative overflow-hidden flex-shrink-0">
           <div className="absolute top-0 right-0 w-32 h-32 sm:w-48 sm:h-48 md:w-64 md:h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
           <div className="absolute bottom-0 left-0 w-24 h-24 sm:w-36 sm:h-36 md:w-48 md:h-48 bg-black/10 rounded-full translate-y-1/2 -translate-x-1/2"></div>
-          
+
           <div className="relative flex items-start sm:items-center justify-between gap-3">
             <div className="flex items-start sm:items-center gap-2 sm:gap-3 md:gap-4 flex-1 min-w-0">
               <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-white/20 backdrop-blur-sm rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
@@ -205,7 +229,9 @@ export default function VehicleForm({
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-1.5 sm:gap-2">
-                  <span className="truncate">{isEditing ? "Edit Vehicle" : "Add New Vehicle"}</span>
+                  <span className="truncate">
+                    {isEditing ? "Edit Vehicle" : "Add New Vehicle"}
+                  </span>
                   <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-green-200 flex-shrink-0" />
                 </h2>
                 <p className="text-xs sm:text-sm text-green-100 mt-0.5 sm:mt-1 line-clamp-1">
@@ -232,9 +258,14 @@ export default function VehicleForm({
               <div className="flex items-start gap-3">
                 <Info className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
                 <div className="space-y-2">
-                  <h3 className="font-bold text-blue-900 text-lg">Logistics Pricing Formula</h3>
+                  <h3 className="font-bold text-blue-900 text-lg">
+                    Logistics Pricing Formula
+                  </h3>
                   <p className="text-sm text-blue-800">
-                    <strong>Total = Base Fee (R{BASE_RATE}) + (Distance × Rate/km) + Load Fee</strong>
+                    <strong>
+                      Total = Base Fee (R{BASE_RATE}) + (Distance × Rate/km) +
+                      Load Fee
+                    </strong>
                   </p>
                   <p className="text-xs text-blue-700">
                     Minimum charge: R{MINIMUM_CHARGE} per job
@@ -334,10 +365,18 @@ export default function VehicleForm({
                   disabled={isLoading}
                   className="w-full px-3 sm:px-4 py-3 sm:py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all disabled:opacity-50 disabled:bg-gray-100 text-gray-700 font-medium group-hover:border-gray-400 cursor-pointer text-sm sm:text-base"
                 >
-                  <option value="SMALL_VAN">Small Van (Up to 3m³) - {SUGGESTED_RATES.SMALL_VAN.label}</option>
-                  <option value="MEDIUM_TRUCK">Medium Truck (3-8m³) - {SUGGESTED_RATES.MEDIUM_TRUCK.label}</option>
-                  <option value="LARGE_TRUCK">Large Truck (8m³+) - {SUGGESTED_RATES.LARGE_TRUCK.label}</option>
-                  <option value="OTHER">Other - {SUGGESTED_RATES.OTHER.label}</option>
+                  <option value="SMALL_VAN">
+                    Small Van (Up to 3m³) - {SUGGESTED_RATES.SMALL_VAN.label}
+                  </option>
+                  <option value="MEDIUM_TRUCK">
+                    Medium Truck (3-8m³) - {SUGGESTED_RATES.MEDIUM_TRUCK.label}
+                  </option>
+                  <option value="LARGE_TRUCK">
+                    Large Truck (8m³+) - {SUGGESTED_RATES.LARGE_TRUCK.label}
+                  </option>
+                  <option value="OTHER">
+                    Other - {SUGGESTED_RATES.OTHER.label}
+                  </option>
                 </select>
               </div>
 
@@ -357,8 +396,9 @@ export default function VehicleForm({
                   maxLength={15}
                 />
                 <p className="text-xs text-gray-500 mt-2 flex items-center gap-1.5 ml-1">
-                  <Info className="w-3 sm:w-3.5 h-3 sm:h-3.5" /> 
-                  Enter the vehicle's registration number exactly as shown on the license disk
+                  <Info className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
+                  Enter the vehicle's registration number exactly as shown on
+                  the license disk
                 </p>
               </div>
             </div>
@@ -381,7 +421,9 @@ export default function VehicleForm({
                     Base Fee (Call-out) <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">R</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">
+                      R
+                    </span>
                     <input
                       type="number"
                       step="0.01"
@@ -392,7 +434,9 @@ export default function VehicleForm({
                       className="w-full text-gray-700 pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all disabled:opacity-50 disabled:bg-gray-100 font-semibold text-lg"
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Standard: R{BASE_RATE}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Standard: R{BASE_RATE}
+                  </p>
                 </div>
 
                 {/* Per KM Rate */}
@@ -401,7 +445,9 @@ export default function VehicleForm({
                     Rate per KM <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">R</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">
+                      R
+                    </span>
                     <input
                       type="number"
                       step="0.01"
@@ -423,7 +469,9 @@ export default function VehicleForm({
                     Load/Handling Fee <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">R</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">
+                      R
+                    </span>
                     <input
                       type="number"
                       step="0.01"
@@ -440,19 +488,29 @@ export default function VehicleForm({
 
               {/* Example Calculation */}
               <div className="mt-4 sm:mt-5 bg-white rounded-xl p-3 sm:p-4 border-2 border-green-200">
-                <p className="text-sm font-semibold text-gray-700 mb-2">Example: {exampleDistance}km Trip</p>
+                <p className="text-sm font-semibold text-gray-700 mb-2">
+                  Example: {exampleDistance}km Trip
+                </p>
                 <div className="space-y-1 text-sm text-gray-600">
                   <div className="flex justify-between">
                     <span>Base Fee:</span>
-                    <span className="font-semibold">R{formData.baseRate.toFixed(2)}</span>
+                    <span className="font-semibold">
+                      R{formData.baseRate.toFixed(2)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Distance ({exampleDistance}km × R{formData.perKmRate}):</span>
-                    <span className="font-semibold">R{(exampleDistance * formData.perKmRate).toFixed(2)}</span>
+                    <span>
+                      Distance ({exampleDistance}km × R{formData.perKmRate}):
+                    </span>
+                    <span className="font-semibold">
+                      R{(exampleDistance * formData.perKmRate).toFixed(2)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Load Fee:</span>
-                    <span className="font-semibold">R{formData.loadFee.toFixed(2)}</span>
+                    <span className="font-semibold">
+                      R{formData.loadFee.toFixed(2)}
+                    </span>
                   </div>
                   <div className="flex justify-between pt-2 border-t-2 border-gray-200 text-green-700 font-bold">
                     <span>Total:</span>
@@ -495,7 +553,9 @@ export default function VehicleForm({
                     className="w-full px-4 py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50 disabled:bg-gray-100 text-gray-700 font-medium group-hover:border-gray-400"
                     placeholder="e.g., 5.5"
                   />
-                  <p className="text-xs text-gray-500 mt-1.5 ml-1">Volume in cubic meters</p>
+                  <p className="text-xs text-gray-500 mt-1.5 ml-1">
+                    Volume in cubic meters
+                  </p>
                 </div>
 
                 {/* Weight */}
@@ -512,7 +572,9 @@ export default function VehicleForm({
                     className="w-full px-4 py-3.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50 disabled:bg-gray-100 text-gray-700 font-medium group-hover:border-gray-400"
                     placeholder="e.g., 1500"
                   />
-                  <p className="text-xs text-gray-500 mt-1.5 ml-1">Maximum payload capacity</p>
+                  <p className="text-xs text-gray-500 mt-1.5 ml-1">
+                    Maximum payload capacity
+                  </p>
                 </div>
               </div>
             </div>
@@ -573,7 +635,11 @@ export default function VehicleForm({
                   <div className="border-2 border-dashed border-purple-300 rounded-xl p-6 hover:border-purple-400 hover:bg-purple-50/50 transition-all">
                     <FileUpload
                       category="BRANDING"
-                      label={vehicleImages.length === 0 ? "Upload Vehicle Photos" : "Add More Photos"}
+                      label={
+                        vehicleImages.length === 0
+                          ? "Upload Vehicle Photos"
+                          : "Add More Photos"
+                      }
                       description={`High-quality images help attract customers (${vehicleImages.length}/5)`}
                       accept="image/*"
                       selectedFile={null}
@@ -613,12 +679,16 @@ export default function VehicleForm({
               {isLoading ? (
                 <>
                   <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span className="text-sm sm:text-base">{isUploading ? "Uploading..." : isEditing ? "Updating..." : "Adding..."}</span>
+                  <span className="text-sm sm:text-base">
+                    {isUploading
+                      ? "Uploading..."
+                      : isEditing
+                      ? "Updating..."
+                      : "Adding..."}
+                  </span>
                 </>
               ) : (
-                <>
-                  {isEditing ? "✓ Update Vehicle" : "✓ Add Vehicle"}
-                </>
+                <>{isEditing ? "✓ Update Vehicle" : "✓ Add Vehicle"}</>
               )}
             </button>
           </div>

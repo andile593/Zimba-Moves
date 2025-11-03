@@ -55,7 +55,6 @@ app.use(
   })
 );
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Initialize Passport
 app.use(passport.initialize());

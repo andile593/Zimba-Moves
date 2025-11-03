@@ -1,4 +1,3 @@
-// frontend/src/components/FeaturedProviders/Providers.tsx - UPDATED
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +12,7 @@ import {
   Phone,
 } from "lucide-react";
 import { getProviders } from "../../services/providerApi";
-import { getVehicleImageUrl } from "../../utils/imageUtils";
+import { getVehicleImageUrl, getThumbnailUrl } from "../../utils/imageUtils";
 import type { Provider as ProviderType } from "../../types/provider";
 
 interface ProviderWithDistance extends ProviderType {
@@ -261,7 +260,9 @@ export default function FeaturedProviders() {
             </div>
           ) : (
             featuredProviders.map((provider) => {
-              const imageUrl = getVehicleImageUrl(provider.vehicles?.[0]);
+              const fullImageUrl = getVehicleImageUrl(provider.vehicles?.[0]);
+              
+              const imageUrl = getThumbnailUrl(fullImageUrl);
 
               return (
                 <div
@@ -276,17 +277,28 @@ export default function FeaturedProviders() {
                         alt={`${
                           provider.user?.firstName || "Provider"
                         }'s Vehicle`}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
                         onError={(e) => {
                           console.error("Image failed to load:", imageUrl);
-                          (e.target as HTMLImageElement).style.display = "none";
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = "none";
+                          // Show fallback
+                          const fallback = target.nextElementSibling as HTMLElement;
+                          if (fallback) fallback.style.display = "flex";
                         }}
                       />
-                    ) : (
+                    ) : null}
+                    
+                    {/* Fallback icon - always render but hide if image loads */}
+                    <div 
+                      className="absolute inset-0 w-full h-full flex items-center justify-center"
+                      style={{ display: imageUrl ? 'none' : 'flex' }}
+                    >
                       <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-lg group-hover:scale-110 transition-transform">
                         <Truck className="w-8 h-8" />
                       </div>
-                    )}
+                    </div>
 
                     {provider.vehicles && provider.vehicles.length > 0 && (
                       <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-medium text-gray-700 shadow flex items-center gap-1">

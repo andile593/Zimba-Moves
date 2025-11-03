@@ -59,7 +59,11 @@ router.post(
   upload.single("file"),
   providerController.uploadProviderFile
 );
-router.get("/:id/files", authenticate, providerController.getProviderFiles);
+router.get(
+  "/:id/files", 
+  authenticate, 
+  providerController.getProviderFiles
+);
 router.delete(
   "/:id/files/:fileId",
   authenticate,
