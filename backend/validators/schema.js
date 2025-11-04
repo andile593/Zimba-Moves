@@ -45,7 +45,11 @@ exports.providerSchema = Joi.object({
 exports.vehicleSchema = Joi.object({
   make: Joi.string().required(),
   model: Joi.string().required(),
-  year: Joi.number().integer().min(1900).max(new Date().getFullYear() + 1).required(),
+  year: Joi.number()
+    .integer()
+    .min(1900)
+    .max(new Date().getFullYear() + 1)
+    .required(),
   color: Joi.string().required(),
   type: Joi.string()
     .valid("SMALL_VAN", "MEDIUM_TRUCK", "LARGE_TRUCK", "OTHER")
@@ -55,23 +59,23 @@ exports.vehicleSchema = Joi.object({
   plate: Joi.string()
     .pattern(/^[A-Z0-9 ]+$/)
     .required(),
-  
+
   baseRate: Joi.number().positive().default(250).messages({
-    'number.positive': 'Base rate must be a positive number',
-    'number.base': 'Base rate must be a number'
+    "number.positive": "Base rate must be a positive number",
+    "number.base": "Base rate must be a number",
   }),
   perKmRate: Joi.number().min(0).required().messages({
-    'number.min': 'Per km rate cannot be negative',
-    'number.base': 'Per km rate must be a number',
-    'any.required': 'Per km rate is required'
+    "number.min": "Per km rate cannot be negative",
+    "number.base": "Per km rate must be a number",
+    "any.required": "Per km rate is required",
   }),
   loadFee: Joi.number().positive().default(150).messages({
-    'number.positive': 'Load fee must be a positive number',
-    'number.base': 'Load fee must be a number'
+    "number.positive": "Load fee must be a positive number",
+    "number.base": "Load fee must be a number",
   }),
   minimumCharge: Joi.number().positive().default(400).messages({
-    'number.positive': 'Minimum charge must be a positive number',
-    'number.base': 'Minimum charge must be a number'
+    "number.positive": "Minimum charge must be a positive number",
+    "number.base": "Minimum charge must be a number",
   }),
 });
 // Booking
@@ -91,6 +95,7 @@ exports.bookingSchema = Joi.object({
     baseRate: Joi.number().min(0).required(),
     perKmRate: Joi.number().min(0).required(),
     distance: Joi.number().min(0).required(),
+    loadFee: Joi.number().optional(),
     distanceCost: Joi.number().min(0).required(),
     helpersCost: Joi.number().min(0).required(),
     moveType: Joi.string()

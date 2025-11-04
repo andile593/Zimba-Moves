@@ -23,7 +23,7 @@ export function useBookings() {
   });
 }
 
-export function useBooking(id: string) {
+export const useBooking = (id: string, options?: any) => {
   return useQuery<Booking>({
     queryKey: ["booking", id],
     queryFn: async () => {
@@ -31,8 +31,9 @@ export function useBooking(id: string) {
       return res.data;
     },
     enabled: !!id,
+    ...options, // 
   });
-}
+};
 
 // New hook for fetching bookings by provider
 export function useProviderBookings(providerId: string) {

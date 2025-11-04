@@ -17,8 +17,11 @@ import { useEffect } from "react";
 export default function BookingDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  // Fetch booking data
   const { data: booking, isLoading, error, refetch } = useBooking(id || "");
 
+  // Poll for updates when payment is pending
   useEffect(() => {
     if (booking?.paymentStatus === "PENDING") {
       const interval = setInterval(() => {
@@ -31,7 +34,7 @@ export default function BookingDetail() {
   // Helper function to get provider name
   const getProviderName = () => {
     if (booking?.provider?.user) {
-      return `${booking?.provider.user.firstName} ${booking?.provider.user.lastName}`;
+      return `${booking.provider.user.firstName} ${booking.provider.user.lastName}`;
     }
     return "N/A";
   };
@@ -82,11 +85,10 @@ export default function BookingDetail() {
       </div>
     );
   }
-  const paymentConfig = getPaymentStatusBadge(
-    booking?.paymentStatus || "PENDING"
-  );
 
-  // 🧠 Handle loading state
+  const paymentConfig = getPaymentStatusBadge(
+    booking.paymentStatus || "PENDING"
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-white pb-6">
@@ -102,14 +104,14 @@ export default function BookingDetail() {
           </button>
           <h1 className="text-2xl font-bold mb-1">Booking Details</h1>
           <p className="text-green-100 text-sm">
-            ID: {booking?.id ? booking?.id.slice(0, 12) : "N/A"}...
+            ID: {booking.id ? booking.id.slice(0, 12) : "N/A"}...
           </p>
         </div>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 mt-6 space-y-4">
         {/* Payment Status Alert - Show if payment is successful */}
-        {booking?.paymentStatus === "PAID" && (
+        {booking.paymentStatus === "PAID" && (
           <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl shadow-lg p-6 flex items-center gap-4">
             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
               <CheckCircle className="w-6 h-6" />
@@ -125,7 +127,7 @@ export default function BookingDetail() {
         )}
 
         {/* Payment Pending Alert */}
-        {booking?.paymentStatus === "PENDING" && (
+        {booking.paymentStatus === "PENDING" && (
           <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-2xl shadow-lg p-6 flex items-center gap-4">
             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 animate-pulse">
               <Loader2 className="w-6 h-6 animate-spin" />
@@ -151,22 +153,22 @@ export default function BookingDetail() {
             <h2 className="text-lg font-bold text-gray-900">Status</h2>
             <span
               className={`text-sm font-semibold px-4 py-2 rounded-full ${
-                booking?.status === "COMPLETED"
+                booking.status === "COMPLETED"
                   ? "bg-green-100 text-green-700"
-                  : booking?.status === "CONFIRMED"
+                  : booking.status === "CONFIRMED"
                   ? "bg-blue-100 text-blue-700"
-                  : booking?.status === "CANCELLED"
+                  : booking.status === "CANCELLED"
                   ? "bg-red-100 text-red-700"
                   : "bg-yellow-100 text-yellow-700"
               }`}
             >
-              {booking?.status}
+              {booking.status}
             </span>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-600">
             <Calendar className="w-4 h-4" />
             <span>
-              {new Date(booking?.dateTime).toLocaleDateString()} at{" "}
+              {new Date(booking.dateTime).toLocaleDateString()} at{" "}
               {new Date(booking.dateTime).toLocaleTimeString()}
             </span>
           </div>
@@ -188,7 +190,7 @@ export default function BookingDetail() {
                   Pickup Location
                 </div>
                 <div className="text-sm font-medium text-gray-900">
-                  {booking?.pickup}
+                  {booking.pickup}
                 </div>
               </div>
             </div>
@@ -201,7 +203,7 @@ export default function BookingDetail() {
                   Dropoff Location
                 </div>
                 <div className="text-sm font-medium text-gray-900">
-                  {booking?.dropoff}
+                  {booking.dropoff}
                 </div>
               </div>
             </div>
@@ -218,7 +220,7 @@ export default function BookingDetail() {
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">Vehicle ID</span>
               <span className="text-sm font-medium text-gray-900 font-mono">
-                {booking?.vehicleId.slice(0, 8)}...
+                {booking.vehicleId.slice(0, 8)}...
               </span>
             </div>
             <div className="flex justify-between items-center py-2">
@@ -247,21 +249,21 @@ export default function BookingDetail() {
                   return (
                     <Icon
                       className={`w-4 h-4 ${
-                        booking?.paymentStatus === "PENDING"
+                        booking.paymentStatus === "PENDING"
                           ? "animate-spin"
                           : ""
                       }`}
                     />
                   );
                 })()}
-                {booking?.paymentStatus}
+                {booking.paymentStatus}
               </span>
             </div>
             <div className="flex justify-between items-center py-2">
               <span className="text-sm text-gray-600">Amount</span>
               <span className="text-lg font-bold text-green-600">
-                {booking?.pricing?.total
-                  ? `R${booking?.pricing.total.toFixed(2)}`
+                {booking.pricing?.total
+                  ? `R${booking.pricing.total.toFixed(2)}`
                   : "N/A"}
               </span>
             </div>
@@ -293,7 +295,7 @@ export default function BookingDetail() {
 
         {/* Action Buttons */}
         <div className="space-y-3 pt-2">
-          {booking.paymentStatus !== "PAID" && booking.id && (
+          {booking.paymentStatus !== "PAID" && (
             <button
               onClick={() => navigate(`/checkout?bookingId=${booking.id}`)}
               className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 active:from-green-800 active:to-green-900 transition shadow-lg"
@@ -307,7 +309,7 @@ export default function BookingDetail() {
             onClick={() =>
               navigate("/complaint", {
                 state: {
-                  bookingId: booking.id || "",
+                  bookingId: booking.id,
                   vehicleId: booking.vehicleId,
                 },
               })
@@ -318,7 +320,7 @@ export default function BookingDetail() {
             Report a Problem
           </button>
 
-          {booking.paymentStatus === "PAID" && booking.id && (
+          {booking.paymentStatus === "PAID" && (
             <button
               onClick={() => navigate(`/payments/${booking.id}/refund`)}
               className="w-full flex items-center justify-center gap-2 bg-yellow-500 text-white px-6 py-4 rounded-xl font-semibold hover:bg-yellow-600 active:bg-yellow-700 transition shadow-lg"
