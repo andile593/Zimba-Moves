@@ -53,7 +53,7 @@ export default function Navbar() {
   };
 
   const sendWhatsAppMessage = () => {
-    const phoneNumber = "27732499844"; 
+    const phoneNumber = "27795750433"; 
 
     const message = `Hi Detravellers RSA! 
 
