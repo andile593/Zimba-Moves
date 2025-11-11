@@ -75,7 +75,7 @@ export default function Footer() {
             <li><Link to="/providers" className="hover:text-green-600">For Providers</Link></li>
             <li><Link to="/search" className="hover:text-green-600">Request A Quote</Link></li>
             <li><Link to="/signup" className="hover:text-green-600">Sign Up / Login</Link></li>
-            <li><Link to="/contact" className="hover:text-green-600">Contact Us</Link></li>
+            <li><Link to="/support" className="hover:text-green-600">Contact Us</Link></li>
           </ul>
         </FooterSection>
 

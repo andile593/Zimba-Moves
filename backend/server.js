@@ -74,6 +74,7 @@ app.use("/quotes", require("./routes/quote"));
 // Protected routes
 app.use("/bookings", authenticate, require("./routes/booking"));
 app.use("/complaints", authenticate, require("./routes/complaint"));
+app.use('/support', require('./routes/supportRoutes'))
 app.use("/admin", authenticate, require("./routes/admin"));
 app.use("/payments", authenticate, require("./routes/payments"));
 app.use("/providers", require("./routes/paymentCards"));

@@ -62,3 +62,38 @@ exports.authorize = (...roles) => {
     next();
   };
 };
+
+exports.optionalAuth = async (req, res, next) => {
+  try {
+    let token;
+
+    // Check for token in Authorization header
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    // If no token, continue without authentication
+    if (!token) {
+      console.log('No token provided - continuing as guest');
+      return next();
+    }
+
+    // If token exists, try to verify it
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Attach user to request
+      req.user = decoded;
+      console.log('User authenticated:', decoded.email);
+      next();
+    } catch (error) {
+      // Token is invalid, but continue as guest
+      console.log('Invalid token - continuing as guest');
+      next();
+    }
+  } catch (error) {
+    console.error('Error in optional auth middleware:', error);
+    next();
+  }
+};

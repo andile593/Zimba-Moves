@@ -8,18 +8,17 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 export default function PaymentSuccess() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  
+
   const reference = searchParams.get("reference");
   const bookingId = searchParams.get("bookingId");
 
-  // Automatically verify payment on mount
-  const { 
-    data: verifiedPayment, 
-    isLoading, 
+  const {
+    data: verifiedPayment,
+    isLoading,
     isError,
-    refetch: refetchVerification 
+    refetch: refetchVerification,
   } = useQuery({
-    queryKey: ['payment-verification', reference],
+    queryKey: ["payment-verification", reference],
     queryFn: async () => {
       const response = await verifyPayment({ id: reference! });
       return response.data;
@@ -31,41 +30,61 @@ export default function PaymentSuccess() {
     refetchOnWindowFocus: false,
   });
 
-  // Fetch booking details
-  const { data: booking, refetch: refetchBooking } = useBooking(bookingId || "", {
+  const {
+    data: booking,
+    refetch: refetchBooking,
+    isError: bookingError,
+  } = useBooking(bookingId || "", {
     enabled: !!bookingId,
+    retry: 2,
   });
 
-  // Poll booking status if payment is verified but booking hasn't updated
   useEffect(() => {
-    if (verifiedPayment?.status === 'PAID' && booking?.paymentStatus !== 'PAID') {
+    if (
+      verifiedPayment?.status === "PAID" &&
+      booking?.paymentStatus !== "PAID" &&
+      !bookingError
+    ) {
+      let pollCount = 0;
+      const maxPolls = 5; // Reduced to 5 attempts (15 seconds)
+
       const interval = setInterval(() => {
-        console.log('Polling booking status...');
+        pollCount++;
+        console.log(`Polling booking status... (${pollCount}/${maxPolls})`);
+
+        if (pollCount >= maxPolls) {
+          console.log("Max polling attempts reached");
+          clearInterval(interval);
+          return;
+        }
+
         refetchBooking();
-      }, 3000);
-      
+      }, 5000); // Increased to 5 seconds to reduce load
+
       return () => clearInterval(interval);
     }
-  }, [verifiedPayment?.status, booking?.paymentStatus, refetchBooking]);
+  }, [
+    verifiedPayment?.status,
+    booking?.paymentStatus,
+    bookingError,
+    refetchBooking,
+  ]);
 
   // Auto-refresh verification every 5 seconds if still pending
   useEffect(() => {
-    if (verifiedPayment?.status !== 'PAID' && !isLoading && !isError) {
+    if (verifiedPayment?.status !== "PAID" && !isLoading && !isError) {
       const interval = setInterval(() => {
-        console.log('Re-verifying payment...');
+        console.log("Re-verifying payment...");
         refetchVerification();
       }, 5000);
-      
+
       return () => clearInterval(interval);
     }
   }, [verifiedPayment?.status, isLoading, isError, refetchVerification]);
 
   // Manual refresh handler
   const handleRefresh = async () => {
-    await Promise.all([
-      refetchVerification(),
-      refetchBooking()
-    ]);
+    await Promise.all([refetchVerification(), refetchBooking()]);
   };
 
   // No reference = invalid URL
@@ -131,7 +150,7 @@ export default function PaymentSuccess() {
   }
 
   // Verification failed or payment not successful
-  if (isError || verifiedPayment?.status !== 'PAID') {
+  if (isError || verifiedPayment?.status !== "PAID") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-white flex items-center justify-center px-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-md border border-yellow-100">
@@ -145,7 +164,8 @@ export default function PaymentSuccess() {
             Your payment is being confirmed. This may take a moment.
           </p>
           <p className="text-sm text-gray-500 mb-8">
-            Don't worry, your payment was received by Paystack. We're just waiting for confirmation.
+            Don't worry, your payment was received by Paystack. We're just
+            waiting for confirmation.
           </p>
           <div className="space-y-3">
             <button
@@ -198,7 +218,7 @@ export default function PaymentSuccess() {
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">Payment Status</span>
               <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full font-semibold flex items-center gap-1">
-                {booking.paymentStatus === 'PAID' ? (
+                {booking.paymentStatus === "PAID" ? (
                   <>
                     <CheckCircle className="w-4 h-4" />
                     PAID
@@ -215,10 +235,11 @@ export default function PaymentSuccess() {
         )}
 
         {/* Show message if booking status hasn't updated yet */}
-        {booking?.paymentStatus !== 'PAID' && (
+        {booking?.paymentStatus !== "PAID" && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
             <p className="text-sm text-blue-700">
-              ℹ️ Booking status is updating. You can check the details page in a moment.
+              ℹ️ Booking status is updating. You can check the details page in a
+              moment.
             </p>
           </div>
         )}

@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useCreateComplaint } from "../../hooks/useComplaint";
 import toast from "react-hot-toast";
 import { ArrowLeft, AlertCircle } from "lucide-react";
-import type { CreateComplaintInput } from "../../types/complaint";
 
 type IssueTarget = "PROVIDER" | "HELPER" | "OTHER";
 

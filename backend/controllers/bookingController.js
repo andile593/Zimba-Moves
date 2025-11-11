@@ -33,7 +33,7 @@ exports.createBooking = async (req, res) => {
         moveType,
         dateTime: new Date(dateTime),
         helpersRequired,
-        helpersProvidedBy, // ADD THIS
+        helpersProvidedBy, 
         pricing,
       },
     });
@@ -114,7 +114,6 @@ exports.getBookings = async (req, res) => {
   }
 };
 
-// Get booking by ID (CUSTOMER → own, PROVIDER → own, ADMIN → any)
 exports.getBookingById = async (req, res) => {
   try {
     const booking = await prisma.booking.findUnique({
@@ -130,23 +129,18 @@ exports.getBookingById = async (req, res) => {
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    // Check authorization
-    if (
-      req.user.role === "CUSTOMER" &&
-      booking.customerId !== req.user.userId
-    ) {
-      return res.status(403).json({ error: "Forbidden: not your booking" });
-    }
-
-    if (req.user.role === "PROVIDER") {
-      const provider = await prisma.provider.findUnique({
-        where: { userId: req.user.userId },
-      });
-
-      if (!provider || booking.providerId !== provider.id) {
+    // Check authorization based on role
+    if (req.user.role === "CUSTOMER") {
+      if (booking.customerId !== req.user.userId) {
+        return res.status(403).json({ error: "Forbidden: not your booking" });
+      }
+    } else if (req.user.role === "PROVIDER") {
+      // Instead of a separate query, check if the provider's userId matches
+      if (booking.provider?.userId !== req.user.userId) {
         return res.status(403).json({ error: "Forbidden: not your booking" });
       }
     }
+    // ADMIN can access any booking (no check needed)
 
     res.json(booking);
   } catch (err) {

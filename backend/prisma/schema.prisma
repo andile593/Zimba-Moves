@@ -26,6 +26,8 @@ model User {
   Provider       Provider?
   Quote          Quote[]
   PasswordReset  PasswordReset[]
+  supportRequests       SupportRequest[]
+  resolvedSupportTickets SupportRequest[] @relation("SupportRequestResolver")
 }
 
 model Provider {
@@ -271,6 +273,34 @@ model File {
   vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id])
 }
 
+model SupportRequest {
+  id          String   @id @default(cuid())
+  
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  userEmail   String?
+  userName    String?
+  
+  subject     String
+  message     String   @db.Text
+  
+  status      SupportRequestStatus @default(OPEN)
+  
+  adminNotes  String?  @db.Text
+  resolvedBy  String?
+  resolver    User?    @relation("SupportRequestResolver", fields: [resolvedBy], references: [id])
+  resolvedAt  DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("support_requests")
+}
+
 enum ProviderStatus {
   PENDING
   APPROVED
@@ -292,6 +322,14 @@ enum FileCategory {
   VEHICLE_REGISTRATION_CERT
   DRIVERS_LICENSE
   OTHER
+}
+
+
+enum SupportRequestStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
 }
 
 enum FileStatus {

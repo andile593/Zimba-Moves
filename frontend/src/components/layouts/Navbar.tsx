@@ -53,10 +53,9 @@ export default function Navbar() {
   };
 
   const sendWhatsAppMessage = () => {
-    // ZimbaMoves business phone number (replace with actual number)
-    const phoneNumber = "27732499844"; // Format: country code + number (no + or spaces)
+    const phoneNumber = "27732499844"; 
 
-    const message = `Hi ZimbaMoves! 
+    const message = `Hi Detravellers RSA! 
 
 I would like to request a quote for moving services.
 
@@ -89,7 +88,7 @@ Thank you!`;
       allowedRoles: ["CUSTOMER"],
     },
     { label: "About", to: "/about" },
-    { label: "Contact", to: "/contact-support" },
+    { label: "Contact", to: "/support" },
   ];
 
   // Filter nav links based on auth, role, and provider status

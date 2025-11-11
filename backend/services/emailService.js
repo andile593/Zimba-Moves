@@ -695,6 +695,218 @@ const emailTemplates = {
       </html>
     `,
   }),
+  supportContact: (data, userInfo) => ({
+    subject: `Support Request: ${data.subject}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          ${emailStyles}
+        </head>
+        <body>
+          <div class="email-container">
+            <!-- Header -->
+            <div class="header">
+              <div class="logo">Detravellers <span style="color: #16a34a;"> RSA</span></div>
+              <h1 class="header-title">New Support Request</h1>
+            </div>
+            
+            <!-- Content -->
+            <div class="content">
+              <p class="greeting">New support request received</p>
+              
+              <p class="message">
+                A customer has submitted a support request through the contact form. Please review and respond promptly.
+              </p>
+              
+              <!-- User Info Card -->
+              <div class="info-card">
+                <h3 class="info-card-title">Contact Information</h3>
+                <div class="info-row">
+                  <span class="info-label">Name:</span>
+                  <span class="info-value">${userInfo.name || 'Guest User'}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Email:</span>
+                  <span class="info-value">${userInfo.email || 'Not provided'}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">User ID:</span>
+                  <span class="info-value">${userInfo.userId ? '#' + userInfo.userId.substring(0, 8).toUpperCase() : 'Guest'}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Submitted:</span>
+                  <span class="info-value">${new Date().toLocaleString('en-ZA', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}</span>
+                </div>
+              </div>
+              
+              <!-- Subject Card -->
+              <div class="info-card" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-color: #bfdbfe;">
+                <h3 class="info-card-title" style="color: #1e40af;">Subject</h3>
+                <p class="message" style="margin-bottom: 0; color: #1e3a8a; font-weight: 600;">
+                  ${data.subject}
+                </p>
+              </div>
+              
+              <!-- Message Card -->
+              <div class="info-card" style="background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%); border-color: #fde047;">
+                <h3 class="info-card-title" style="color: #854d0e;">Message Details</h3>
+                <p class="message" style="margin-bottom: 0; color: #713f12; white-space: pre-wrap; line-height: 1.6;">
+                  ${data.message}
+                </p>
+              </div>
+              
+              <div class="divider"></div>
+              
+              <!-- Quick Actions -->
+              <p class="message">
+                <strong>Quick Actions:</strong>
+              </p>
+              
+              <div class="cta-container" style="display: flex; gap: 12px; justify-content: center;">
+                <a href="mailto:${userInfo.email || 'support@detravellersrsa.com'}?subject=Re: ${encodeURIComponent(data.subject)}" 
+                   class="cta-button" 
+                   style="flex: 1; max-width: 200px;">
+                  Reply via Email
+                </a>
+              </div>
+              
+              <p class="message" style="margin-top: 24px; font-size: 14px; color: #6b7280;">
+                <strong>Response Guidelines:</strong><br>
+                Acknowledge receipt within 2 hours<br>
+                Provide detailed response within 24 hours<br>
+                Follow up if issue requires escalation
+              </p>
+            </div>
+            
+            <!-- Footer -->
+            <div class="footer">
+              <p class="footer-text">
+                <span class="footer-brand">Detravellers RSA</span> - Admin Notification
+              </p>
+              <p class="footer-text">
+                This is an automated notification for support staff only
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `,
+  }),
+
+  // Confirmation email to the user
+  supportContactConfirmation: (data, userInfo) => ({
+    subject: "We've Received Your Support Request - Detravellers RSA",
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          ${emailStyles}
+        </head>
+        <body>
+          <div class="email-container">
+            <!-- Header -->
+            <div class="header">
+              <div class="logo">Detravellers <span style="color: #16a34a;"> RSA</span></div>
+              <h1 class="header-title">We're Here to Help!</h1>
+            </div>
+            
+            <!-- Content -->
+            <div class="content">
+              <p class="greeting">Hi ${userInfo.name || 'there'},</p>
+              
+              <p class="message">
+                Thank you for reaching out to Detravellers RSA support! We've received your inquiry and our team is reviewing it.
+              </p>
+              
+              <!-- Info Card -->
+              <div class="info-card">
+                <h3 class="info-card-title">Your Request Details</h3>
+                <div class="info-row">
+                  <span class="info-label">Subject:</span>
+                  <span class="info-value">${data.subject}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Submitted:</span>
+                  <span class="info-value">${new Date().toLocaleString('en-ZA', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Expected Response:</span>
+                  <span class="info-value">Within 24 hours</span>
+                </div>
+              </div>
+              
+              <p class="message">
+                <strong>What happens next?</strong>
+              </p>
+              
+              <p class="message">
+                Our support team will review your inquiry<br>
+                You'll receive a detailed response via email<br>
+                For urgent matters, we may contact you directly<br>
+                Your satisfaction is our top priority
+              </p>
+              
+              <div class="divider"></div>
+              
+              <!-- Urgent Help Section -->
+              <div class="info-card" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-color: #fecaca;">
+                <h3 class="info-card-title" style="color: #991b1b;">Need Urgent Assistance?</h3>
+                <p class="message" style="margin-bottom: 12px; color: #7f1d1d;">
+                  For time-sensitive issues or emergencies:
+                </p>
+                <p class="message" style="margin-bottom: 0; color: #7f1d1d;">
+                  📞 Call our 24/7 hotline: <strong>+27 XX XXX XXXX</strong><br>
+                  💬 Use our in-app live chat for immediate support
+                </p>
+              </div>
+              
+              <!-- CTA Button -->
+              <div class="cta-container">
+                <a href="${process.env.FRONTEND_URL}/dashboard" class="cta-button">
+                  Go to Dashboard
+                </a>
+              </div>
+              
+              <p class="message" style="margin-top: 24px;">
+                We appreciate your patience and look forward to helping you!
+              </p>
+            </div>
+            
+            <!-- Footer -->
+            <div class="footer">
+              <p class="footer-text">
+                <span class="footer-brand">Detravellers RSA</span> - Making moving easier
+              </p>
+              <p class="footer-text">
+                Need to add more details? Simply reply to this email
+              </p>
+              <p class="footer-text">
+                This email was sent to ${userInfo.email}
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `,
+  }),
+
 };
 
 async function sendEmail(to, template, options = {}) {
@@ -743,6 +955,8 @@ async function sendEmail(to, template, options = {}) {
   }
 }
 
+
+
 module.exports = {
   sendEmail,
   transporter,
@@ -770,4 +984,30 @@ module.exports = {
 
   sendPasswordResetSuccessEmail: (user) =>
     sendEmail(user.email, emailTemplates.passwordResetSuccess(user)),
+
+
+
+
+
+
+
+    sendSupportContactEmail: async (data, userInfo) => {
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
+    
+    // Send to admin
+    const adminResult = await sendEmail(
+      adminEmail,
+      emailTemplates.supportContact(data, userInfo)
+    );
+    
+    // Send confirmation to user if email provided
+    if (userInfo.email) {
+      await sendEmail(
+        userInfo.email,
+        emailTemplates.supportContactConfirmation(data, userInfo)
+      );
+    }
+    
+    return adminResult;
+  },
 };

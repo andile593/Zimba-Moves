@@ -15,6 +15,7 @@ import PaymentSuccess from "../pages/Payment/PaymentSuccess";
 import BookingHistory from "../pages/Bookings";
 import BookingDetail from "../pages/Bookings/BookingDetail";
 import ComplaintForm from "../pages/Complaint";
+import ContactSupport from "../pages/ContactSupport/ContactSupport";
 import ProviderPage from "../pages/Provider/ProviderPage";
 import ProtectedProviderRoute from "../components/ProtectedProviderRoute";
 import ProviderBookings from "../pages/Provider/Bookings";
@@ -56,6 +57,7 @@ export default function AppRoutes() {
         <Route path="/search" element={<SearchResults />} />
         <Route path="/provider/:id" element={<ProviderDetail />} />
         <Route path="/complaint" element={<ComplaintForm />} />
+        <Route path="/support" element={<ContactSupport />} />
 
         {/* Protected routes that require authentication */}
         <Route element={<ProtectedRoute />}>
