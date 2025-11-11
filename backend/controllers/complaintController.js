@@ -1,14 +1,18 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// Create complaint (CUSTOMER only, must own the booking)
+
 exports.createComplaint = async (req, res) => {
   try {
+    console.log('📥 Received complaint data:', JSON.stringify(req.body, null, 2));
+    
     if (req.user.role !== 'CUSTOMER') {
       return res.status(403).json({ error: 'Only customers can create complaints' });
     }
 
     const { bookingId, plateNumber, issueTarget, description } = req.body;
+    
+    console.log('📋 Parsed fields:', { bookingId, plateNumber, issueTarget, description });
 
     // Ensure booking exists and belongs to this customer
     const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
@@ -21,15 +25,17 @@ exports.createComplaint = async (req, res) => {
       data: {
         customerId: req.user.userId,
         bookingId,
-        plateNumber,
+        plateNumber: plateNumber || null, 
         issueTarget,
         description,
         status: 'OPEN'
       }
     });
 
+    console.log('✅ Complaint created:', complaint.id);
     res.status(201).json(complaint);
   } catch (err) {
+    console.error('❌ Error creating complaint:', err);
     res.status(400).json({ error: 'Failed to create complaint', details: err.message });
   }
 };

@@ -48,7 +48,7 @@ export default function Footer() {
   return (
     <footer className="bg-white text-gray-700 border-t border-gray-200 overflow-hidden">
       {/* TOP SECTION */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {/* Brand */}
         <div>
           <Link to='/' className="text-xl font-bold text-gray-900">
@@ -73,21 +73,9 @@ export default function Footer() {
             <li><Link to="/" className="hover:text-green-600">Home</Link></li>
             <li><Link to="/#how-it-works" className="hover:text-green-600">How It Works</Link></li>
             <li><Link to="/providers" className="hover:text-green-600">For Providers</Link></li>
-            <li><Link to="/quote-request" className="hover:text-green-600">Request A Quote</Link></li>
+            <li><Link to="/search" className="hover:text-green-600">Request A Quote</Link></li>
             <li><Link to="/signup" className="hover:text-green-600">Sign Up / Login</Link></li>
             <li><Link to="/contact" className="hover:text-green-600">Contact Us</Link></li>
-          </ul>
-        </FooterSection>
-
-        {/* Support & Legal */}
-        <FooterSection title="Support & Legal">
-          <ul className="space-y-2">
-            <li><Link to="/faq" className="hover:text-green-600">FAQ</Link></li>
-            <li><Link to="/complaint" className="hover:text-green-600">Report an Issue</Link></li>
-            <li><Link to="/safety" className="hover:text-green-600">Safety & Insurance</Link></li>
-            <li><Link to="/terms" className="hover:text-green-600">Terms Of Service</Link></li>
-            <li><Link to="/privacy" className="hover:text-green-600">Privacy Policy</Link></li>
-            <li><Link to="/provider-agreement" className="hover:text-green-600">Provider Agreement</Link></li>
           </ul>
         </FooterSection>
 

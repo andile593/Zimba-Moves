@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MapPin, Truck, Star, Filter, Loader2, ArrowLeft } from "lucide-react";
 import { getProviders } from "../../services/providerApi";
 import type { Provider } from "../../types/provider";
+import { getVehicleImageUrl } from "../../utils/imageUtils";
 
 export default function SearchResults() {
   const navigate = useNavigate();
@@ -98,25 +99,6 @@ export default function SearchResults() {
     return sorted;
   })();
 
-  
-  const getVehicleImageUrl = (imagePath: string | undefined) => {
-    if (!imagePath) return null;
-
-    let cleanPath = imagePath.replace(/\\/g, '/');
-
-    if (cleanPath.startsWith('uploads/')) {
-      cleanPath = cleanPath.substring('uploads/'.length);
-    }
-
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-    
-    // URL encode the path to handle spaces and special characters
-    const encodedPath = cleanPath.split('/').map(segment => encodeURIComponent(segment)).join('/');
-    const fullUrl = `${baseUrl}/uploads/${encodedPath}`;
-
-    return fullUrl;
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -127,6 +109,7 @@ export default function SearchResults() {
       </div>
     );
   }
+  
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -228,13 +211,9 @@ export default function SearchResults() {
             ) : (
               <div className="space-y-4">
                 {filteredProviders.map((provider: any) => {
-                  // Get vehicle image for THIS specific provider
-                  const vehicleImage = 
-                    provider.vehicles?.[0]?.files?.[0]?.url || 
-                    provider.vehicles?.[0]?.image || 
-                    provider.vehicles?.[0]?.imageUrl ||
-                    provider.vehicles?.[0]?.images?.[0];
-                  const imageUrl = getVehicleImageUrl(vehicleImage);
+                  // Get the first vehicle's image properly
+                  const firstVehicle = provider.vehicles?.[0];
+                  const imageUrl = firstVehicle ? getVehicleImageUrl(firstVehicle) : null;
 
                   return (
                     <div
@@ -244,7 +223,7 @@ export default function SearchResults() {
                     >
                       <div className="flex flex-col md:flex-row gap-6">
                         {/* Provider Image */}
-                        <div className="w-full md:w-45 h-40 bg-gradient-to-br from-green-50 to-green-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        <div className="w-full md:w-48 h-40 bg-gradient-to-br from-green-50 to-green-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                           {imageUrl ? (
                             <img
                               src={imageUrl}
@@ -254,8 +233,16 @@ export default function SearchResults() {
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 console.error("Image load error for:", imageUrl);
-                                (e.target as HTMLImageElement).style.display =
-                                  "none";
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = "none";
+                                // Show the truck icon instead
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  const truckIcon = document.createElement('div');
+                                  truckIcon.className = 'flex items-center justify-center w-full h-full';
+                                  truckIcon.innerHTML = '<svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>';
+                                  parent.appendChild(truckIcon);
+                                }
                               }}
                             />
                           ) : (
@@ -268,8 +255,9 @@ export default function SearchResults() {
                           <div className="flex items-start justify-between mb-2">
                             <div>
                               <h3 className="text-xl font-bold text-gray-800 mb-1">
-                                {`${provider.user.firstName} ${provider.user.lastName}` ||
-                                  "Professional Mover"}
+                                {provider.user?.firstName && provider.user?.lastName
+                                  ? `${provider.user.firstName} ${provider.user.lastName}`
+                                  : "Professional Mover"}
                               </h3>
                               {provider.distance && (
                                 <div className="flex items-center gap-2 text-sm text-gray-600">

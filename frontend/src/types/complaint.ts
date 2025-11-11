@@ -5,7 +5,7 @@ export interface Complaint {
   id?: string;
   customerId: string;
   bookingId: string;
-  plateNumber: string;
+  plateNumber?: string; 
   issueTarget: IssueTarget;
   description: string;
   status?: ComplaintStatus;
@@ -15,10 +15,13 @@ export interface Complaint {
 }
 
 export interface CreateComplaintInput {
-  bookingId?: string | null; 
+  bookingId: string; 
   plateNumber?: string;
   issueTarget: "PROVIDER" | "HELPER" | "OTHER";
   description: string;
-  customerId?: string;
 }
 
+export interface UpdateComplaintInput {
+  id: string;
+  status?: ComplaintStatus;
+}

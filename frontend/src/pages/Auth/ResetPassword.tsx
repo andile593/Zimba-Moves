@@ -27,7 +27,10 @@ export default function ResetPassword() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, password }),
+           body: JSON.stringify({ 
+            token, 
+            newPassword: password 
+          }),
         }
       );
 

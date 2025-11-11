@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, MapPin } from "lucide-react";
 
@@ -6,6 +6,35 @@ export default function HeroSection() {
   const navigate = useNavigate();
   const [address, setAddress] = useState("");
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+
+  // Initialize Google Maps Autocomplete
+  useEffect(() => {
+    if (!window.google?.maps?.places || !inputRef.current) {
+      console.error('Google Maps JavaScript API not loaded');
+      return;
+    }
+
+    const autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
+      componentRestrictions: { country: 'za' },
+      fields: ['formatted_address', 'geometry', 'name', 'address_components'],
+      types: ['address']
+    });
+
+    const listener = autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (place?.formatted_address) {
+        setAddress(place.formatted_address);
+      }
+    });
+
+    autocompleteRef.current = autocomplete;
+
+    return () => {
+      if (listener) google.maps.event.removeListener(listener);
+    };
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +92,7 @@ export default function HeroSection() {
           <div className="flex flex-col sm:flex-row gap-3 items-stretch">
             <div className="flex-1 relative">
               <input
+                ref={inputRef}
                 type="text"
                 placeholder="Enter your street address or suburb..."
                 value={address}
@@ -86,6 +116,10 @@ export default function HeroSection() {
             </button>
           </div>
         </form>
+
+        <p className="mt-4 text-xs text-gray-500">
+          Start typing to see address suggestions
+        </p>
       </div>
     </section>
   );

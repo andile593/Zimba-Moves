@@ -306,19 +306,20 @@ export default function BookingDetail() {
           )}
 
           <button
-            onClick={() =>
-              navigate("/complaint", {
-                state: {
-                  bookingId: booking.id,
-                  vehicleId: booking.vehicleId,
-                },
-              })
-            }
-            className="w-full flex items-center justify-center gap-2 bg-red-600 text-white px-6 py-4 rounded-xl font-semibold hover:bg-red-700 active:bg-red-800 transition shadow-lg"
-          >
-            <AlertCircle className="w-5 h-5" />
-            Report a Problem
-          </button>
+  onClick={() =>
+    navigate("/complaint", {
+      state: {
+        bookingId: booking.id,
+        providerName: getProviderName(),
+        vehicleId: booking.vehicle?.plate || "Unknown Vehicle",  // ✅ Pass the plate number, not UUID
+      },
+    })
+  }
+  className="w-full flex items-center justify-center gap-2 bg-red-600 text-white px-6 py-4 rounded-xl font-semibold hover:bg-red-700 active:bg-red-800 transition shadow-lg"
+>
+  <AlertCircle className="w-5 h-5" />
+  Report a Problem
+</button>
 
           {booking.paymentStatus === "PAID" && (
             <button

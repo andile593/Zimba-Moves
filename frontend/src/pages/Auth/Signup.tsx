@@ -298,7 +298,7 @@ export default function Signup() {
         navigate("/provider/pending", { replace: true });
       } else {
         toast.success("Account created successfully!");
-        navigate(from || "/", { replace: true });
+        navigate(from || "/login", { replace: true });
       }
     } catch (err: any) {
       console.error("Signup error:", err);

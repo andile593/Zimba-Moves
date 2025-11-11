@@ -2,10 +2,10 @@ const nodemailer = require("nodemailer");
 
 // Gmail-optimized transporter configuration
 const transporter = nodemailer.createTransport({
-  service: "gmail", 
+  service: "gmail",
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS, 
+    pass: process.env.SMTP_PASS,
   },
   host: "smtp.gmail.com",
   port: 587,
@@ -56,18 +56,15 @@ const emailStyles = `
     }
     
     .logo {
-      width: 60px;
-      height: 60px;
-      background: white;
-      border-radius: 16px;
-      margin: 0 auto 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
-      font-weight: bold;
-      color: #16a34a;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    height: 60px;
+    margin: 1px auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    gap: .2em;
+    font-weight: 700;
+    color: #000;
     }
     
     .header-title {
@@ -226,7 +223,7 @@ const emailStyles = `
 
 const emailTemplates = {
   applicationSubmitted: (provider) => ({
-    subject: "Provider Application Submitted - ZimbaMoves",
+    subject: "Provider Application Submitted - Detravellers RSA",
     html: `
       <!DOCTYPE html>
       <html>
@@ -239,16 +236,18 @@ const emailTemplates = {
           <div class="email-container">
             <!-- Header -->
             <div class="header">
-              <div class="logo">M</div>
+              <div class="logo">Detravellers <span style="color: #16a34a;"> RSA</span></div>
               <h1 class="header-title">Application Received!</h1>
             </div>
             
             <!-- Content -->
             <div class="content">
-              <p class="greeting">Hi ${provider.user.firstName} ${provider.user.lastName},</p>
+              <p class="greeting">Hi ${provider.user.firstName} ${
+      provider.user.lastName
+    },</p>
               
               <p class="message">
-                Thank you for your interest in becoming a provider on ZimbaMoves! We've successfully received your application and our team is excited to review it.
+                Thank you for your interest in becoming a provider on Detravellers RSA! We've successfully received your application and our team is excited to review it.
               </p>
               
               <p class="message">
@@ -260,19 +259,26 @@ const emailTemplates = {
                 <h3 class="info-card-title">Application Details</h3>
                 <div class="info-row">
                   <span class="info-label">Application ID:</span>
-                  <span class="info-value">#${provider.id.substring(0, 8).toUpperCase()}</span>
+                  <span class="info-value">#${provider.id
+                    .substring(0, 8)
+                    .toUpperCase()}</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">City:</span>
-                  <span class="info-value">${provider.city || "Not specified"}</span>
+                  <span class="info-value">${
+                    provider.city || "Not specified"
+                  }</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">Submitted:</span>
-                  <span class="info-value">${new Date().toLocaleDateString('en-ZA', { 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric' 
-                  })}</span>
+                  <span class="info-value">${new Date().toLocaleDateString(
+                    "en-ZA",
+                    {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    }
+                  )}</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">Expected Response:</span>
@@ -301,7 +307,7 @@ const emailTemplates = {
             <!-- Footer -->
             <div class="footer">
               <p class="footer-text">
-                <span class="footer-brand">ZimbaMoves</span> - Making moving easier
+                <span class="footer-brand">Detravellers RSA</span> - Making moving easier
               </p>
               <p class="footer-text">
                 This email was sent to ${provider.user.email}
@@ -327,16 +333,18 @@ const emailTemplates = {
           <div class="email-container">
             <!-- Header -->
             <div class="header">
-              <div class="logo">M</div>
-              <h1 class="header-title">Welcome to ZimbaMoves!</h1>
+              <div class="logo">Detravellers <span style="color: #16a34a;"> RSA</span></div>
+              <h1 class="header-title">Welcome to Detravellers RSA!</h1>
             </div>
             
             <!-- Content -->
             <div class="content">
-              <p class="greeting">Congratulations ${provider.user.firstName}! 🎊</p>
+              <p class="greeting">Congratulations ${
+                provider.user.firstName
+              }! 🎊</p>
               
               <p class="message">
-                We're thrilled to inform you that your provider application has been <strong>approved</strong>! You're now officially part of the ZimbaMoves provider network.
+                We're thrilled to inform you that your provider application has been <strong>approved</strong>! You're now officially part of the Detravellers RSA provider network.
               </p>
               
               <!-- Success Card -->
@@ -348,15 +356,19 @@ const emailTemplates = {
                 </div>
                 <div class="info-row">
                   <span class="info-label">Approved Date:</span>
-                  <span class="info-value">${new Date(provider.reviewedAt).toLocaleDateString('en-ZA', { 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric' 
+                  <span class="info-value">${new Date(
+                    provider.reviewedAt
+                  ).toLocaleDateString("en-ZA", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
                   })}</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">Service Area:</span>
-                  <span class="info-value">${provider.city || "Multiple locations"}</span>
+                  <span class="info-value">${
+                    provider.city || "Multiple locations"
+                  }</span>
                 </div>
               </div>
               
@@ -374,7 +386,9 @@ const emailTemplates = {
               
               <!-- CTA Button -->
               <div class="cta-container">
-                <a href="${process.env.FRONTEND_URL}/provider/dashboard" class="cta-button">
+                <a href="${
+                  process.env.FRONTEND_URL
+                }/provider/dashboard" class="cta-button">
                   Go to Your Dashboard
                 </a>
               </div>
@@ -393,14 +407,14 @@ const emailTemplates = {
               </p>
               
               <p class="message">
-                Welcome to the team! We're excited to see you succeed on ZimbaMoves.
+                Welcome to the team! We're excited to see you succeed on Detravellers RSA.
               </p>
             </div>
             
             <!-- Footer -->
             <div class="footer">
               <p class="footer-text">
-                <span class="footer-brand">ZimbaMoves</span> - Making moving easier
+                <span class="footer-brand">Detravellers RSA</span> - Making moving easier
               </p>
               <p class="footer-text">
                 Need help? Contact our provider support team
@@ -416,7 +430,7 @@ const emailTemplates = {
   }),
 
   applicationRejected: (provider) => ({
-    subject: "Provider Application Update - ZimbaMoves",
+    subject: "Provider Application Update - Detravellers RSA",
     html: `
       <!DOCTYPE html>
       <html>
@@ -428,8 +442,8 @@ const emailTemplates = {
         <body>
           <div class="email-container">
             <!-- Header -->
-            <div class="header" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
-              <div class="logo" style="color: #dc2626;">M</div>
+            <div class="header">
+              <div class="logo">Detravellers <span style="color: #16a34a;"> RSA</span></div>
               <h1 class="header-title">Application Update</h1>
             </div>
             
@@ -438,10 +452,12 @@ const emailTemplates = {
               <p class="greeting">Hi ${provider.user.firstName},</p>
               
               <p class="message">
-                Thank you for your interest in becoming a provider on ZimbaMoves. After careful review, we're unable to approve your application at this time.
+                Thank you for your interest in becoming a provider on Detravellers RSA. After careful review, we're unable to approve your application at this time.
               </p>
               
-              ${provider.rejectionReason ? `
+              ${
+                provider.rejectionReason
+                  ? `
                 <!-- Warning Card -->
                 <div class="warning-card">
                   <h3 class="warning-title">Reason for Decision</h3>
@@ -449,7 +465,9 @@ const emailTemplates = {
                     ${provider.rejectionReason}
                   </p>
                 </div>
-              ` : ''}
+              `
+                  : ""
+              }
               
               <p class="message">
                 <strong>What you can do:</strong>
@@ -469,7 +487,9 @@ const emailTemplates = {
               
               <!-- CTA Button -->
               <div class="cta-container">
-                <a href="${process.env.FRONTEND_URL}/become-provider" class="cta-button" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
+                <a href="${
+                  process.env.FRONTEND_URL
+                }/become-provider" class="cta-button" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
                   Learn About Requirements
                 </a>
               </div>
@@ -478,7 +498,7 @@ const emailTemplates = {
             <!-- Footer -->
             <div class="footer">
               <p class="footer-text">
-                <span class="footer-brand">ZimbaMoves</span> - Making moving easier
+                <span class="footer-brand">Detravellers RSA</span> - Making moving easier
               </p>
               <p class="footer-text">
                 Questions? Contact our support team
@@ -494,7 +514,7 @@ const emailTemplates = {
   }),
 
   passwordResetRequest: (user, resetUrl) => ({
-    subject: "Password Reset Request - ZimbaMoves",
+    subject: "Password Reset Request - Detravellers RSA",
     html: `
       <!DOCTYPE html>
       <html>
@@ -506,8 +526,8 @@ const emailTemplates = {
         <body>
           <div class="email-container">
             <!-- Header -->
-            <div class="header" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);">
-              <div class="logo" style="color: #2563eb;">M</div>
+            <div class="header"">
+              <div class="logo">Detravellers <span style="color: #16a34a;"> RSA</span></div>
               <h1 class="header-title">Reset Your Password</h1>
             </div>
             
@@ -516,25 +536,25 @@ const emailTemplates = {
               <p class="greeting">Hi ${user.firstName},</p>
               
               <p class="message">
-                We received a request to reset your password for your ZimbaMoves account. If this was you, click the button below to create a new password.
+                We received a request to reset your password for your Detravellers RSA account. If this was you, click the button below to create a new password.
               </p>
               
               <!-- CTA Button -->
               <div class="cta-container">
-                <a href="${resetUrl}" class="cta-button" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
+                <a href="${resetUrl}" class="cta-button">
                   Reset My Password
                 </a>
               </div>
               
               <!-- Info Card -->
-              <div class="info-card" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-color: #bfdbfe;">
-                <h3 class="info-card-title" style="color: #1e40af;">Important Information</h3>
-                <p class="message" style="margin-bottom: 12px; color: #1e3a8a;">
-                  This password reset link will expire in <span class="highlight" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #92400e;">15 minutes</span> for security reasons.
+              <div class="info-card">
+                <h3 class="info-card-title" >Important Information</h3>
+                <p class="message" style="margin-bottom: 12px; ">
+                  This password reset link will expire in <span class="highlight">15 minutes</span> for security reasons.
                 </p>
-                <p class="message" style="margin-bottom: 0; color: #1e3a8a;">
+                <p class="message" style="margin-bottom: 0;">
                   If the button doesn't work, copy and paste this link into your browser:<br>
-                  <span style="word-break: break-all; font-size: 12px; color: #2563eb;">${resetUrl}</span>
+                  <span class="info-label" style="word-break: break-all; font-size: 12px;">${resetUrl}</span>
                 </p>
               </div>
               
@@ -562,7 +582,7 @@ const emailTemplates = {
             <!-- Footer -->
             <div class="footer">
               <p class="footer-text">
-                <span class="footer-brand">ZimbaMoves</span> - Making moving easier
+                <span class="footer-brand">Detravellers RSA</span> - Making moving easier
               </p>
               <p class="footer-text">
                 This is an automated security email
@@ -578,7 +598,7 @@ const emailTemplates = {
   }),
 
   passwordResetSuccess: (user) => ({
-    subject: "✅ Password Successfully Reset - ZimbaMoves",
+    subject: " Password Successfully Reset - Detravellers RSA",
     html: `
       <!DOCTYPE html>
       <html>
@@ -591,7 +611,7 @@ const emailTemplates = {
           <div class="email-container">
             <!-- Header -->
             <div class="header">
-              <div class="logo">M</div>
+              <div class="logo">Detravellers <span style="color: #16a34a;"> RSA</span></div>
               <h1 class="header-title">Password Reset Successful!</h1>
             </div>
             
@@ -600,7 +620,7 @@ const emailTemplates = {
               <p class="greeting">Hi ${user.firstName},</p>
               
               <p class="message">
-                Your password has been successfully reset. You can now log in to your ZimbaMoves account using your new password.
+                Your password has been successfully reset. You can now log in to your Detravellers RSA account using your new password.
               </p>
               
               <!-- Success Card -->
@@ -612,16 +632,19 @@ const emailTemplates = {
                 </div>
                 <div class="info-row">
                   <span class="info-label">Date & Time:</span>
-                  <span class="info-value">${new Date().toLocaleString('en-ZA', { 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}</span>
+                  <span class="info-value">${new Date().toLocaleString(
+                    "en-ZA",
+                    {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }
+                  )}</span>
                 </div>
                 <div class="info-row">
-                  <span class="info-label">Account:</span>
+                  <span class="info-label">Account: </span>
                   <span class="info-value">${user.email}</span>
                 </div>
               </div>
@@ -639,7 +662,7 @@ const emailTemplates = {
               <div class="warning-card">
                 <h3 class="warning-title"> Didn't Make This Change?</h3>
                 <p class="message" style="margin-bottom: 0; color: #7f1d1d;">
-                  If you did not reset your password, your account may be compromised. Please contact our support team immediately at <strong>support@ZimbaMoves.com</strong> or call us right away.
+                  If you did not reset your password, your account may be compromised. Please contact our support team immediately at <strong>support@Detravellers RSA.com</strong> or call us right away.
                 </p>
               </div>
               
@@ -649,7 +672,7 @@ const emailTemplates = {
               
               <p class="message">
                 Keep your password confidential<br>
-                Use a unique password for ZimbaMoves<br>
+                Use a unique password for Detravellers RSA<br>
                 Enable two-factor authentication if available<br>
                 Be cautious of phishing emails
               </p>
@@ -658,7 +681,7 @@ const emailTemplates = {
             <!-- Footer -->
             <div class="footer">
               <p class="footer-text">
-                <span class="footer-brand">ZimbaMoves</span> - Making moving easier
+                <span class="footer-brand">Detravellers RSA</span> - Making moving easier
               </p>
               <p class="footer-text">
                 This is an automated security notification
@@ -678,10 +701,7 @@ async function sendEmail(to, template, options = {}) {
   try {
     // Check if SMTP is configured
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.warn(
-        "SMTP not configured. Email would have been sent to:",
-        to
-      );
+      console.warn("SMTP not configured. Email would have been sent to:", to);
       console.warn("   Subject:", template.subject);
       return { success: false, error: "SMTP not configured" };
     }
@@ -691,7 +711,7 @@ async function sendEmail(to, template, options = {}) {
     }
 
     const mailOptions = {
-      from: `"ZimbaMoves" <${process.env.SMTP_USER}>`,
+      from: `"Detravellers RSA" <${process.env.SMTP_USER}>`,
       to,
       subject: template.subject,
       html: template.html,
@@ -713,12 +733,12 @@ async function sendEmail(to, template, options = {}) {
     if (error.command) {
       console.error(`   Command: ${error.command}`);
     }
-    
-    return { 
-      success: false, 
+
+    return {
+      success: false,
       error: error.message,
       code: error.code,
-      command: error.command 
+      command: error.command,
     };
   }
 }

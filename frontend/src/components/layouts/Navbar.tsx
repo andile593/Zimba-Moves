@@ -89,7 +89,7 @@ Thank you!`;
       allowedRoles: ["CUSTOMER"],
     },
     { label: "About", to: "/about" },
-    { label: "Contact", to: "/contact" },
+    { label: "Contact", to: "/contact-support" },
   ];
 
   // Filter nav links based on auth, role, and provider status

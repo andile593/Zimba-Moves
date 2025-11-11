@@ -110,7 +110,7 @@ exports.createBookingSchema = exports.bookingSchema;
 // Complaint
 exports.complaintSchema = Joi.object({
   bookingId: Joi.string().required(),
-  plateNumber: Joi.string().required(),
+  plateNumber: Joi.string().optional().allow('', null),
   issueTarget: Joi.string().valid("PROVIDER", "HELPER", "OTHER").required(),
   description: Joi.string().max(1000).required(),
 });

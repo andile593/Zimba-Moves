@@ -10,7 +10,7 @@ import {
 import type { Complaint } from '../types/complaint';
 
 /**
- * Fetch all complaints
+ * Fetch all complaints (Admin only)
  */
 export function useComplaints() {
   return useQuery<Complaint[]>({
@@ -19,6 +19,8 @@ export function useComplaints() {
       const res = await getComplaints();
       return res.data;
     },
+    retry: 1,
+    staleTime: 30000, // 30 seconds
   });
 }
 
@@ -33,6 +35,7 @@ export const useComplaint = (id: string) => {
       return res.data;
     },
     enabled: !!id,
+    retry: 1,
   });
 };
 
@@ -44,69 +47,68 @@ export function useCreateComplaint() {
 
   return useMutation({
     mutationFn: createComplaint,
-    onMutate: async () => {
-      toast.loading('Submitting complaint...');
-    },
     onSuccess: () => {
-      toast.dismiss();
       toast.success('Complaint submitted successfully!');
       queryClient.invalidateQueries({ queryKey: ['complaints'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] }); // Invalidate bookings in case complaints are linked
     },
     onError: (error: any) => {
-      toast.dismiss();
       const message =
-        error?.response?.data?.error || 'Failed to submit complaint';
+        error?.response?.data?.error || 
+        error?.response?.data?.details ||
+        error?.message ||
+        'Failed to submit complaint';
       toast.error(message);
+      console.error('Complaint creation error:', error);
     },
   });
 }
 
 /**
- * Update a complaint
+ * Update a complaint (Admin only - for status updates)
  */
 export function useUpdateComplaint() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: updateComplaint,
-    onMutate: async () => {
-      toast.loading('Updating complaint...');
-    },
     onSuccess: () => {
-      toast.dismiss();
       toast.success('Complaint updated successfully!');
       queryClient.invalidateQueries({ queryKey: ['complaints'] });
     },
     onError: (error: any) => {
-      toast.dismiss();
       const message =
-        error?.response?.data?.error || 'Failed to update complaint';
+        error?.response?.data?.error || 
+        error?.response?.data?.details ||
+        error?.message ||
+        'Failed to update complaint';
       toast.error(message);
+      console.error('❌ Complaint update error:', error);
+      console.error('Error details:', error?.response?.data);
     },
   });
 }
 
 /**
- * Delete a complaint
+ * Delete a complaint (Admin only)
  */
 export function useDeleteComplaint() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: deleteComplaint,
-    onMutate: async () => {
-      toast.loading('Deleting complaint...');
-    },
     onSuccess: () => {
-      toast.dismiss();
       toast.success('Complaint deleted successfully!');
       queryClient.invalidateQueries({ queryKey: ['complaints'] });
     },
     onError: (error: any) => {
-      toast.dismiss();
       const message =
-        error?.response?.data?.error || 'Failed to delete complaint';
+        error?.response?.data?.error || 
+        error?.response?.data?.details ||
+        error?.message ||
+        'Failed to delete complaint';
       toast.error(message);
+      console.error('Complaint deletion error:', error);
     },
   });
 }
