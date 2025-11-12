@@ -118,7 +118,7 @@ export default function PendingApproval() {
               Return to Home
             </button>
             <button
-              onClick={() => navigate("/contact")}
+              onClick={() => navigate("/support")}
               className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
             >
               Contact Support

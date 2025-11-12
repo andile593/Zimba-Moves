@@ -5,7 +5,7 @@ const validate = (schema) => {
       return res.status(500).json({ error: 'Validation schema not configured' });
     }
 
-    console.log('🔍 Validating request body:', JSON.stringify(req.body, null, 2));
+    console.log(' Validating request body:', JSON.stringify(req.body, null, 2));
 
     const { error, value } = schema.validate(req.body, {
       abortEarly: false,      // Show all errors
@@ -28,7 +28,7 @@ const validate = (schema) => {
 
     // Use validated/sanitized value
     req.body = value;
-    console.log('✅ Validation passed. Sanitized body:', JSON.stringify(value, null, 2));
+    console.log('Validation passed. Sanitized body:', JSON.stringify(value, null, 2));
     next();
   };
 };

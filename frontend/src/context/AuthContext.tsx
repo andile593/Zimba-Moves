@@ -113,34 +113,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (signupData: SignupData): Promise<User> => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(signupData),
-      });
+  setLoading(true);
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(signupData),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (!res.ok) {
-        // Prioritize details field which contains the user-friendly message
-        const errorMessage =
-          data.details || data.error || data.message || "Signup failed";
-        throw new Error(errorMessage);
+    if (!res.ok) {
+      // Handle validation errors (array of error objects)
+      if (data.details && Array.isArray(data.details)) {
+        // Format validation errors into a readable string
+        const errorMessages = data.details
+          .map((detail: any) => detail.message)
+          .join('. ');
+        throw new Error(errorMessages);
       }
-
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      setUser(data.user);
-      return data.user;
-    } catch (error) {
-      console.error(" Caught error in signup:", error);
-      throw error;
-    } finally {
-      setLoading(false);
+      
+      // Handle other error types
+      const errorMessage = data.error || data.message || "Signup failed";
+      throw new Error(errorMessage);
     }
-  };
+
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+    setUser(data.user);
+    return data.user;
+  } catch (error) {
+    console.error("Caught error in signup:", error);
+    throw error;
+  } finally {
+    setLoading(false);
+  }
+};
 
   const logout = () => {
     setUser(null);

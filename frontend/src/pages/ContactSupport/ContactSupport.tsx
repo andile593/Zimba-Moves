@@ -2,17 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { ArrowLeft, Mail } from "lucide-react";
-// import { useCreateSupportRequest } from "../../hooks/useSupport";
 
 export default function ContactSupport() {
   const navigate = useNavigate();
-
-  // State
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  // const { mutateAsync: createSupportRequest } = useCreateSupportRequest();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,20 +29,32 @@ export default function ContactSupport() {
         message: message.trim(),
       };
 
-      // await createSupportRequest(inquiryData);
-      console.log("📤 Submitting general inquiry:", inquiryData);
+      console.log("Sending inquiry:", inquiryData);
 
-      toast.success("Your inquiry has been sent! We'll get back to you soon.");
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/support/contact`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // include this header if you have auth middleware expecting JWT
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+        },
+        body: JSON.stringify(inquiryData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.details || data.error || "Submission failed");
+      }
+
+      toast.success(data.message || "Your inquiry has been sent!");
       setSubject("");
       setMessage("");
       navigate("/");
     } catch (err: any) {
-      console.error("❌ Inquiry submission failed:", err);
+      console.error("Inquiry submission failed:", err);
       const errorMessage =
-        err.response?.data?.details ||
-        err.response?.data?.error ||
-        err.message ||
-        "Failed to send your inquiry. Please try again later.";
+        err.message || "Failed to send your inquiry. Please try again later.";
       toast.error(errorMessage);
     } finally {
       setSubmitting(false);
@@ -57,7 +64,7 @@ export default function ContactSupport() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 px-4 py-10">
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
+        {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6 transition"
@@ -67,7 +74,6 @@ export default function ContactSupport() {
         </button>
 
         <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-blue-100">
-          {/* Header Section */}
           <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 sm:px-8 py-6">
             <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
               Contact Support
@@ -78,7 +84,6 @@ export default function ContactSupport() {
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
-            {/* Subject */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Subject <span className="text-red-500">*</span>
@@ -92,7 +97,6 @@ export default function ContactSupport() {
               />
             </div>
 
-            {/* Message */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Message <span className="text-red-500">*</span>
@@ -120,7 +124,6 @@ export default function ContactSupport() {
               </div>
             </div>
 
-            {/* Info Box */}
             <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 flex gap-3">
               <Mail className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
               <div>
@@ -134,7 +137,6 @@ export default function ContactSupport() {
               </div>
             </div>
 
-            {/* Submit Buttons */}
             <div className="flex gap-3 pt-2">
               <button
                 type="button"

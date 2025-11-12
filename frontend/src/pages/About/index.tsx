@@ -39,7 +39,7 @@ export default function About() {
           <div>
             <img
               src="https://i.postimg.cc/W40Frtgf/hiveboxx-Ooi-Wpd-FC0-Rw-unsplash.jpg"
-              alt="ZimbaMoves Team"
+              alt="Detravellers RSA Team"
               className="rounded-xl shadow-sm w-full object-cover"
             />
           </div>
@@ -50,7 +50,7 @@ export default function About() {
       <section className="bg-green-700 text-white py-16 px-6 text-center">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-semibold mb-8">
-            How ZimbaMoves Works
+            How Detraveller RSA Works
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[

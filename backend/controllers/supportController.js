@@ -5,103 +5,100 @@ const { sendSupportContactEmail } = require('../services/emailService');
 // Create support request (PUBLIC - anyone can contact support)
 exports.createSupportRequest = async (req, res) => {
   try {
-    console.log('📥 Received support request:', JSON.stringify(req.body, null, 2));
 
-    const { subject, message } = req.body;
+    const { subject, message, email: guestEmail, name: guestName } = req.body;
 
-    // Validation
-    if (!subject || subject.trim().length === 0) {
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: 'Subject is required' 
+    // --- VALIDATION ---
+    if (!subject?.trim()) {
+      return res.status(400).json({
+        error: "Validation failed",
+        details: "Subject is required",
       });
     }
 
-    if (!message || message.trim().length < 10) {
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: 'Message must be at least 10 characters' 
+    if (!message?.trim() || message.trim().length < 10) {
+      return res.status(400).json({
+        error: "Validation failed",
+        details: "Message must be at least 10 characters",
       });
     }
 
     if (subject.length > 200) {
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: 'Subject must be less than 200 characters' 
+      return res.status(400).json({
+        error: "Validation failed",
+        details: "Subject must be less than 200 characters",
       });
     }
 
     if (message.length > 5000) {
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        details: 'Message must be less than 5000 characters' 
+      return res.status(400).json({
+        error: "Validation failed",
+        details: "Message must be less than 5000 characters",
       });
     }
 
-    // Get user info if authenticated, otherwise use guest
-    const userInfo = {
-      name: req.user 
-        ? `${req.user.firstName} ${req.user.lastName}`
-        : 'Guest User',
-      email: req.user?.email || null,
-      userId: req.user?.userId || null,
-      role: req.user?.role || 'GUEST'
-    };
+    // --- USER INFO (auth or guest) ---
+    const userInfo = req.user
+      ? {
+          name: `${req.user.firstName} ${req.user.lastName}`.trim(),
+          email: req.user.email,
+          userId: req.user.id,
+          role: req.user.role,
+        }
+      : {
+          name: guestName?.trim() || "Guest User",
+          email: guestEmail?.trim() || null,
+          userId: null,
+          role: "GUEST",
+        };
 
-    console.log('👤 User info:', userInfo);
-
-    // Save support request to database (optional - for tracking)
+    // --- SAVE TO DATABASE ---
     const supportRequest = await prisma.supportRequest.create({
       data: {
         userId: userInfo.userId,
         subject: subject.trim(),
         message: message.trim(),
-        status: 'OPEN',
+        status: "OPEN",
         userEmail: userInfo.email,
         userName: userInfo.name,
-      }
+      },
     });
 
-    console.log('💾 Support request saved to DB:', supportRequest.id);
-
-    // Prepare email data
+    // --- SEND EMAILS ---
     const emailData = {
       subject: subject.trim(),
       message: message.trim(),
     };
 
-    // Send emails (to admin and confirmation to user)
-    console.log('📧 Sending support emails...');
     const emailResult = await sendSupportContactEmail(emailData, userInfo);
 
     if (!emailResult.success) {
-      console.error('⚠️ Email failed but request saved:', emailResult.error);
-      // Still return success since we saved to DB
+      console.error(" Email sending failed:", emailResult.error);
       return res.status(200).json({
         success: true,
-        message: 'Your inquiry has been saved. Our team will review it soon.',
+        message:
+          "Your inquiry has been saved. Our team will review it soon (email delivery failed).",
         requestId: supportRequest.id,
-        emailSent: false
+        emailSent: false,
       });
     }
 
-    console.log('✅ Support request created and emails sent');
-
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: 'Your inquiry has been sent successfully. We\'ll get back to you soon!',
+      message:
+        "Your inquiry has been sent successfully. We'll get back to you soon!",
       requestId: supportRequest.id,
-      emailSent: true
+      emailSent: true,
     });
-
   } catch (err) {
-    console.error('❌ Error creating support request:', err);
-    res.status(500).json({ 
-      error: 'Failed to create support request', 
-      details: err.message 
+    console.error("Error creating support request:", err);
+    return res.status(500).json({
+      error: "Failed to create support request",
+      details: err.message,
     });
   }
 };
+
 
 // Get all support requests (ADMIN only)
 exports.getSupportRequests = async (req, res) => {

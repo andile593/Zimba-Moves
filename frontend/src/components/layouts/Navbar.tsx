@@ -1,7 +1,7 @@
 import { useState, useContext, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Logo from "../../assets/Logo.svg";
-import { Menu, X, MessageCircle } from "lucide-react";
+import { Menu, X, MessageCircle, LayoutDashboard } from "lucide-react";
 import { AuthContext } from "../../context/AuthContext";
 
 type ButtonConfig = {
@@ -9,7 +9,7 @@ type ButtonConfig = {
   to?: string;
   anchor?: string;
   onClick?: () => void;
-  type: "primary" | "secondary" | "whatsapp";
+  type: "primary" | "secondary" | "whatsapp" | "dashboard";
   icon?: React.ReactNode;
 };
 
@@ -53,7 +53,7 @@ export default function Navbar() {
   };
 
   const sendWhatsAppMessage = () => {
-    const phoneNumber = "27732499844"; 
+    const phoneNumber = "27795750433"; 
 
     const message = `Hi Detravellers RSA! 
 
@@ -105,7 +105,7 @@ Thank you!`;
       if (!hasRole) return false;
     }
 
-    // FIXED: Check provider status correctly
+    // Check provider status correctly
     if (link.requiresApprovedProvider && userRole === "PROVIDER") {
       // Only show if provider is approved
       return providerStatus === "APPROVED";
@@ -116,11 +116,24 @@ Thank you!`;
 
   const authButtons: ButtonConfig[] = isAuthenticated
     ? [
-        {
-          label: "Get Quote",
-          onClick: sendWhatsAppMessage,
-          type: "whatsapp",
-        },
+        // Show Dashboard for ADMIN, Get Quote for others
+        ...(userRole === "ADMIN"
+          ? [
+              {
+                label: "Dashboard",
+                to: "/admin",
+                type: "dashboard" as const,
+                icon: <LayoutDashboard className="w-4 h-4" />,
+              },
+            ]
+          : [
+              {
+                label: "Get Quote",
+                onClick: sendWhatsAppMessage,
+                type: "whatsapp" as const,
+                icon: <MessageCircle className="w-4 h-4" />,
+              },
+            ]),
         { label: "Logout", onClick: () => logout?.(), type: "secondary" },
       ]
     : [
@@ -137,9 +150,12 @@ Thank you!`;
       "border border-green-600 text-green-600 hover:bg-green-50";
     const whatsapp =
       "bg-[#00a63e] text-white hover:bg-[#20BA5A] shadow-md hover:shadow-lg";
+    const dashboard =
+      "bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg";
 
     const getButtonStyle = () => {
       if (btn.type === "whatsapp") return whatsapp;
+      if (btn.type === "dashboard") return dashboard;
       if (btn.type === "primary") return primary;
       return secondary;
     };
