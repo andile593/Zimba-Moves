@@ -1,5 +1,5 @@
 const Joi = require("joi");
-
+//sign-up
 exports.userSignupSchema = Joi.object({
   firstName: Joi.string().min(2).max(50).required(),
   lastName: Joi.string().min(2).max(50).required(),

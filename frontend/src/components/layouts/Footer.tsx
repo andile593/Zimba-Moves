@@ -84,21 +84,23 @@ export default function Footer() {
           <ul className="space-y-3">
             <li className="flex items-start gap-2">
               <img src={Location} alt="location" className="h-5 w-auto" />
-              <span>34 Melrose Blvd, Birnam, Johannesburg, 2196</span>
+              <span>22 montrose avenue, Northgate 
+                      Randburg 
+                      1700</span>
             </li>
             <li className="flex items-center gap-2">
               <img src={Mail} alt="mail" className="h-5 w-auto" />
               <a
-                href="mailto:support@ZimbaMoves.com"
+                href="mailto:Zimbafx97@gmail.com"
                 className="hover:text-green-600"
               >
-                support@ZimbaMoves.com
+               Zimbafx97@gmail.com
               </a>
             </li>
             <li className="flex items-center gap-2">
               <img src={Call} alt="phone" className="fill-#494949 h-5 w-auto" />
-              <a href="tel:0115318989" className="hover:text-green-600">
-                011 531 8989
+              <a href="tel:0795750433" className="hover:text-green-600">
+                079 575 0433
               </a>
             </li>
           </ul>

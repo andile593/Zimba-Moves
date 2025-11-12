@@ -117,7 +117,7 @@ Thank you!`;
   const authButtons: ButtonConfig[] = isAuthenticated
     ? [
         {
-          label: "Get Quote",
+          label: "Enquire",
           onClick: sendWhatsAppMessage,
           type: "whatsapp",
         },
