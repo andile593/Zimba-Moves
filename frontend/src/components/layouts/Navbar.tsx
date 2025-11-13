@@ -116,24 +116,11 @@ Thank you!`;
 
   const authButtons: ButtonConfig[] = isAuthenticated
     ? [
-        // Show Dashboard for ADMIN, Get Quote for others
-        ...(userRole === "ADMIN"
-          ? [
-              {
-                label: "Dashboard",
-                to: "/admin",
-                type: "dashboard" as const,
-                icon: <LayoutDashboard className="w-4 h-4" />,
-              },
-            ]
-          : [
-              {
-                label: "Get Quote",
-                onClick: sendWhatsAppMessage,
-                type: "whatsapp" as const,
-                icon: <MessageCircle className="w-4 h-4" />,
-              },
-            ]),
+        {
+          label: "Enquire",
+          onClick: sendWhatsAppMessage,
+          type: "whatsapp",
+        },
         { label: "Logout", onClick: () => logout?.(), type: "secondary" },
       ]
     : [

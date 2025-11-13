@@ -7,10 +7,10 @@ export default function About() {
       <section className="bg-white py-16 px-6 text-center border-b border-gray-100">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl sm:text-4xl font-bold text-green-700 mb-4">
-            About ZimbaMoves
+            About Detravellers RSA
           </h1>
           <p className="text-lg text-gray-600 leading-relaxed">
-            ZimbaMoves is transforming how people move homes, offices, and goods
+            Detravellers RSA is transforming how people move homes, offices, and goods
             across South Africa. We connect you with trusted, verified movers
             who deliver reliability, safety, and transparency every time.
           </p>
@@ -27,7 +27,7 @@ export default function About() {
             <p className="text-gray-700 leading-relaxed mb-4">
               Our mission is simple — to make moving easy, transparent, and
               stress-free. Whether you’re relocating your apartment, your
-              business, or just need a single item transported, ZimbaMoves helps
+              business, or just need a single item transported, Detravellers RSA helps
               you find the perfect mover at the right price.
             </p>
             <p className="text-gray-700 leading-relaxed">
@@ -50,7 +50,7 @@ export default function About() {
       <section className="bg-green-700 text-white py-16 px-6 text-center">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-semibold mb-8">
-            How Detraveller RSA Works
+            How Detravellers RSA Works
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
@@ -133,7 +133,7 @@ export default function About() {
           <h2 className="text-3xl font-bold mb-4">Join the Movement</h2>
           <p className="text-green-100 mb-6">
             Whether you're looking for reliable movers or want to grow your
-            moving business — ZimbaMoves is where you belong.
+            moving business — Detravellers RSA is where you belong.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link
