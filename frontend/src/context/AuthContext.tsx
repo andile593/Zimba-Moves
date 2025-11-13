@@ -112,6 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+
+  ///Account for [Object, object] error
   const signup = async (signupData: SignupData): Promise<User> => {
   setLoading(true);
   try {

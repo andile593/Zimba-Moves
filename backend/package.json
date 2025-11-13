@@ -51,4 +51,5 @@
     "postinstall-postinstall": "^2.1.0",
     "prisma": "^6.17.1"
   }
+  
 }

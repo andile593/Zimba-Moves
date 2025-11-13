@@ -18,10 +18,11 @@ import {
   CheckCircle2,
   ArrowUpRight,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { useProviderBookings } from "@/hooks/useBooking";
 import type { Booking } from "@/types/booking";
+import axios from "axios";
 
 interface ProviderDashboardProps {
   provider: any;
@@ -35,6 +36,42 @@ type MenuItem = {
   badge?: string;
 };
 
+// Hook to fetch real payouts
+function useProviderPayouts(providerId: string) {
+  const [payouts, setPayouts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!providerId) return;
+
+    const fetchPayouts = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem("token");
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/providers/${providerId}/payouts`,
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+        setPayouts(response.data);
+        setError(null);
+      } catch (err: any) {
+        console.error("Failed to fetch payouts:", err);
+        setError(err.response?.data?.message || "Failed to load payouts");
+        setPayouts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPayouts();
+  }, [providerId]);
+
+  return { payouts, loading, error };
+}
+
 export default function ProviderDashboard({
   provider,
 }: ProviderDashboardProps) {
@@ -42,12 +79,22 @@ export default function ProviderDashboard({
   const { logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Get providerId from provider prop
   const providerId = provider.id || provider.providerId;
 
-  // Fetch real bookings data
+  // Fetch real bookings and payouts
   const { data: bookingsData, isLoading: bookingsLoading } =
     useProviderBookings(providerId);
+  const { payouts, loading: payoutsLoading } = useProviderPayouts(providerId);
+
+  // Calculate REAL earnings from completed payouts
+  const realEarnings = payouts
+    .filter((p: any) => p.status === "COMPLETED")
+    .reduce((sum: number, p: any) => sum + p.amount, 0);
+
+  // Calculate pending payouts (processing or pending)
+  const pendingPayouts = payouts
+    .filter((p: any) => p.status === "PROCESSING" || p.status === "PENDING")
+    .reduce((sum: number, p: any) => sum + p.amount, 0);
 
   // Calculate pending bookings badge
   const pendingCount =
@@ -94,6 +141,8 @@ export default function ProviderDashboard({
   const isOverview =
     pathname === "/provider" || pathname === "/provider/overview";
 
+  const isLoading = bookingsLoading || payoutsLoading;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Mobile Header */}
@@ -114,7 +163,7 @@ export default function ProviderDashboard({
             <div className="flex items-center gap-2">
               <button className="p-2 hover:bg-gray-100 rounded-lg transition relative">
                 <Bell className="w-5 h-5 text-gray-600" />
-                {!bookingsLoading && pendingCount > 0 && (
+                {!isLoading && pendingCount > 0 && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                 )}
               </button>
@@ -134,7 +183,7 @@ export default function ProviderDashboard({
           {/* Quick Stats - Mobile */}
           {isOverview && (
             <div className="grid grid-cols-3 gap-2">
-              {bookingsLoading ? (
+              {isLoading ? (
                 <>
                   <div className="bg-gray-200 rounded-xl p-3 animate-pulse h-20"></div>
                   <div className="bg-gray-200 rounded-xl p-3 animate-pulse h-20"></div>
@@ -144,10 +193,10 @@ export default function ProviderDashboard({
                 <>
                   <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3 border border-green-200">
                     <p className="text-xs text-green-700 mb-1 font-medium">
-                      Earnings
+                      Paid Out
                     </p>
                     <p className="text-lg font-bold text-green-800">
-                      R{provider.earnings?.toFixed(0) || "0"}
+                      R{realEarnings.toFixed(0)}
                     </p>
                   </div>
                   <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 border border-blue-200">
@@ -160,10 +209,10 @@ export default function ProviderDashboard({
                   </div>
                   <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3 border border-purple-200">
                     <p className="text-xs text-purple-700 mb-1 font-medium">
-                      Rating
+                      Pending
                     </p>
                     <p className="text-lg font-bold text-purple-800">
-                      {provider.rating || "4.8"}★
+                      R{pendingPayouts.toFixed(0)}
                     </p>
                   </div>
                 </>
@@ -193,21 +242,28 @@ export default function ProviderDashboard({
               </div>
             </div>
 
-            {/* Earnings Card */}
-            {bookingsLoading ? (
+            {/* Real Earnings Card */}
+            {isLoading ? (
               <div className="bg-gray-200 rounded-2xl p-4 shadow-lg animate-pulse h-28"></div>
             ) : (
               <div className="bg-gradient-to-br from-green-600 to-green-500 rounded-2xl p-4 text-white shadow-lg">
                 <p className="text-xs text-green-100 mb-1 flex items-center gap-1">
                   <TrendingUp className="w-3 h-3" />
-                  Total Earnings
+                  Total Paid Out
                 </p>
                 <p className="text-3xl font-bold mb-1">
-                  R{provider.earnings?.toFixed(2) || "0.00"}
+                  R{realEarnings.toFixed(2)}
                 </p>
                 <p className="text-xs text-green-100">
-                  {bookingsData?.length || 0} completed bookings
+                  {payouts.filter((p: any) => p.status === "COMPLETED").length} completed payouts
                 </p>
+                {pendingPayouts > 0 && (
+                  <div className="mt-2 pt-2 border-t border-white/20">
+                    <p className="text-xs text-green-100">
+                      R{pendingPayouts.toFixed(2)} pending
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -232,7 +288,7 @@ export default function ProviderDashboard({
                     className={`w-5 h-5 ${active ? "text-green-600" : ""}`}
                   />
                   <span className="flex-1">{item.label}</span>
-                  {!bookingsLoading && item.badge && (
+                  {!isLoading && item.badge && (
                     <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-medium">
                       {item.badge}
                     </span>
@@ -264,7 +320,7 @@ export default function ProviderDashboard({
           </div>
         </aside>
 
-        {/* Mobile Menu Overlay */}
+        {/* Mobile Menu - Same updates for earnings card */}
         {mobileMenuOpen && (
           <>
             <div
@@ -272,7 +328,6 @@ export default function ProviderDashboard({
               onClick={() => setMobileMenuOpen(false)}
             />
             <aside className="lg:hidden fixed left-0 top-0 bottom-0 w-72 bg-white z-40 shadow-2xl flex flex-col">
-              {/* Mobile Menu Header */}
               <div className="p-6 border-b">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-green-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg">
@@ -286,22 +341,25 @@ export default function ProviderDashboard({
                   </div>
                 </div>
 
-                {/* Mobile Earnings Card */}
-                {bookingsLoading ? (
+                {isLoading ? (
                   <div className="bg-gray-200 rounded-2xl p-4 shadow-lg animate-pulse h-24"></div>
                 ) : (
                   <div className="bg-gradient-to-br from-green-600 to-green-500 rounded-2xl p-4 text-white shadow-lg">
                     <p className="text-xs text-green-100 mb-1">
-                      Total Earnings
+                      Total Paid Out
                     </p>
                     <p className="text-2xl font-bold">
-                      R{provider.earnings?.toFixed(2) || "0.00"}
+                      R{realEarnings.toFixed(2)}
                     </p>
+                    {pendingPayouts > 0 && (
+                      <p className="text-xs text-green-100 mt-1">
+                        +R{pendingPayouts.toFixed(2)} pending
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Mobile Navigation */}
               <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
                 {menuItems.map((item) => {
                   const Icon = item.icon;
@@ -320,7 +378,7 @@ export default function ProviderDashboard({
                     >
                       <Icon className="w-5 h-5" />
                       <span className="flex-1">{item.label}</span>
-                      {!bookingsLoading && item.badge && (
+                      {!isLoading && item.badge && (
                         <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
                           {item.badge}
                         </span>
@@ -331,7 +389,6 @@ export default function ProviderDashboard({
                 })}
               </nav>
 
-              {/* Mobile Menu Footer */}
               <div className="p-4 border-t space-y-2">
                 <Link
                   to="/provider/settings"
@@ -363,6 +420,9 @@ export default function ProviderDashboard({
               provider={provider}
               bookingsData={bookingsData}
               bookingsLoading={bookingsLoading}
+              payouts={payouts}
+              payoutsLoading={payoutsLoading}
+              realEarnings={realEarnings}
             />
           ) : (
             <Outlet />
@@ -391,7 +451,7 @@ export default function ProviderDashboard({
                 <span className="text-[10px] font-medium truncate w-full text-center">
                   {item.label}
                 </span>
-                {!bookingsLoading && item.badge && (
+                {!isLoading && item.badge && (
                   <span className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
                 )}
                 {active && (
@@ -403,7 +463,6 @@ export default function ProviderDashboard({
         </div>
       </nav>
 
-      {/* Bottom padding for mobile nav */}
       <div className="lg:hidden h-20"></div>
     </div>
   );

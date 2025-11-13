@@ -234,51 +234,52 @@ exports.deletePaymentCard = async (req, res, next) => {
     next(err);
   }
 };
+// In paymentCardController.js
 
-/**
- * Initiate payout to provider's default account
- */
-exports.initiateProviderPayout = async (req, res, next) => {
-  try {
-    const { providerId } = req.params;
-    const { amount, reason } = req.body;
-
-    // Only admins can initiate payouts manually
-    if (req.user.role !== 'ADMIN') {
-      throw new ApiError(403, 'Only admins can initiate payouts');
-    }
-
-    const provider = await prisma.provider.findUnique({
-      where: { id: providerId },
-      include: {
-        paymentCards: {
-          where: { isDefault: true }
-        }
+// Pure business logic function
+async function createProviderPayout(providerId, amount, reason = null) {
+  const provider = await prisma.provider.findUnique({
+    where: { id: providerId },
+    include: {
+      paymentCards: {
+        where: { isDefault: true }
       }
-    });
-
-    if (!provider) {
-      throw new ApiError(404, 'Provider not found');
     }
+  });
 
-    if (!provider.paymentCards || provider.paymentCards.length === 0) {
-      throw new ApiError(400, 'Provider has no default payment account');
+  if (!provider) {
+    throw new ApiError(404, 'Provider not found');
+  }
+
+  if (!provider.paymentCards || provider.paymentCards.length === 0) {
+    throw new ApiError(400, 'Provider has no default payment account');
+  }
+
+  const defaultCard = provider.paymentCards[0];
+
+  if (!defaultCard.recipientCode) {
+    throw new ApiError(400, 'Payment account not properly configured');
+  }
+
+  // Create Payout record FIRST
+  const payout = await prisma.payout.create({
+    data: {
+      providerId,
+      paymentCardId: defaultCard.id,
+      amount,
+      status: 'PENDING',
     }
+  });
 
-    const defaultCard = provider.paymentCards[0];
-
-    if (!defaultCard.recipientCode) {
-      throw new ApiError(400, 'Payment account not properly configured');
-    }
-
+  try {
     // Initiate transfer via Paystack
     const transferResponse = await axios.post(
       'https://api.paystack.co/transfer',
       {
         source: 'balance',
-        amount: amount * 100, // Convert to cents
+        amount: amount * 100,
         recipient: defaultCard.recipientCode,
-        reason: reason || `Payout for provider ${provider.id}`
+        reason: reason || `Payout ${payout.id} for provider ${provider.id}`
       },
       {
         headers: {
@@ -288,9 +289,43 @@ exports.initiateProviderPayout = async (req, res, next) => {
       }
     );
 
+    // Update with Paystack reference
+    await prisma.payout.update({
+      where: { id: payout.id },
+      data: {
+        transferCode: transferResponse.data.data.transfer_code,
+        reference: transferResponse.data.data.reference,
+        status: 'PROCESSING',
+      }
+    });
+
+    return { success: true, payout, transfer: transferResponse.data.data };
+  } catch (error) {
+    // Mark payout as failed
+    await prisma.payout.update({
+      where: { id: payout.id },
+      data: { status: 'FAILED' }
+    });
+    throw error;
+  }
+}
+
+// Express route handler
+exports.initiateProviderPayout = async (req, res, next) => {
+  try {
+    const { providerId } = req.params;
+    const { amount, reason } = req.body;
+
+    if (req.user.role !== 'ADMIN') {
+      throw new ApiError(403, 'Only admins can initiate payouts');
+    }
+
+    const result = await createProviderPayout(providerId, amount, reason);
+
     res.json({
       message: 'Payout initiated successfully',
-      transfer: transferResponse.data.data
+      payout: result.payout,
+      transfer: result.transfer
     });
   } catch (err) {
     console.error('Payout error:', err.response?.data || err.message);
@@ -298,4 +333,4 @@ exports.initiateProviderPayout = async (req, res, next) => {
   }
 };
 
-module.exports = exports;
+module.exports = { ...exports, createProviderPayout };

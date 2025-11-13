@@ -1,18 +1,12 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
-const {
-  initiateProviderPayout,
-} = require("../controllers/paymentCardController");
+import { PrismaClient } from "@prisma/client";
+import { createProviderPayout } from "../controllers/paymentCardController.js";
 
-/**
- * Process weekly payouts to providers
- * Should be run via cron job every Friday
- */
-async function processWeeklyPayouts() {
+const prisma = new PrismaClient();
+
+export async function processWeeklyPayouts() {
   try {
     console.log("Starting weekly payout processing...");
 
-    // Get all providers with completed, paid bookings
     const providers = await prisma.provider.findMany({
       where: {
         status: "APPROVED",
@@ -33,7 +27,6 @@ async function processWeeklyPayouts() {
 
     for (const provider of providers) {
       try {
-        // Calculate earnings from last week
         const lastWeek = new Date();
         lastWeek.setDate(lastWeek.getDate() - 7);
 
@@ -44,28 +37,34 @@ async function processWeeklyPayouts() {
             createdAt: {
               gte: lastWeek,
             },
-            // Exclude already paid out amounts
-            payouts: {
-              none: {
-                status: "COMPLETED",
-              },
-            },
           },
+          include: {
+            payouts: {
+              where: {
+                status: { in: ['COMPLETED', 'PROCESSING', 'PENDING'] }
+              }
+            }
+          }
         });
 
-        const totalAmount = payments.reduce((sum, p) => sum + p.amount, 0);
+        // Filter out payments that already have payouts
+        const unpaidPayments = payments.filter(p => p.payouts.length === 0);
+        const totalAmount = unpaidPayments.reduce((sum, p) => sum + p.amount, 0);
 
         if (totalAmount > 0) {
           console.log(
             `Processing payout for provider ${provider.id}: R${totalAmount}`
           );
 
-          const result = await initiateProviderPayout(provider.id, totalAmount);
+          const result = await createProviderPayout(
+            provider.id, 
+            totalAmount,
+            `Weekly payout - ${unpaidPayments.length} payments`
+          );
 
           if (result.success) {
             console.log(`✓ Payout successful for provider ${provider.id}`);
 
-            // Update provider earnings
             await prisma.provider.update({
               where: { id: provider.id },
               data: {
@@ -97,10 +96,8 @@ async function processWeeklyPayouts() {
   }
 }
 
-module.exports = { processWeeklyPayouts };
-
 // If running directly
-if (require.main === module) {
+if (process.argv[1] === new URL(import.meta.url).pathname) {
   processWeeklyPayouts()
     .then(() => process.exit(0))
     .catch((err) => {

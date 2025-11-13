@@ -93,7 +93,8 @@ model Payout {
   reference     String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
-
+  payments Payment[]
+  
   provider    Provider    @relation(fields: [providerId], references: [id])
   paymentCard PaymentCard @relation(fields: [paymentCardId], references: [id])
 
@@ -220,6 +221,8 @@ model Payment {
   provider         Provider?      @relation(fields: [providerId], references: [id])
   events           PaymentEvent[]
   refunds          Refund[]
+  payoutId String?
+  payout   Payout? @relation(fields: [payoutId], references: [id])
 
   @@index([status])
   @@index([gatewayReference])
