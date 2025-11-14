@@ -333,4 +333,43 @@ exports.initiateProviderPayout = async (req, res, next) => {
   }
 };
 
+/**
+ * Get all payouts for a provider
+ */
+exports.getProviderPayouts = async (req, res, next) => {
+  try {
+    const { id: providerId } = req.params;
+
+    const provider = await prisma.provider.findUnique({
+      where: { id: providerId }
+    });
+
+    if (!provider) {
+      throw new ApiError(404, 'Provider not found');
+    }
+
+    if (req.user.role !== 'ADMIN' && provider.userId !== req.user.userId) {
+      throw new ApiError(403, 'Forbidden');
+    }
+
+    const payouts = await prisma.payout.findMany({
+      where: { providerId },
+      include: {
+        paymentCard: {
+          select: {
+            accountName: true,
+            bankName: true,
+            accountNumber: true,
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json(payouts);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = { ...exports, createProviderPayout };

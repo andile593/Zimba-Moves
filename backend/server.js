@@ -77,7 +77,7 @@ app.use("/complaints", authenticate, require("./routes/complaint"));
 app.use('/support', require('./routes/supportRoutes'))
 app.use("/admin", authenticate, require("./routes/admin"));
 app.use("/payments", authenticate, require("./routes/payments"));
-app.use("/providers", require("./routes/paymentCards"));
+app.use("/providers/:id/payment-cards", require("./routes/paymentCards"));
 
 app.use(errorHandler);
 

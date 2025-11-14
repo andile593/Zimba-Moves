@@ -468,17 +468,22 @@ export default function ProviderDashboard({
   );
 }
 
-// Overview Component with Real Data
+// Overview Component - pass real earnings
 function ProviderOverview({
   provider,
   bookingsData,
   bookingsLoading,
+  payouts,
+  payoutsLoading,
+  realEarnings,
 }: {
   provider: any;
   bookingsData?: Booking[];
   bookingsLoading: boolean;
+  payouts: any[];
+  payoutsLoading: boolean;
+  realEarnings: number;
 }) {
-  // Calculate real stats from bookings data
   const stats = {
     totalBookings: bookingsData?.length || 0,
     activeBookings:
@@ -488,28 +493,9 @@ function ProviderOverview({
     completedBookings:
       bookingsData?.filter((b: Booking) => b.status === "COMPLETED").length ||
       0,
-    totalRevenue:
-      bookingsData?.reduce(
-        (sum: number, b: Booking) => sum + (b.pricing?.total || 0),
-        0
-      ) || 0,
-    thisMonthRevenue:
-      bookingsData
-        ?.filter((b: Booking) => {
-          const bookingDate = new Date(b.createdAt || b.dateTime);
-          const now = new Date();
-          return (
-            bookingDate.getMonth() === now.getMonth() &&
-            bookingDate.getFullYear() === now.getFullYear()
-          );
-        })
-        .reduce(
-          (sum: number, b: Booking) => sum + (b.pricing?.total || 0),
-          0
-        ) || 0,
+    completedPayouts: payouts.filter((p: any) => p.status === "COMPLETED").length,
   };
 
-  // Get recent bookings (last 3)
   const recentBookings =
     bookingsData
       ?.sort((a: Booking, b: Booking) => {
@@ -519,7 +505,6 @@ function ProviderOverview({
       })
       .slice(0, 3) || [];
 
-  // Get upcoming confirmed bookings
   const upcomingBookings =
     bookingsData
       ?.filter(
@@ -533,17 +518,16 @@ function ProviderOverview({
       })
       .slice(0, 3) || [];
 
-  if (bookingsLoading) {
+  const isLoading = bookingsLoading || payoutsLoading;
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Loading Header Skeleton */}
           <div className="mb-8">
             <div className="h-12 bg-gray-200 rounded-lg w-80 mb-3 animate-pulse"></div>
             <div className="h-6 bg-gray-200 rounded-lg w-96 animate-pulse"></div>
           </div>
-
-          {/* Loading Stats Skeleton */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
             {[1, 2, 3, 4].map((i) => (
               <div
@@ -559,39 +543,6 @@ function ProviderOverview({
               </div>
             ))}
           </div>
-
-          {/* Loading Quick Actions Skeleton */}
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
-            <div className="h-8 bg-gray-200 rounded-lg w-48 mb-6 animate-pulse"></div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="bg-gray-200 rounded-2xl p-6 h-40 animate-pulse"
-                ></div>
-              ))}
-            </div>
-          </div>
-
-          {/* Loading Two Column Layout Skeleton */}
-          <div className="grid lg:grid-cols-2 gap-6">
-            {[1, 2].map((i) => (
-              <div
-                key={i}
-                className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6"
-              >
-                <div className="h-6 bg-gray-200 rounded-lg w-48 mb-6 animate-pulse"></div>
-                <div className="space-y-4">
-                  {[1, 2, 3].map((j) => (
-                    <div
-                      key={j}
-                      className="h-20 bg-gray-200 rounded-xl animate-pulse"
-                    ></div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     );
@@ -600,7 +551,6 @@ function ProviderOverview({
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-3 bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent">
             Welcome back!
@@ -610,7 +560,6 @@ function ProviderOverview({
           </p>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
           <StatCard
             icon={Package}
@@ -628,9 +577,9 @@ function ProviderOverview({
           />
           <StatCard
             icon={DollarSign}
-            label="This Month"
-            value={`R${stats.thisMonthRevenue.toFixed(0)}`}
-            trend={`R${stats.totalRevenue.toFixed(0)} total`}
+            label="Total Paid Out"
+            value={`R${realEarnings.toFixed(0)}`}
+            trend={`${stats.completedPayouts} payouts`}
             color="green"
           />
           <StatCard
@@ -644,7 +593,6 @@ function ProviderOverview({
           />
         </div>
 
-        {/* Quick Actions */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
             Quick Actions
@@ -674,9 +622,7 @@ function ProviderOverview({
           </div>
         </div>
 
-        {/* Two Column Layout */}
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Recent Activity */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-gray-900">
@@ -730,7 +676,6 @@ function ProviderOverview({
             )}
           </div>
 
-          {/* Upcoming Schedule */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-gray-900">

@@ -1,12 +1,18 @@
 const express = require("express");
-const router = express.Router({ mergeParams: true });
+const router = express.Router({ mergeParams: true }); // Keep mergeParams!
 const paymentCardController = require("../controllers/paymentCardController");
 const { authenticate, authorize } = require("../middleware/auth");
 
-// All routes require authentication
 router.use(authenticate);
 
-// Get all payment cards for a provider
+// Get all payouts for this provider
+router.get(
+  "/payouts",
+  authorize("PROVIDER", "ADMIN"),
+  paymentCardController.getProviderPayouts
+);
+
+// Get all payment cards
 router.get(
   "/",
   authorize("PROVIDER", "ADMIN"),
@@ -32,13 +38,6 @@ router.delete(
   "/:cardId",
   authorize("PROVIDER", "ADMIN"),
   paymentCardController.deletePaymentCard
-);
-
-// Admin: Initiate payout
-router.post(
-  "/payout",
-  authorize("ADMIN"),
-  paymentCardController.initiateProviderPayout
 );
 
 module.exports = router;

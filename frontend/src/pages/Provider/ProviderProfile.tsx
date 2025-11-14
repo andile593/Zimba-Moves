@@ -6,13 +6,13 @@ import toast from "react-hot-toast";
 import api from "../../services/axios";
 import PaymentCardsSection from "@/components/Banking/PaymentCards";
 import Header from "@/components/ProviderProfile/Header";
-import BankingDetails from "@/components/Banking/BankDetails";
 import LocationInformation from "@/components/ProviderProfile/LocationInfo";
 import ProfileTips from "@/components/ProviderProfile/ProfileTips";
 import AccountInformation from "@/components/AccountInfo/AccountInfo";
 import ProfileInformation from "@/components/ProviderProfile/ProfileInfo";
 import ProfileHero from "@/components/ProviderProfile/ProfileHero";
 import { Provider } from "@/types";
+import axios from "axios";
 
 interface ApiError {
   response?: {
@@ -31,13 +31,47 @@ export default function ProviderProfile() {
   const [showAddCard, setShowAddCard] = useState(false);
 
   // Fetch provider profile
-  const { data: profile, isLoading } = useQuery<Provider>({
+  const { data: profile, isLoading: profileLoading } = useQuery<Provider>({
     queryKey: ["providerProfile"],
     queryFn: async () => {
       const res = await api.get("/providers/me/profile");
       setFormData(res.data);
       return res.data;
     },
+  });
+
+  // Fetch real bookings for stats
+  const { data: bookingsData, isLoading: bookingsLoading } = useQuery({
+    queryKey: ["providerBookings", profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+      const token = localStorage.getItem("token");
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_URL}/providers/${profile.id}/bookings`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      return res.data;
+    },
+    enabled: !!profile?.id,
+  });
+
+  // Fetch real payouts for earnings stats
+  const { data: payoutsData, isLoading: payoutsLoading } = useQuery({
+    queryKey: ["providerPayouts", profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+      const token = localStorage.getItem("token");
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_URL}/providers/${profile.id}/payment-cards/payouts`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      return res.data;
+    },
+    enabled: !!profile?.id,
   });
 
   const updateMutation = useMutation({
@@ -75,6 +109,9 @@ export default function ProviderProfile() {
     setFormData(profile || {});
     setIsEditing(false);
   };
+
+  const isLoading = profileLoading || bookingsLoading || payoutsLoading;
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
@@ -115,11 +152,32 @@ export default function ProviderProfile() {
     );
   }
 
+  // Calculate REAL stats
+  const completedBookings = bookingsData?.filter(
+    (b: any) => b.status === "COMPLETED"
+  ) || [];
+
+  const completedPayouts = payoutsData?.filter(
+    (p: any) => p.status === "COMPLETED"
+  ) || [];
+
+  const totalEarnings = completedPayouts.reduce(
+    (sum: number, p: any) => sum + p.amount,
+    0
+  );
+
+  // Calculate real average rating from completed bookings with reviews
+  // (You'll need to add a reviews/ratings system for this to work properly)
+  // For now, we'll use the provider.rating if it exists, otherwise show "No rating"
+  
   const stats = {
-    rating: profile.rating || 4.8,
-    reviews: 127,
-    bookings: 340,
+    rating: profile.rating || null,
+    reviews: 0, // TODO: Implement reviews system
+    bookings: completedBookings.length,
+    totalBookings: bookingsData?.length || 0,
     vehicles: profile.vehicles?.length || 0,
+    totalEarnings: totalEarnings,
+    completedPayouts: completedPayouts.length,
   };
 
   return (
@@ -133,7 +191,12 @@ export default function ProviderProfile() {
           isSaving={updateMutation.isPending}
         />
 
-        <ProfileHero profile={profile} stats={stats} />
+        <ProfileHero 
+          profile={profile} 
+          stats={stats}
+          bookingsData={bookingsData}
+          payoutsData={payoutsData}
+        />
 
         <div className="grid lg:grid-cols-2 gap-6 mb-6">
           <ProfileInformation

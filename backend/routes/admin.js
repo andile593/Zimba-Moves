@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const providerController = require('../controllers/providerController');
+const paymentCardController = require('../controllers/paymentCardController')
 const { authenticate, authorize } = require('../middleware/auth');
 
 // All routes here → Admin only
@@ -26,5 +27,11 @@ router.get('/applications/pending', authenticate, authorize('ADMIN'), providerCo
 router.post('/providers/:id/review', authenticate, authorize('ADMIN'), providerController.reviewApplication);
 router.post('/providers/:id/inspection', authenticate, authorize('ADMIN'), providerController.scheduleInspection);
 router.post('/providers/:id/documents', authenticate, authorize('ADMIN'), providerController.requestDocuments);
+// In admin.js
+router.post(
+  "/providers/:providerId/payout",
+  authorize("ADMIN"),
+  paymentCardController.initiateProviderPayout
+);
 
 module.exports = router;
