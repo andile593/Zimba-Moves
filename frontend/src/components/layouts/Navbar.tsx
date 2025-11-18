@@ -40,17 +40,20 @@ export default function Navbar() {
     };
   }, [isOpen]);
 
-  const handleNavClick = (to: string, anchorId?: string) => {
-    if (window.location.pathname !== to) {
-      navigate(to, { state: { scrollTo: anchorId } });
-    } else if (anchorId) {
-      const el = document.getElementById(anchorId);
-      if (el) el.scrollIntoView({ behavior: "smooth" });
-    } else {
-      navigate(to);
-    }
-    if (isOpen) toggleMenu();
-  };
+ const handleNavClick = (to: string, anchorId?: string) => {
+  if (window.location.pathname !== to) {
+    navigate(to, { state: { scrollTo: anchorId } });
+  } else if (anchorId) {
+    const el = document.getElementById(anchorId);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  } else {
+    // Scroll to top if already on the same page and no anchor
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  if (isOpen) toggleMenu();
+};
+
 
   const sendWhatsAppMessage = () => {
     const phoneNumber = "27795750433"; 

@@ -6,7 +6,7 @@ export default function Reviews() {
       id: 1,
       rating: 5,
       title: "Highly Recommended!",
-      text: "The team arrived on time and handled everything carefully. Booking was super easy through ZimbaMoves.",
+      text: "The team arrived on time and handled everything carefully. Booking was super easy through Detravellers RSA.",
       author: "Sarah M., Lusaka",
     },
     {
