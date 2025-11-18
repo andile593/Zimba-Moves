@@ -1,14 +1,28 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useCreateComplaint } from "../../hooks/useComplaint";
 import toast from "react-hot-toast";
 import { ArrowLeft, AlertCircle } from "lucide-react";
 
+// Import from your actual auth service - adjust the path as needed
+import { authService } from "../../services/complaintApi";
+
 type IssueTarget = "PROVIDER" | "HELPER" | "OTHER";
+
+// Custom hook for authentication
+const useAuth = () => {
+  const [isAuthenticated] = useState(authService.isAuthenticated());
+  const user = authService.getCurrentUser();
+  
+  return {
+    isAuthenticated,
+    user
+  };
+};
 
 export default function ComplaintForm() {
   const { state } = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   const bookingId = state?.bookingId ?? "";
   const providerName = state?.providerName ?? "";
@@ -19,65 +33,56 @@ export default function ComplaintForm() {
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const { mutateAsync: createComplaint } = useCreateComplaint();
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
-    if (!bookingId || bookingId.trim() === "") {
-      toast.error("This form requires a booking ID. Please access it from your bookings page.");
-      console.error("❌ No bookingId found. State:", state);
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      toast.error("Please log in to submit a complaint.");
+      navigate("/login", { 
+        state: { 
+          from: "/complaint", 
+          returnState: state 
+        } 
+      });
       return;
     }
 
     if (!description.trim()) {
-      toast.error("Please describe your issue before submitting.");
+      toast.error("Please describe your issue.");
       return;
     }
 
-    if (description.trim().length < 10) {
-      toast.error("Please provide more details (at least 10 characters).");
+    if (description.length < 10) {
+      toast.error("Description must be at least 10 characters long.");
       return;
     }
 
     setSubmitting(true);
+
     try {
-      // Build the complaint data object - only include non-null values
-      const complaintData: any = {
-        bookingId: bookingId.trim(),
-        issueTarget,
-        description: description.trim(),
-      };
+      const to = "complaints@detravellers.co.za";
+      const subject = encodeURIComponent("New Complaint Submission");
 
-      // Only add plateNumber if it has a non-empty value
-      const trimmedPlate = plateNumber?.trim();
-      if (trimmedPlate) {
-        complaintData.plateNumber = trimmedPlate;
-      }
+      const bodyLines = [
+        bookingId && `Booking ID: ${bookingId}`,
+        providerName && `Provider Name: ${providerName}`,
+        plateNumber && `Vehicle Plate: ${plateNumber}`,
+        `Issue Target: ${issueTarget}`,
+        "",
+        `Message:\n${description}`,
+      ].filter(Boolean);
 
-      console.log("📤 Submitting complaint:", JSON.stringify(complaintData, null, 2));
-      console.log("📍 Current state:", JSON.stringify(state, null, 2));
+      const body = encodeURIComponent(bodyLines.join("\n"));
 
-      await createComplaint(complaintData);
-
-      toast.success("Complaint submitted successfully! We'll review it shortly.");
-      navigate("/bookings");
-    } catch (err: any) {
-      console.error("❌ Complaint submission failed:", err);
-      console.error("📋 Error response:", err.response?.data);
-      console.error("📊 Error status:", err.response?.status);
-      console.error("🔍 Full error:", err);
+      // ✅ This triggers the default mail app
+      window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
       
-      // Extract the most relevant error message
-      const errorMessage = 
-        err.response?.data?.details || 
-        err.response?.data?.error || 
-        err.response?.data?.message ||
-        err.message || 
-        "Failed to submit complaint. Please try again.";
+      toast.success("Opening email client to submit your complaint...");
       
-      toast.error(errorMessage);
+    } catch (error) {
+      console.error("Error preparing email:", error);
+      toast.error("Failed to prepare complaint email. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -104,6 +109,46 @@ export default function ComplaintForm() {
             >
               Go to My Bookings
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If user is not authenticated, show login prompt
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md bg-white shadow-lg rounded-2xl p-8 border border-red-200">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-red-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              Authentication Required
+            </h2>
+            <p className="text-gray-600 mb-6">
+              You need to be logged in to submit a complaint.
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={() => navigate("/login", { 
+                  state: { 
+                    from: "/complaint", 
+                    returnState: state 
+                  } 
+                })}
+                className="w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition"
+              >
+                Log In
+              </button>
+              <button
+                onClick={() => navigate("/bookings")}
+                className="w-full bg-gray-200 text-gray-700 font-semibold py-3 rounded-lg hover:bg-gray-300 transition"
+              >
+                Back to Bookings
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -248,7 +293,7 @@ export default function ComplaintForm() {
                 disabled={submitting || !description.trim() || description.length < 10}
                 className="flex-1 bg-green-600 text-white font-semibold py-3 rounded-xl hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
               >
-                {submitting ? "Submitting..." : "Submit Complaint"}
+                {submitting ? "Opening Email..." : "Submit Complaint"}
               </button>
             </div>
           </form>
