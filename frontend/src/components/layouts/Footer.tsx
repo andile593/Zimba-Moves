@@ -51,9 +51,19 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {/* Brand */}
         <div>
-          <Link to='/' className="text-xl font-bold text-gray-900">
-            Detravellers<span className="text-green-600"> RSA</span>
-          </Link>
+          {/* Logo Link */}
+          <button
+  onClick={() => {
+    if (window.location.pathname === "/") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      window.location.href = "/";
+    }
+  }}
+  className="text-xl font-bold text-gray-900"
+>
+  Detravellers<span className="text-green-600"> RSA</span>
+</button>
           <p className="italic text-sm mt-1 text-gray-500">Moving Made Simple</p>
           <p className="text-sm mt-3 text-gray-600 leading-relaxed">
             Detravellers is a marketplace connecting customers with trusted movers
@@ -70,9 +80,20 @@ export default function Footer() {
         {/* Quick Links */}
         <FooterSection title="Quick Links">
           <ul className="space-y-2">
-            <li><Link to="/" className="hover:text-green-600">Home</Link></li>
-            <li><Link to="/#how-it-works" className="hover:text-green-600">How It Works</Link></li>
-            <li><Link to="/providers" className="hover:text-green-600">For Providers</Link></li>
+           {/*  //Home Link*/}
+            <li><button
+          onClick={() => {
+            if (window.location.pathname === "/") {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            } else {
+              window.location.href = "/";
+            }
+          }}
+          className="hover:text-green-600"
+        >
+          Home
+          </button></li>
+            <li><Link to="/how-it-works" className="hover:text-green-600">How It Works</Link></li>
             <li><Link to="/search" className="hover:text-green-600">Request A Quote</Link></li>
             <li><Link to="/signup" className="hover:text-green-600">Sign Up / Login</Link></li>
             <li><Link to="/support" className="hover:text-green-600">Contact Us</Link></li>

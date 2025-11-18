@@ -73,7 +73,7 @@ Thank you!`;
 
   const navLinks: NavLink[] = [
     { label: "Home", to: "/" },
-    { label: "How it works", to: "/", anchor: "how-it-works" },
+    { label: "How it works", to: "/how-it-works",},
     {
       label: "For providers",
       to: "/provider",

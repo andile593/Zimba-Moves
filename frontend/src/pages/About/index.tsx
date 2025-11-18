@@ -50,7 +50,7 @@ export default function About() {
       <section className="bg-green-700 text-white py-16 px-6 text-center">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-semibold mb-8">
-            How Detravellers RSA Works
+            3 Simple Steps to Get Moving
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[

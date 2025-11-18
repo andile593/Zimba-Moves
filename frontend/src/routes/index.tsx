@@ -39,6 +39,7 @@ import About from "../pages/About/index";
 import AuthCallback from "../pages/Auth/AuthCallback";
 import BookingDetails from "@/pages/Provider/BookingDetails";
 import ProviderOverview from "@/pages/Provider/ProviderOverview";
+import HowItWorks from "../pages/HowItWorks/HowItWorks";
 
 export default function AppRoutes() {
   return (
@@ -58,6 +59,7 @@ export default function AppRoutes() {
         <Route path="/provider/:id" element={<ProviderDetail />} />
         <Route path="/complaint" element={<ComplaintForm />} />
         <Route path="/support" element={<ContactSupport />} />
+        <Route path="/how-it-works" element={<HowItWorks />} />
 
         {/* Protected routes that require authentication */}
         <Route element={<ProtectedRoute />}>

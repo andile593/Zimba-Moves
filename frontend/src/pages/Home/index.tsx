@@ -19,7 +19,8 @@ export default function Home() {
     <div className="flex flex-col min-h-screen w-full overflow-x-hidden">
       <HeroSection />
       <TopMovers />
-      <HowItWorks ref={howItWorksRef} />
+      {/*<HowItWorks ref={howItWorksRef} />*/}
+      <HowItWorks/>
       <Reviews />
     </div>
   );
