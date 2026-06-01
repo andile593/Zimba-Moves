@@ -112,8 +112,3 @@ npm run dev
 ```
  
 ---
-
-## Author
- 
-**Andile Mhlanga**
-[LinkedIn](https://linkedin.com/in/andile-mhlanga-370985316) · [GitHub](https://github.com/andile593)
